@@ -23,6 +23,7 @@
 # misc
 .DS_Store
 *.pem
+buildkit.toml
 
 # debug
 npm-debug.log*
@@ -31,6 +32,11 @@ yarn-error.log*
 .pnpm-debug.log*
 
 # env files (can opt-in for committing if needed)
+scripts/.env
+scripts/build.env
+scripts/deploy.env
+build.env
+deploy.env
 .env*
 
 # vercel
@@ -39,3 +45,12 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# AI
+.claude/
+.anthropic/
+.kilo/
+.qodo/
+
+#other
+/mdfile/

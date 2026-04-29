@@ -1,5 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
+import TopAppBar from "@/components/TopAppBar";
 
 // Event Details as Admin
 export default function EventDetailAdminPage() {
@@ -27,62 +28,33 @@ export default function EventDetailAdminPage() {
   return (
     <div className="min-h-screen bg-white max-w-[448px] mx-auto relative flex flex-col">
       {/* Header */}
-      <header
-        className="fixed top-0 left-0 right-0 z-50 max-w-[448px] mx-auto w-full"
-        style={{
-          background: "#FFFFFF",
-          borderBottom: "1px solid #F4F4F5",
-        }}
-      >
-        <div className="flex items-center justify-between px-6 py-4">
-          <div className="flex items-center gap-4">
-            <Link
-              href="/clubs/1/admin"
-              className="flex items-center justify-center"
+      <TopAppBar
+        showBack
+        backHref="/clubs/1/admin"
+        title="Event Details"
+        showSettings={false}
+        rightAction={
+          <Link
+            href="/events/1/edit"
+            className="flex items-center justify-center w-9 h-9 rounded-full"
+            style={{ background: "#F4F4F5" }}
+          >
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
             >
-              <svg
-                width="20"
-                height="20"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <path d="M19 12H5M12 19l-7-7 7-7" />
-              </svg>
-            </Link>
-            <span
-              className="text-base text-[#151C27]"
-              style={{ lineHeight: "24px", letterSpacing: "-2.5%" }}
-            >
-              Event Details
-            </span>
-          </div>
-          <div className="flex items-center gap-2">
-            <Link
-              href="/events/1/edit"
-              className="flex items-center justify-center w-9 h-9 rounded-full"
-              style={{ background: "#F4F4F5" }}
-            >
-              <svg
-                width="16"
-                height="16"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
-                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
-              </svg>
-            </Link>
-          </div>
-        </div>
-      </header>
+              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+              <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+            </svg>
+          </Link>
+        }
+      />
 
       {/* Main Content */}
       <main

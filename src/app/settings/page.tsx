@@ -1,4 +1,5 @@
 import Link from "next/link";
+import LogoutButton from "@/components/LogoutButton";
 
 export default function SettingsPage() {
   return (
@@ -165,31 +166,7 @@ export default function SettingsPage() {
 
         {/* Logout Section */}
         <section className="flex flex-col gap-4 pt-10 pb-32">
-          <button
-            className="w-full flex items-center justify-center gap-2 py-4 rounded-full border-2"
-            style={{
-              background: "rgba(186, 26, 26, 0.05)",
-              borderColor: "rgba(186, 26, 26, 0.1)",
-            }}
-          >
-            <svg
-              width="20"
-              height="20"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="#BA1A1A"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
-              <polyline points="16 17 21 12 16 7" />
-              <line x1="21" x2="9" y1="12" y2="12" />
-            </svg>
-            <span className="text-base font-normal text-[#BA1A1A]">
-              Log Out
-            </span>
-          </button>
+          <LogoutButton />
 
           <div className="text-center opacity-60">
             <span className="text-base text-[#717A68]">

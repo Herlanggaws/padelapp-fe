@@ -1,7 +1,7 @@
 "use client";
 
-import Link from "next/link";
 import { useState } from "react";
+import TopAppBar from "@/components/TopAppBar";
 
 // Event Form - Create Event
 export default function EventFormPage() {
@@ -11,50 +11,25 @@ export default function EventFormPage() {
   return (
     <div className="min-h-screen bg-white max-w-[448px] mx-auto relative flex flex-col">
       {/* Top App Bar */}
-      <header
-        className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-4 max-w-[448px] mx-auto w-full"
-        style={{
-          height: "64px",
-          background: "#FFFFFF",
-          borderBottom: "1px solid #F4F4F5",
-        }}
-      >
-        <Link href="/dashboard" className="p-2 rounded-full">
-          <svg
-            width="20"
-            height="20"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
+      <TopAppBar
+        showBack
+        backHref="/dashboard"
+        title="Create Event"
+        showSettings={false}
+        rightAction={
+          <div
+            className="flex items-center px-3 py-1 rounded-full"
+            style={{ background: "#E2E8F8" }}
           >
-            <path d="M19 12H5M12 19l-7-7 7-7" />
-          </svg>
-        </Link>
-
-        <div className="pl-2">
-          <span
-            className="text-lg text-[#151C27]"
-            style={{ lineHeight: "28px", letterSpacing: "-2.5%" }}
-          >
-            Create Event
-          </span>
-        </div>
-
-        <div
-          className="flex items-center px-3 py-1 rounded-full"
-          style={{ background: "#E2E8F8" }}
-        >
-          <span
-            className="text-xs font-semibold text-[#41493A]"
-            style={{ lineHeight: "12px" }}
-          >
-            Step 2 of 3
-          </span>
-        </div>
-      </header>
+            <span
+              className="text-xs font-semibold text-[#41493A]"
+              style={{ lineHeight: "12px" }}
+            >
+              Step 2 of 3
+            </span>
+          </div>
+        }
+      />
 
       <main
         className="flex flex-col gap-6 pb-32"

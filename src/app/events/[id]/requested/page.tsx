@@ -1,41 +1,17 @@
 import Image from "next/image";
-import Link from "next/link";
+import TopAppBar from "@/components/TopAppBar";
 
 // Event Detail - Requested State (user already requested to join)
 export default function EventDetailRequestedPage() {
   return (
     <div className="min-h-screen bg-white max-w-[448px] mx-auto relative flex flex-col">
       {/* Header */}
-      <header
-        className="fixed top-0 left-0 right-0 z-50 max-w-[448px] mx-auto w-full"
-        style={{
-          background: "#FFFFFF",
-          borderBottom: "1px solid #F4F4F5",
-        }}
-      >
-        <div className="flex items-center justify-between px-6 py-4">
-          <div className="flex items-center gap-4">
-            <Link href="/clubs/1" className="flex items-center justify-center">
-              <svg
-                width="20"
-                height="20"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <path d="M19 12H5M12 19l-7-7 7-7" />
-              </svg>
-            </Link>
-            <span
-              className="text-base text-[#151C27]"
-              style={{ lineHeight: "24px", letterSpacing: "-2.5%" }}
-            >
-              Event Details
-            </span>
-          </div>
+      <TopAppBar
+        showBack
+        backHref="/clubs/1"
+        title="Event Details"
+        showSettings={false}
+        rightAction={
           <button className="flex items-center justify-center">
             <svg
               width="20"
@@ -52,8 +28,8 @@ export default function EventDetailRequestedPage() {
               <circle cx="5" cy="12" r="1" />
             </svg>
           </button>
-        </div>
-      </header>
+        }
+      />
 
       {/* Main Content */}
       <main

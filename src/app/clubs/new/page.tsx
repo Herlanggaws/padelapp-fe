@@ -1,54 +1,32 @@
 import Link from "next/link";
+import TopAppBar from "@/components/TopAppBar";
 
 // Club Form - Create Club
 export default function ClubFormPage() {
   return (
     <div className="min-h-screen bg-white max-w-[448px] mx-auto relative">
       {/* Top App Bar */}
-      <header
-        className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-6 max-w-[448px] mx-auto w-full"
-        style={{
-          height: "64px",
-          background: "#FFFFFF",
-          borderBottom: "1px solid #F4F4F5",
-        }}
-      >
-        <div className="flex items-center gap-4">
-          <Link href="/dashboard" className="flex items-center justify-center">
+      <TopAppBar
+        showBack
+        backHref="/dashboard"
+        title="Club Management"
+        showSettings={false}
+        rightAction={
+          <button className="flex items-center justify-center">
             <svg
-              width="20"
-              height="20"
-              viewBox="0 0 24 24"
+              width="4"
+              height="16"
+              viewBox="0 0 4 16"
               fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
+              xmlns="http://www.w3.org/2000/svg"
             >
-              <path d="M19 12H5M12 19l-7-7 7-7" />
+              <circle cx="2" cy="2" r="2" fill="#18181B" />
+              <circle cx="2" cy="8" r="2" fill="#18181B" />
+              <circle cx="2" cy="14" r="2" fill="#18181B" />
             </svg>
-          </Link>
-          <span
-            className="font-semibold text-base text-[#18181B]"
-            style={{ lineHeight: "24px", letterSpacing: "-2.5%" }}
-          >
-            Club Management
-          </span>
-        </div>
-        <button className="flex items-center justify-center">
-          <svg
-            width="4"
-            height="16"
-            viewBox="0 0 4 16"
-            fill="none"
-            xmlns="http://www.w3.org/2000/svg"
-          >
-            <circle cx="2" cy="2" r="2" fill="#18181B" />
-            <circle cx="2" cy="8" r="2" fill="#18181B" />
-            <circle cx="2" cy="14" r="2" fill="#18181B" />
-          </svg>
-        </button>
-      </header>
+          </button>
+        }
+      />
 
       <main
         className="flex flex-col gap-10 px-4 pb-10"

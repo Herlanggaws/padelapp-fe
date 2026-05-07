@@ -6,9 +6,11 @@ import CoverPhotoUpload from "@/components/CoverPhotoUpload";
 import LogoUpload from "@/components/LogoUpload";
 import { createClub } from "@/services/clubService";
 import type { CreateClubErrorResponse } from "@/types/club";
+import { useSnackbar } from "@/context/SnackbarContext";
 
 export default function ClubFormClient() {
   const router = useRouter();
+  const { showSnackbar } = useSnackbar();
   const [coverUrl, setCoverUrl] = useState<string | null>(null);
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
   const [name, setName] = useState("");
@@ -33,7 +35,7 @@ export default function ClubFormClient() {
         cover_photo: coverUrl ?? undefined,
         logo: logoUrl ?? undefined,
       });
-      sessionStorage.setItem("snackbar_message", "Club created successfully");
+      showSnackbar("Club created successfully");
       router.push("/dashboard");
     } catch (err) {
       const error = err as CreateClubErrorResponse;

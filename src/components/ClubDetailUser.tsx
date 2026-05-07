@@ -4,26 +4,46 @@ import Image from "next/image";
 import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import ClubPopupMenu from "@/components/ClubPopupMenu";
+import ClubMembersBottomSheet from "@/components/ClubMembersBottomSheet";
 import TopAppBar from "@/components/TopAppBar";
-import SnackBar from "@/components/SnackBar";
-import { fetchClubDetail, joinClub, fetchClubMembers } from "@/services/clubService";
-import type { Club, ClubMember, JoinClubErrorResponse } from "@/types/club";
+import { useSnackbar } from "@/context/SnackbarContext";
+import {
+  fetchClubDetail,
+  joinClub,
+  leaveClub,
+  fetchClubMembers,
+} from "@/services/clubService";
+import type {
+  Club,
+  ClubMember,
+  JoinClubErrorResponse,
+  LeaveClubErrorResponse,
+} from "@/types/club";
 
 export default function ClubDetailUser() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
+  const { showSnackbar } = useSnackbar();
   const [club, setClub] = useState<Club | null>(null);
   const [members, setMembers] = useState<ClubMember[]>([]);
+  const [totalMembers, setTotalMembers] = useState(0);
   const [membersLoading, setMembersLoading] = useState(true);
   const [showBottomSheet, setShowBottomSheet] = useState(false);
+  const [showMembersSheet, setShowMembersSheet] = useState(false);
   const [isJoining, setIsJoining] = useState(false);
-  const [snackbar, setSnackbar] = useState<string | null>(null);
+  const [isLeaving, setIsLeaving] = useState(false);
+  const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
 
   const loadMembers = async (clubGuid: string) => {
     setMembersLoading(true);
     try {
-      const res = await fetchClubMembers({ club_guid: clubGuid });
+      const res = await fetchClubMembers({
+        club_guid: clubGuid,
+        limit: 5,
+        page: 1,
+      });
       setMembers(res.data);
+      setTotalMembers(res.paginate.total_data);
     } catch {
       setMembers([]);
     } finally {
@@ -32,18 +52,35 @@ export default function ClubDetailUser() {
   };
 
   const handleJoin = async () => {
-    if (!club || club.is_member) return;
+    if (!club || club.is_joined) return;
     setIsJoining(true);
     try {
       await joinClub(club.guid);
-      setClub((prev) => prev ? { ...prev, is_member: true } : prev);
-      setSnackbar("Successfully joined club");
+      setClub((prev) => (prev ? { ...prev, is_joined: true } : prev));
+      showSnackbar("Successfully joined club");
       loadMembers(club.guid);
     } catch (err) {
       const e = err as JoinClubErrorResponse;
-      setSnackbar(e?.message ?? "Failed to join club.");
+      showSnackbar(e?.message ?? "Failed to join club.");
     } finally {
       setIsJoining(false);
+    }
+  };
+
+  const handleLeave = async () => {
+    if (!club) return;
+    setIsLeaving(true);
+    try {
+      await leaveClub(club.guid);
+      setClub((prev) => (prev ? { ...prev, is_joined: false } : prev));
+      showSnackbar("Successfully left the club");
+      loadMembers(club.guid);
+    } catch (err) {
+      const e = err as LeaveClubErrorResponse;
+      showSnackbar(e?.message ?? "Failed to leave club.");
+    } finally {
+      setIsLeaving(false);
+      setShowLeaveConfirm(false);
     }
   };
 
@@ -66,24 +103,6 @@ export default function ClubDetailUser() {
         title={club.name}
         showSettings={false}
         transparent
-        rightAction={
-          <button className="p-2">
-            <svg
-              width="20"
-              height="20"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <circle cx="12" cy="12" r="1" />
-              <circle cx="19" cy="12" r="1" />
-              <circle cx="5" cy="12" r="1" />
-            </svg>
-          </button>
-        }
       />
 
       <main className="flex flex-col pb-10 pt-14">
@@ -155,10 +174,15 @@ export default function ClubDetailUser() {
           </p>
 
           <div className="flex justify-center pt-2">
-            {club.is_member ? (
-              <div className="w-full py-3 rounded-full bg-[#F4F4F5] flex items-center justify-center">
-                <span className="text-base text-[#A1A1AA]">Joined</span>
-              </div>
+            {club.is_joined ? (
+              <button
+                onClick={() => setShowLeaveConfirm(true)}
+                disabled={isLeaving}
+                className="w-full py-3 rounded-full text-base font-normal text-[#EF4444] bg-[#FEF2F2] disabled:opacity-50 disabled:cursor-not-allowed"
+                style={{ lineHeight: "24px" }}
+              >
+                {isLeaving ? "Leaving..." : "Leave"}
+              </button>
             ) : (
               <button
                 onClick={handleJoin}
@@ -182,19 +206,25 @@ export default function ClubDetailUser() {
               >
                 Club Members
               </h3>
-              <button
-                className="text-xs font-semibold text-[#2F6C00]"
-                style={{ lineHeight: "12px" }}
-              >
-                See all
-              </button>
+              {totalMembers > 5 && (
+                <button
+                  className="text-xs font-semibold text-[#2F6C00]"
+                  style={{ lineHeight: "12px" }}
+                  onClick={() => setShowMembersSheet(true)}
+                >
+                  See all
+                </button>
+              )}
             </div>
 
             <div className="w-full overflow-hidden">
               <div className="flex gap-2 md:gap-3 px-6 overflow-auto scrollbar-hide [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
                 {membersLoading
                   ? Array.from({ length: 5 }).map((_, i) => (
-                      <div key={i} className="flex flex-col items-center gap-2 px-1 animate-pulse">
+                      <div
+                        key={i}
+                        className="flex flex-col items-center gap-2 px-1 animate-pulse"
+                      >
                         <div className="w-16 h-16 rounded-full bg-[#F4F4F5]" />
                         <div className="w-10 h-3 rounded bg-[#F4F4F5]" />
                       </div>
@@ -233,14 +263,14 @@ export default function ClubDetailUser() {
         )}
 
         {/* Upcoming Activities Section */}
-        <div className="flex flex-col gap-6 px-6 mt-6">
+        <div className="flex flex-col gap-4 px-6 mt-8">
           <h3 className="text-xl text-[#151C27]" style={{ lineHeight: "26px" }}>
             Upcoming Activities
           </h3>
 
           <div className="flex flex-col gap-4">
             {/* Featured Activity Card */}
-            <div
+            {/* <div
               className="flex flex-col gap-4 p-5 rounded-2xl"
               style={{
                 background: "#9FE870",
@@ -344,7 +374,7 @@ export default function ClubDetailUser() {
               >
                 Join Tournament
               </button>
-            </div>
+            </div> */}
 
             {/* Activity Card 2 */}
             <div
@@ -487,36 +517,76 @@ export default function ClubDetailUser() {
         </div>
 
         {/* FAB Button */}
-        <div className="fixed bottom-4 right-4 max-w-[448px] mx-auto">
-          <button
-            className="w-14 h-14 rounded-full flex items-center justify-center"
-            style={{ background: "#9FE870" }}
-            onClick={() => setShowBottomSheet(true)}
-          >
-            <svg
-              width="24"
-              height="24"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="#121212"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
+        {club.is_joined && (
+          <div className="fixed bottom-4 right-4 max-w-[448px] mx-auto">
+            <button
+              className="w-14 h-14 rounded-full flex items-center justify-center"
+              style={{ background: "#9FE870" }}
+              onClick={() => setShowBottomSheet(true)}
             >
-              <circle cx="12" cy="12" r="10" />
-              <path d="M12 8v8M8 12h8" />
-            </svg>
-          </button>
-        </div>
+              <svg
+                width="24"
+                height="24"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="#121212"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <circle cx="12" cy="12" r="10" />
+                <path d="M12 8v8M8 12h8" />
+              </svg>
+            </button>
+          </div>
+        )}
       </main>
 
       {/* Bottom Sheet Overlay */}
       {showBottomSheet && (
-        <ClubPopupMenu onClose={() => setShowBottomSheet(false)} />
+        <ClubPopupMenu
+          onClose={() => setShowBottomSheet(false)}
+          clubGuid={club.guid}
+          clubId={id}
+        />
       )}
 
-      {snackbar && (
-        <SnackBar message={snackbar} onClose={() => setSnackbar(null)} />
+      {/* Club Members Bottom Sheet */}
+      {showMembersSheet && (
+        <ClubMembersBottomSheet
+          clubGuid={club.guid}
+          onClose={() => setShowMembersSheet(false)}
+        />
+      )}
+
+      {/* Leave Confirmation Dialog */}
+      {showLeaveConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-6">
+          <div className="w-full max-w-sm bg-white rounded-2xl p-6 flex flex-col gap-4">
+            <h3 className="text-lg font-semibold text-[#151C27]">Leave Club</h3>
+            <p className="text-sm text-[#41493A]">
+              Are you sure you want to leave{" "}
+              <span className="font-semibold">{club.name}</span>? You can rejoin
+              later.
+            </p>
+            <div className="flex gap-3 mt-2">
+              <button
+                onClick={() => setShowLeaveConfirm(false)}
+                disabled={isLeaving}
+                className="flex-1 py-3 rounded-full text-base text-[#18181B] bg-[#F4F4F5] disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleLeave}
+                disabled={isLeaving}
+                className="flex-1 py-3 rounded-full text-base text-white bg-[#EF4444] disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isLeaving ? "Leaving..." : "Leave"}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

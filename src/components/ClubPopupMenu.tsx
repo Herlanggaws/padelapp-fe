@@ -5,9 +5,11 @@ import { useEffect, useState } from "react";
 
 interface ClubPopupMenuProps {
   onClose: () => void;
+  clubGuid: string;
+  clubId: string;
 }
 
-export default function ClubPopupMenu({ onClose }: ClubPopupMenuProps) {
+export default function ClubPopupMenu({ onClose, clubGuid, clubId }: ClubPopupMenuProps) {
   const [visible, setVisible] = useState(false);
 
   useEffect(() => {
@@ -113,7 +115,7 @@ export default function ClubPopupMenu({ onClose }: ClubPopupMenuProps) {
 
           {/* Create Event */}
           <Link
-            href="/events/new"
+            href={`/events/new?club_guid=${clubGuid}&club_id=${clubId}`}
             className="flex items-center gap-4 p-4 rounded-2xl"
             style={{ background: "transparent" }}
           >

@@ -2,36 +2,14 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { useEffect, useState } from "react";
 import TopAppBar from "@/components/TopAppBar";
 import BottomNavBar from "@/components/BottomNavBar";
-import SnackBar from "@/components/SnackBar";
 
 export default function DashboardClient() {
-  const [snackMessage, setSnackMessage] = useState<string | null>(null);
-
-  useEffect(() => {
-    const message = sessionStorage.getItem("snackbar_message");
-    if (message) {
-      // Use a timer so setState is called asynchronously, not synchronously in the effect body
-      const timer = setTimeout(() => {
-        setSnackMessage(message);
-        sessionStorage.removeItem("snackbar_message");
-      }, 0);
-      return () => clearTimeout(timer);
-    }
-  }, []);
 
   return (
     <div className="min-h-screen bg-white max-w-[448px] mx-auto relative">
       <TopAppBar showNotification={true} />
-
-      {snackMessage && (
-        <SnackBar
-          message={snackMessage}
-          onClose={() => setSnackMessage(null)}
-        />
-      )}
 
       <main className="flex flex-col gap-10 pt-24 pb-36">
         {/* Welcome Header */}

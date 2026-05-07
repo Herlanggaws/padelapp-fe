@@ -11,10 +11,16 @@ export default function LogoutButton() {
   const handleLogout = async () => {
     setIsLoading(true);
     try {
-      await logoutUser();
-      // Clear the auth cookie
+      const accessToken = document.cookie
+        .split("; ")
+        .find((row) => row.startsWith("access_token="))
+        ?.split("=")[1] ?? "";
+
+      await logoutUser(accessToken);
       document.cookie =
         "access_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax";
+      document.cookie =
+        "refresh_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax";
       router.push("/login");
     } finally {
       setIsLoading(false);

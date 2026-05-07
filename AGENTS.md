@@ -29,3 +29,25 @@ All API calls must be placed in `src/services/` — never inline fetch calls ins
   ```
 - **No side effects** — service functions must be pure async functions. They must not call `localStorage`, `sessionStorage`, `router.push`, or any React hook. Those concerns belong in the component that calls the service.
 - **Naming** — service functions should be named with a verb + noun pattern (e.g., `registerUser`, `loginUser`, `fetchClubs`).
+
+## Form Submission Rules
+
+- **Loading state** — every form must track a boolean `isSubmitting` state (via `useState`). Set it to `true` before the async call and back to `false` in a `finally` block.
+- **Disable on submit** — the submit button must have `disabled={isSubmitting}` to prevent duplicate submissions. Apply `disabled:opacity-50 disabled:cursor-not-allowed` classes for visual feedback.
+
+## Type Declaration Rules
+
+All TypeScript `interface` and `type` declarations must live in `src/types/` — never inline them inside service files or components.
+
+### Conventions
+
+- **One file per module** — group related types in a single file named after the domain (e.g., `src/types/auth.ts`, `src/types/storage.ts`).
+- **Import types from `@/types/`** — service files and components must import their types from the corresponding `src/types/` file, not declare them locally.
+  ```ts
+  // service file
+  import type { LoginPayload, LoginSuccessResponse } from "@/types/auth";
+
+  // component file
+  import type { LoginErrorResponse } from "@/types/auth";
+  ```
+- **Re-export from service when needed** — if consumers currently import a type via the service path, the service may re-export it from `@/types/` for backwards compatibility, but the source of truth is always `src/types/`.

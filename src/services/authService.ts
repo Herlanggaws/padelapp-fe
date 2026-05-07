@@ -1,49 +1,149 @@
+import type {
+  RefreshTokenPayload,
+  RefreshTokenSuccessResponse,
+  RefreshTokenErrorResponse,
+  LoginPayload,
+  LoginSuccessResponse,
+  LoginErrorResponse,
+  LogoutSuccessResponse,
+  LogoutErrorResponse,
+  RegisterPayload,
+  RegisterSuccessResponse,
+  RegisterErrorResponse,
+} from "@/types/auth";
+
+export type {
+  RefreshTokenPayload,
+  RefreshTokenSuccessResponse,
+  RefreshTokenErrorResponse,
+  LoginPayload,
+  LoginSuccessResponse,
+  LoginErrorResponse,
+  LogoutSuccessResponse,
+  LogoutErrorResponse,
+  RegisterPayload,
+  RegisterSuccessResponse,
+  RegisterErrorResponse,
+};
+
 const BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
 
-export interface RegisterPayload {
-  name: string;
-  email: string;
-  password: string;
-  user_agent: string;
+function getCookie(name: string): string {
+  if (typeof document === "undefined") return "";
+  return (
+    document.cookie
+      .split("; ")
+      .find((row) => row.startsWith(`${name}=`))
+      ?.split("=")[1] ?? ""
+  );
 }
 
-export interface RegisterErrorResponse {
-  error: Record<string, string>;
-  message: string;
+function setCookie(name: string, value: string) {
+  document.cookie = `${name}=${value}; path=/; SameSite=Lax`;
 }
 
-export interface RegisterSuccessData {
-  access_token: string;
-  access_token_expired_at: string;
-  refresh_token: string;
-  refresh_token_expired_at: string;
+let isRefreshing = false;
+let refreshQueue: Array<{
+  resolve: (token: string) => void;
+  reject: (err: unknown) => void;
+}> = [];
+
+function forceLogout() {
+  document.cookie =
+    "access_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax";
+  document.cookie =
+    "refresh_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax";
+  window.location.href = "/login";
 }
 
-export interface RegisterSuccessResponse {
-  data: RegisterSuccessData;
-  message: string;
+async function attemptTokenRefresh(): Promise<string> {
+  const refreshToken = getCookie("refresh_token");
+  if (!refreshToken) {
+    forceLogout();
+    throw new Error("No refresh token available");
+  }
+
+  const response = await fetch(`${BASE_URL}/auth/refresh-token`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ refresh_token: refreshToken }),
+  });
+
+  if (!response.ok) {
+    forceLogout();
+    throw new Error("Refresh token invalid or expired");
+  }
+
+  const result: RefreshTokenSuccessResponse = await response.json();
+  setCookie("access_token", result.data.access_token);
+  setCookie("refresh_token", result.data.refresh_token);
+
+  return result.data.access_token;
 }
 
-export interface LoginPayload {
-  email: string;
-  password: string;
-  user_agent: string;
+export async function fetchWithAuth(
+  url: string,
+  options: RequestInit = {},
+): Promise<Response> {
+  const accessToken = getCookie("access_token");
+
+  const doFetch = (token: string) =>
+    fetch(url, {
+      ...options,
+      headers: {
+        ...options.headers,
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+  const response = await doFetch(accessToken);
+
+  if (response.status !== 401) {
+    return response;
+  }
+
+  if (isRefreshing) {
+    return new Promise((resolve, reject) => {
+      refreshQueue.push({
+        resolve: (newToken) => resolve(doFetch(newToken)),
+        reject,
+      });
+    });
+  }
+
+  isRefreshing = true;
+  try {
+    const newToken = await attemptTokenRefresh();
+    refreshQueue.forEach(({ resolve }) => resolve(newToken));
+    refreshQueue = [];
+    return doFetch(newToken);
+  } catch (err) {
+    refreshQueue.forEach(({ reject }) => reject(err));
+    refreshQueue = [];
+    throw err;
+  } finally {
+    isRefreshing = false;
+  }
 }
 
-export interface LoginSuccessData {
-  access_token: string;
-  access_token_expired_at: string;
-  refresh_token: string;
-  refresh_token_expired_at: string;
-}
+export async function refreshAccessToken(
+  payload: RefreshTokenPayload,
+): Promise<RefreshTokenSuccessResponse> {
+  const response = await fetch(`${BASE_URL}/auth/refresh-token`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(payload),
+  });
 
-export interface LoginSuccessResponse {
-  data: LoginSuccessData;
-  message: string;
-}
+  const data = await response.json();
 
-export interface LoginErrorResponse {
-  message: string;
+  if (!response.ok) {
+    throw data as RefreshTokenErrorResponse;
+  }
+
+  return data as RefreshTokenSuccessResponse;
 }
 
 export async function loginUser(
@@ -66,11 +166,22 @@ export async function loginUser(
   return data as LoginSuccessResponse;
 }
 
-export async function logoutUser(): Promise<void> {
-  // Clear localStorage
-  if (typeof window !== "undefined") {
-    localStorage.removeItem("access_token");
+export async function logoutUser(accessToken: string): Promise<LogoutSuccessResponse> {
+  const response = await fetch(`${BASE_URL}/auth/logout`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${accessToken}`,
+    },
+  });
+
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw data as LogoutErrorResponse;
   }
+
+  return data as LogoutSuccessResponse;
 }
 
 export async function registerUser(

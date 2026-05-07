@@ -4,7 +4,8 @@ import Link from "next/link";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Modal from "@/components/Modal";
-import { loginUser, LoginErrorResponse } from "@/services/authService";
+import { loginUser } from "@/services/authService";
+import type { LoginErrorResponse } from "@/types/auth";
 
 interface FieldErrors {
   email?: string;
@@ -52,9 +53,8 @@ export default function LoginForm() {
         user_agent: "WebApp",
       });
 
-      localStorage.setItem("access_token", result.data.access_token);
-      // Set cookie for server-side auth checks (proxy)
       document.cookie = `access_token=${result.data.access_token}; path=/; SameSite=Lax`;
+      document.cookie = `refresh_token=${result.data.refresh_token}; path=/; SameSite=Lax`;
       sessionStorage.setItem("snackbar_message", "Welcome back!");
       router.push("/dashboard");
     } catch (err) {

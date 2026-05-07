@@ -4,7 +4,8 @@ import Link from "next/link";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Modal from "@/components/Modal";
-import { registerUser, RegisterErrorResponse } from "@/services/authService";
+import { registerUser } from "@/services/authService";
+import type { RegisterErrorResponse } from "@/types/auth";
 
 interface FieldErrors {
   name?: string;
@@ -88,8 +89,6 @@ export default function RegisterForm() {
         user_agent: "WebApp",
       });
 
-      // Store access token and redirect to dashboard
-      localStorage.setItem("access_token", result.data.access_token);
       // Set cookie for server-side auth checks (proxy)
       document.cookie = `access_token=${result.data.access_token}; path=/; SameSite=Lax`;
       sessionStorage.setItem(

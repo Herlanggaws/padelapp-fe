@@ -62,7 +62,7 @@ export default function TopAppBar({
           </span>
         ) : (
           <span className="font-black text-2xl tracking-tight text-[#18181B]">
-            PADEL
+            RALLYRANK
           </span>
         )}
       </div>

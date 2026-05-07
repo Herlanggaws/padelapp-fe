@@ -1,27 +1,73 @@
 "use client";
 
 import Image from "next/image";
-import Link from "next/link";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useParams, useRouter } from "next/navigation";
 import ClubPopupMenu from "@/components/ClubPopupMenu";
+import TopAppBar from "@/components/TopAppBar";
+import SnackBar from "@/components/SnackBar";
+import { fetchClubDetail, joinClub, fetchClubMembers } from "@/services/clubService";
+import type { Club, ClubMember, JoinClubErrorResponse } from "@/types/club";
 
 export default function ClubDetailUser() {
+  const { id } = useParams<{ id: string }>();
+  const router = useRouter();
+  const [club, setClub] = useState<Club | null>(null);
+  const [members, setMembers] = useState<ClubMember[]>([]);
+  const [membersLoading, setMembersLoading] = useState(true);
   const [showBottomSheet, setShowBottomSheet] = useState(false);
+  const [isJoining, setIsJoining] = useState(false);
+  const [snackbar, setSnackbar] = useState<string | null>(null);
+
+  const loadMembers = async (clubGuid: string) => {
+    setMembersLoading(true);
+    try {
+      const res = await fetchClubMembers({ club_guid: clubGuid });
+      setMembers(res.data);
+    } catch {
+      setMembers([]);
+    } finally {
+      setMembersLoading(false);
+    }
+  };
+
+  const handleJoin = async () => {
+    if (!club || club.is_member) return;
+    setIsJoining(true);
+    try {
+      await joinClub(club.guid);
+      setClub((prev) => prev ? { ...prev, is_member: true } : prev);
+      setSnackbar("Successfully joined club");
+      loadMembers(club.guid);
+    } catch (err) {
+      const e = err as JoinClubErrorResponse;
+      setSnackbar(e?.message ?? "Failed to join club.");
+    } finally {
+      setIsJoining(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchClubDetail(id)
+      .then((res) => {
+        setClub(res.data);
+        loadMembers(res.data.guid);
+      })
+      .catch(() => router.replace("/not-found"));
+  }, [id, router]);
+
+  if (!club) return null;
 
   return (
     <div className="min-h-screen bg-white max-w-[448px] mx-auto relative">
-      {/* Top App Bar */}
-      <header
-        className="fixed top-0 right-0 left-0 z-50 flex items-center justify-between px-4 py-3 max-w-[448px] mx-auto w-full"
-        style={{
-          background: "rgba(255,255,255,0.8)",
-          backdropFilter: "blur(12px)",
-          borderBottom: "1px solid #F4F4F5",
-          boxShadow: "0px 1px 2px 0px rgba(0,0,0,0.05)",
-        }}
-      >
-        <div className="flex items-center gap-4">
-          <Link href="/dashboard" className="rounded-full">
+      <TopAppBar
+        showBack
+        backHref="/clubs"
+        title={club.name}
+        showSettings={false}
+        transparent
+        rightAction={
+          <button className="p-2">
             <svg
               width="20"
               height="20"
@@ -32,56 +78,40 @@ export default function ClubDetailUser() {
               strokeLinecap="round"
               strokeLinejoin="round"
             >
-              <path d="M19 12H5M12 19l-7-7 7-7" />
+              <circle cx="12" cy="12" r="1" />
+              <circle cx="19" cy="12" r="1" />
+              <circle cx="5" cy="12" r="1" />
             </svg>
-          </Link>
-          <span
-            className="font-black text-xl text-[#18181B]"
-            style={{ letterSpacing: "-5%" }}
-          >
-            PadelPro
-          </span>
-        </div>
-        <button className="p-2">
-          <svg
-            width="20"
-            height="20"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
-            <circle cx="12" cy="12" r="1" />
-            <circle cx="19" cy="12" r="1" />
-            <circle cx="5" cy="12" r="1" />
-          </svg>
-        </button>
-      </header>
+          </button>
+        }
+      />
 
       <main className="flex flex-col pb-10 pt-14">
         {/* Hero Section */}
         <div className="relative w-full h-[280px]">
-          <Image
-            src="https://picsum.photos/seed/smashclub/672/280"
-            alt="Club Cover"
-            fill
-            className="object-cover"
-          />
-          {/* Club Logo */}
-          <div
-            className="absolute left-6 bottom-[-48px] w-24 h-24 rounded-full border-4 border-white overflow-hidden"
-            style={{ boxShadow: "0px 1px 2px 0px rgba(0,0,0,0.05)" }}
-          >
+          {club.cover_photo && (
             <Image
-              src="https://picsum.photos/seed/clublogo/96/96"
-              alt="Club Logo"
-              width={96}
-              height={96}
-              className="w-full h-full object-cover"
+              src={club.cover_photo}
+              alt="Club Cover"
+              fill
+              className="object-cover"
             />
-          </div>
+          )}
+          {/* Club Logo */}
+          {club.logo && (
+            <div
+              className="absolute left-6 -bottom-12 w-24 h-24 rounded-full border-4 border-white overflow-hidden"
+              style={{ boxShadow: "0px 1px 2px 0px rgba(0,0,0,0.05)" }}
+            >
+              <Image
+                src={club.logo}
+                alt="Club Logo"
+                width={96}
+                height={96}
+                className="w-full h-full object-cover"
+              />
+            </div>
+          )}
         </div>
 
         {/* Club Info Section */}
@@ -92,10 +122,10 @@ export default function ClubDetailUser() {
                 className="font-semibold text-[28px] text-[#151C27]"
                 style={{ lineHeight: "33.6px", letterSpacing: "-1%" }}
               >
-                The Smash Arena
+                {club.name}
               </h2>
             </div>
-            <div className="flex items-center gap-1">
+            {/* <div className="flex items-center gap-1">
               <svg
                 width="12"
                 height="15"
@@ -114,87 +144,93 @@ export default function ClubDetailUser() {
               >
                 District 4, Barcelona
               </span>
-            </div>
+            </div> */}
           </div>
 
           <p
             className="text-sm text-[#41493A]"
             style={{ lineHeight: "22.75px" }}
           >
-            Experience world-class Padel at Barcelona&apos;s premier indoor
-            facility. Featuring 12 panoramic courts, pro-shop, and a vibrant
-            community of passionate players. Elevate your game with us.
+            {club.description}
           </p>
 
           <div className="flex justify-center pt-2">
-            <button
-              className="w-full py-3 rounded-full text-base font-normal text-[#121212]"
-              style={{ background: "#9FE870", lineHeight: "24px" }}
-            >
-              Follow
-            </button>
+            {club.is_member ? (
+              <div className="w-full py-3 rounded-full bg-[#F4F4F5] flex items-center justify-center">
+                <span className="text-base text-[#A1A1AA]">Joined</span>
+              </div>
+            ) : (
+              <button
+                onClick={handleJoin}
+                disabled={isJoining}
+                className="w-full py-3 rounded-full text-base font-normal text-[#121212] disabled:opacity-50 disabled:cursor-not-allowed"
+                style={{ background: "#9FE870", lineHeight: "24px" }}
+              >
+                {isJoining ? "Joining..." : "Join"}
+              </button>
+            )}
           </div>
         </div>
 
         {/* Club Members Section */}
-        <div className="flex flex-col gap-4 mt-6 w-full overflow-hidden">
-          <div className="flex items-center justify-between px-6">
-            <h3
-              className="font-semibold text-xl text-[#151C27]"
-              style={{ lineHeight: "26px" }}
-            >
-              Club Members
-            </h3>
-            <button
-              className="text-xs font-semibold text-[#2F6C00]"
-              style={{ lineHeight: "12px" }}
-            >
-              See all
-            </button>
-          </div>
+        {(membersLoading || members.length > 0) && (
+          <div className="flex flex-col gap-4 mt-6 w-full overflow-hidden">
+            <div className="flex items-center justify-between px-6">
+              <h3
+                className="font-semibold text-xl text-[#151C27]"
+                style={{ lineHeight: "26px" }}
+              >
+                Club Members
+              </h3>
+              <button
+                className="text-xs font-semibold text-[#2F6C00]"
+                style={{ lineHeight: "12px" }}
+              >
+                See all
+              </button>
+            </div>
 
-          <div className="w-full overflow-hidden">
-            <div className="flex gap-2 md:gap-3 px-6 overflow-auto scrollbar-hide [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
-              {[
-                { name: "Marco R.", img: "1", active: true },
-                { name: "Elena G.", img: "2" },
-                { name: "David L.", img: "3" },
-                { name: "Sonia K.", img: "4", active: true },
-                { name: "Alex P.", img: "5" },
-              ].map((member) => (
-                <div
-                  key={member.name}
-                  className="flex flex-col items-center gap-2 px-1"
-                >
-                  <div className="relative">
-                    <div
-                      className={`w-16 h-16 rounded-full overflow-hidden ${
-                        member.active ? "border-2 border-[#2F6C00]" : ""
-                      }`}
-                    >
-                      <Image
-                        src={`https://i.pravatar.cc/64?img=${member.img}`}
-                        alt={member.name}
-                        width={64}
-                        height={64}
-                        className="w-full h-full object-cover"
-                      />
-                    </div>
-                    {member.active && (
-                      <div className="absolute bottom-0 right-0 w-4 h-4 rounded-full bg-[#22C55E] border-2 border-white" />
-                    )}
-                  </div>
-                  <span
-                    className="text-xs text-[#151C27] text-center"
-                    style={{ lineHeight: "12px" }}
-                  >
-                    {member.name}
-                  </span>
-                </div>
-              ))}
+            <div className="w-full overflow-hidden">
+              <div className="flex gap-2 md:gap-3 px-6 overflow-auto scrollbar-hide [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+                {membersLoading
+                  ? Array.from({ length: 5 }).map((_, i) => (
+                      <div key={i} className="flex flex-col items-center gap-2 px-1 animate-pulse">
+                        <div className="w-16 h-16 rounded-full bg-[#F4F4F5]" />
+                        <div className="w-10 h-3 rounded bg-[#F4F4F5]" />
+                      </div>
+                    ))
+                  : members.map((member) => (
+                      <div
+                        key={member.guid}
+                        className="flex flex-col items-center gap-2 px-1"
+                      >
+                        <div className="w-16 h-16 rounded-full overflow-hidden bg-[#F4F4F5] flex items-center justify-center">
+                          <svg
+                            width="32"
+                            height="32"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="#A1A1AA"
+                            strokeWidth="1.5"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                          >
+                            <circle cx="12" cy="8" r="4" />
+                            <path d="M4 20c0-4 3.6-7 8-7s8 3 8 7" />
+                          </svg>
+                        </div>
+                        <span
+                          className="text-xs text-[#151C27] text-center w-16 truncate"
+                          style={{ lineHeight: "12px" }}
+                        >
+                          {member.user.name}
+                        </span>
+                      </div>
+                    ))}
+              </div>
             </div>
           </div>
-        </div>
+        )}
 
         {/* Upcoming Activities Section */}
         <div className="flex flex-col gap-6 px-6 mt-6">
@@ -477,6 +513,10 @@ export default function ClubDetailUser() {
       {/* Bottom Sheet Overlay */}
       {showBottomSheet && (
         <ClubPopupMenu onClose={() => setShowBottomSheet(false)} />
+      )}
+
+      {snackbar && (
+        <SnackBar message={snackbar} onClose={() => setSnackbar(null)} />
       )}
     </div>
   );

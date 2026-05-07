@@ -43,6 +43,27 @@ const navItems = [
     ),
   },
   {
+    label: "CLUBS",
+    href: "/clubs",
+    icon: (
+      <svg
+        width="20"
+        height="20"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
+        <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+        <path d="M9 22V12h6v10" />
+        <path d="M12 2v4" />
+        <circle cx="12" cy="9" r="2" />
+      </svg>
+    ),
+  },
+  {
     label: "PROFILE",
     href: "/profile",
     icon: (

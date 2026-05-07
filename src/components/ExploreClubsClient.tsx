@@ -5,9 +5,8 @@ import Image from "next/image";
 import Link from "next/link";
 import TopAppBar from "@/components/TopAppBar";
 import BottomNavBar from "@/components/BottomNavBar";
-import SnackBar from "@/components/SnackBar";
-import { fetchClubs, joinClub } from "@/services/clubService";
-import type { Club, JoinClubErrorResponse } from "@/types/club";
+import { fetchClubs } from "@/services/clubService";
+import type { Club } from "@/types/club";
 
 const PAGE_LIMIT = 10;
 
@@ -16,9 +15,7 @@ export default function ExploreClubsClient() {
   const [clubs, setClubs] = useState<Club[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
-  const [joiningClubId, setJoiningClubId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [snackbar, setSnackbar] = useState<string | null>(null);
   const [hasMore, setHasMore] = useState(false);
   const sentinelRef = useRef<HTMLDivElement>(null);
   const pageRef = useRef(1);
@@ -84,22 +81,6 @@ export default function ExploreClubsClient() {
     observer.observe(sentinel);
     return () => observer.disconnect();
   }, [hasMore, isLoadingMore, isLoading, loadClubs]);
-
-  const handleJoin = async (clubGuid: string) => {
-    setJoiningClubId(clubGuid);
-    try {
-      await joinClub(clubGuid);
-      setClubs((prev) =>
-        prev.map((c) => (c.guid === clubGuid ? { ...c, is_member: true } : c)),
-      );
-      setSnackbar("Successfully joined club");
-    } catch (err) {
-      const e = err as JoinClubErrorResponse;
-      setSnackbar(e?.message ?? "Failed to join club.");
-    } finally {
-      setJoiningClubId(null);
-    }
-  };
 
   return (
     <div className="min-h-screen bg-white max-w-[448px] mx-auto relative">
@@ -215,8 +196,6 @@ export default function ExploreClubsClient() {
               <ClubCard
                 key={club.guid}
                 club={club}
-                isJoining={joiningClubId === club.guid}
-                onJoin={handleJoin}
               />
             ))
           )}
@@ -243,22 +222,16 @@ export default function ExploreClubsClient() {
       </main>
 
       <BottomNavBar />
-
-      {snackbar && (
-        <SnackBar message={snackbar} onClose={() => setSnackbar(null)} />
-      )}
     </div>
   );
 }
 
 interface ClubCardProps {
   club: Club;
-  isJoining: boolean;
-  onJoin: (guid: string) => void;
 }
 
-function ClubCard({ club, isJoining, onJoin }: ClubCardProps) {
-  const memberCount = club.member_count ?? 0;
+function ClubCard({ club }: ClubCardProps) {
+  const memberCount = club.number_of_members ?? 0;
   const formattedMembers =
     memberCount >= 1000
       ? `${(memberCount / 1000).toFixed(1)}k+`
@@ -349,27 +322,6 @@ function ClubCard({ club, isJoining, onJoin }: ClubCardProps) {
           <div className="w-px h-6 bg-[#F4F4F5]" />
         </div>
 
-        {/* Join Button */}
-        <div className="pt-2">
-          {club.is_member ? (
-            <div className="w-full py-3 rounded-full bg-[#F4F4F5] flex items-center justify-center">
-              <span className="text-base text-[#A1A1AA]">Joined</span>
-            </div>
-          ) : (
-            <button
-              onClick={(e) => {
-                e.preventDefault();
-                onJoin(club.guid);
-              }}
-              disabled={isJoining}
-              className="w-full py-3 rounded-full bg-[#18181B] flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              <span className="text-base text-[#9FE870]">
-                {isJoining ? "Joining..." : "Join"}
-              </span>
-            </button>
-          )}
-        </div>
       </div>
     </Link>
   );

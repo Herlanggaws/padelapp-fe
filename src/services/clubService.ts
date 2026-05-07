@@ -9,6 +9,8 @@ import type {
   FetchClubDetailErrorResponse,
   JoinClubSuccessResponse,
   JoinClubErrorResponse,
+  LeaveClubSuccessResponse,
+  LeaveClubErrorResponse,
   Club,
   FetchClubMembersParams,
   FetchClubMembersSuccessResponse,
@@ -27,6 +29,8 @@ export type {
   FetchClubDetailErrorResponse,
   JoinClubSuccessResponse,
   JoinClubErrorResponse,
+  LeaveClubSuccessResponse,
+  LeaveClubErrorResponse,
   Club,
   FetchClubMembersParams,
   FetchClubMembersSuccessResponse,
@@ -129,4 +133,20 @@ export async function joinClub(
   }
 
   return data as JoinClubSuccessResponse;
+}
+
+export async function leaveClub(
+  guid: string,
+): Promise<LeaveClubSuccessResponse> {
+  const response = await fetchWithAuth(`${BASE_URL}/padel/club-member/${guid}`, {
+    method: "DELETE",
+  });
+
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw data as LeaveClubErrorResponse;
+  }
+
+  return data as LeaveClubSuccessResponse;
 }

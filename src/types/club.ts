@@ -22,13 +22,24 @@ export interface Club {
   cover_photo?: string;
   logo?: string;
   is_active: boolean;
-  member_count?: number;
+  number_of_members?: number;
   rating?: number;
+  is_joined?: boolean;
   is_member?: boolean;
+  is_host?: boolean;
   created_at: string;
   created_by: string;
   updated_at: string;
   updated_by: string | null;
+}
+
+export interface LeaveClubSuccessResponse {
+  data: null;
+  message: string;
+}
+
+export interface LeaveClubErrorResponse {
+  message: string;
 }
 
 export interface FetchClubsParams {
@@ -100,10 +111,17 @@ export interface FetchClubMembersParams {
   limit?: number;
 }
 
+export interface FetchClubMembersPaginate {
+  current_page: number;
+  per_page: number;
+  total_page: number;
+  total_data: number;
+}
+
 export interface FetchClubMembersSuccessResponse {
   data: ClubMember[];
   message: string;
-  total_data: number;
+  paginate: FetchClubMembersPaginate;
 }
 
 export interface FetchClubMembersErrorResponse {

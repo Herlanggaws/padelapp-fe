@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import Modal from "@/components/Modal";
 import { loginUser } from "@/services/authService";
 import type { LoginErrorResponse } from "@/types/auth";
+import { useSnackbar } from "@/context/SnackbarContext";
 
 interface FieldErrors {
   email?: string;
@@ -14,6 +15,7 @@ interface FieldErrors {
 
 export default function LoginForm() {
   const router = useRouter();
+  const { showSnackbar } = useSnackbar();
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -55,7 +57,7 @@ export default function LoginForm() {
 
       document.cookie = `access_token=${result.data.access_token}; path=/; SameSite=Lax`;
       document.cookie = `refresh_token=${result.data.refresh_token}; path=/; SameSite=Lax`;
-      sessionStorage.setItem("snackbar_message", "Welcome back!");
+      showSnackbar("Welcome back!");
       router.push("/dashboard");
     } catch (err) {
       const apiError = err as LoginErrorResponse;

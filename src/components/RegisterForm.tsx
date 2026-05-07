@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import Modal from "@/components/Modal";
 import { registerUser } from "@/services/authService";
 import type { RegisterErrorResponse } from "@/types/auth";
+import { useSnackbar } from "@/context/SnackbarContext";
 
 interface FieldErrors {
   name?: string;
@@ -16,6 +17,7 @@ interface FieldErrors {
 
 export default function RegisterForm() {
   const router = useRouter();
+  const { showSnackbar } = useSnackbar();
 
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
@@ -91,10 +93,7 @@ export default function RegisterForm() {
 
       // Set cookie for server-side auth checks (proxy)
       document.cookie = `access_token=${result.data.access_token}; path=/; SameSite=Lax`;
-      sessionStorage.setItem(
-        "snackbar_message",
-        "Registration successful! Welcome to Padel.",
-      );
+      showSnackbar("Registration successful! Welcome to Padel.");
       router.push("/dashboard");
     } catch (err) {
       const apiError = err as RegisterErrorResponse;

@@ -10,6 +10,9 @@ import type {
   RegisterPayload,
   RegisterSuccessResponse,
   RegisterErrorResponse,
+  ForgotPasswordPayload,
+  ForgotPasswordSuccessResponse,
+  ForgotPasswordErrorResponse,
 } from "@/types/auth";
 
 export type {
@@ -24,6 +27,9 @@ export type {
   RegisterPayload,
   RegisterSuccessResponse,
   RegisterErrorResponse,
+  ForgotPasswordPayload,
+  ForgotPasswordSuccessResponse,
+  ForgotPasswordErrorResponse,
 };
 
 const BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
@@ -202,4 +208,24 @@ export async function registerUser(
   }
 
   return data as RegisterSuccessResponse;
+}
+
+export async function forgotPassword(
+  payload: ForgotPasswordPayload,
+): Promise<ForgotPasswordSuccessResponse> {
+  const response = await fetch(`${BASE_URL}/auth/forgot-password`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(payload),
+  });
+
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw data as ForgotPasswordErrorResponse;
+  }
+
+  return data as ForgotPasswordSuccessResponse;
 }

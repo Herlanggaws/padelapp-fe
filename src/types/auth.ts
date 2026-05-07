@@ -71,3 +71,16 @@ export interface LogoutSuccessResponse {
 export interface LogoutErrorResponse {
   message: string;
 }
+
+export interface ForgotPasswordPayload {
+  email: string;
+}
+
+export interface ForgotPasswordSuccessResponse {
+  data: null;
+  message: string;
+}
+
+export interface ForgotPasswordErrorResponse {
+  message: string;
+}

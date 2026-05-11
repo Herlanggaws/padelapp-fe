@@ -13,6 +13,9 @@ import type {
   ForgotPasswordPayload,
   ForgotPasswordSuccessResponse,
   ForgotPasswordErrorResponse,
+  ChangePasswordPayload,
+  ChangePasswordSuccessResponse,
+  ChangePasswordErrorResponse,
 } from "@/types/auth";
 
 export type {
@@ -30,6 +33,9 @@ export type {
   ForgotPasswordPayload,
   ForgotPasswordSuccessResponse,
   ForgotPasswordErrorResponse,
+  ChangePasswordPayload,
+  ChangePasswordSuccessResponse,
+  ChangePasswordErrorResponse,
 };
 
 const BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
@@ -228,4 +234,24 @@ export async function forgotPassword(
   }
 
   return data as ForgotPasswordSuccessResponse;
+}
+
+export async function changePassword(
+  payload: ChangePasswordPayload,
+): Promise<ChangePasswordSuccessResponse> {
+  const response = await fetchWithAuth(`${BASE_URL}/auth/profile/change-password`, {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(payload),
+  });
+
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw data as ChangePasswordErrorResponse;
+  }
+
+  return data as ChangePasswordSuccessResponse;
 }

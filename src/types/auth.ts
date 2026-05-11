@@ -84,3 +84,18 @@ export interface ForgotPasswordSuccessResponse {
 export interface ForgotPasswordErrorResponse {
   message: string;
 }
+
+export interface ChangePasswordPayload {
+  old_password: string;
+  new_password: string;
+}
+
+export interface ChangePasswordSuccessResponse {
+  data: null;
+  message: string;
+}
+
+export interface ChangePasswordErrorResponse {
+  message: string;
+  error?: Record<string, string>;
+}

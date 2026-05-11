@@ -3,6 +3,27 @@ import TopAppBar from "@/components/TopAppBar";
 
 // Event Detail - Available State (user can join)
 export default function EventDetailAvailablePage() {
+  const requests = [
+    {
+      id: 1,
+      name: "Alex Johnson",
+      level: 3.5,
+      img: "https://i.pravatar.cc/48?img=11",
+    },
+    {
+      id: 2,
+      name: "Maria Garcia",
+      level: 2.5,
+      img: "https://i.pravatar.cc/48?img=12",
+    },
+    {
+      id: 3,
+      name: "Sam Lee",
+      level: 4.0,
+      img: "https://i.pravatar.cc/48?img=13",
+    },
+  ];
+
   return (
     <div className="min-h-screen bg-white max-w-[448px] mx-auto relative flex flex-col">
       {/* Header */}
@@ -11,39 +32,20 @@ export default function EventDetailAvailablePage() {
         backHref="/clubs/1"
         title="Event Details"
         showSettings={false}
-        rightAction={
-          <button className="flex items-center justify-center">
-            <svg
-              width="20"
-              height="20"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <circle cx="12" cy="12" r="1" />
-              <circle cx="19" cy="12" r="1" />
-              <circle cx="5" cy="12" r="1" />
-            </svg>
-          </button>
-        }
       />
 
       {/* Main Content */}
       <main
-        className="flex flex-col items-center gap-6 px-0 pb-36"
+        className="flex flex-col gap-6 px-4 pb-36"
         style={{ paddingTop: "80px" }}
       >
         {/* Event Card */}
         <div
-          className="mx-4 rounded-[32px] flex flex-col gap-6 p-4"
+          className="rounded-[32px] flex flex-col gap-6 p-4"
           style={{
             background: "#FFFFFF",
             border: "1px solid #F4F4F5",
             boxShadow: "0px 1px 2px 0px rgba(0,0,0,0.05)",
-            width: "calc(100% - 32px)",
           }}
         >
           {/* Event Title & Level */}
@@ -267,6 +269,117 @@ export default function EventDetailAvailablePage() {
                 </svg>
               </div>
             </div>
+          </div>
+        </div>
+
+        {/* Join Requests Section */}
+        <div className="flex flex-col gap-4">
+          <div className="flex items-center justify-between">
+            <h3
+              className="text-base font-semibold text-[#151C27]"
+              style={{ lineHeight: "24px" }}
+            >
+              Join Requests
+            </h3>
+            <span
+              className="text-xs font-semibold px-2 py-1 rounded-full"
+              style={{ background: "#F0F3FF", color: "#151C27" }}
+            >
+              {requests.length} pending
+            </span>
+          </div>
+
+          {/* Request Cards */}
+          <div className="flex flex-col gap-3">
+            {requests.map((req) => (
+              <div
+                key={req.id}
+                className="flex items-center justify-between p-4 rounded-2xl"
+                style={{
+                  background: "#FFFFFF",
+                  border: "1px solid #F4F4F5",
+                  boxShadow: "0px 1px 2px 0px rgba(0,0,0,0.05)",
+                }}
+              >
+                <div className="flex items-center gap-3">
+                  <Image
+                    src={req.img}
+                    alt={req.name}
+                    width={40}
+                    height={40}
+                    className="rounded-full object-cover"
+                  />
+                  <div className="flex flex-col gap-1">
+                    <span
+                      className="text-sm font-semibold text-[#151C27]"
+                      style={{ lineHeight: "21px" }}
+                    >
+                      {req.name}
+                    </span>
+                    <div className="flex items-center gap-1">
+                      <svg
+                        width="12"
+                        height="12"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                      >
+                        <path
+                          d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z"
+                          fill="#2F6C00"
+                        />
+                      </svg>
+                      <span
+                        className="text-xs text-[#2F6C00]"
+                        style={{ lineHeight: "12px" }}
+                      >
+                        Level {req.level}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  {/* Reject */}
+                  <button
+                    className="w-9 h-9 rounded-full flex items-center justify-center"
+                    style={{
+                      background: "#FFF0F0",
+                      border: "1px solid #FECACA",
+                    }}
+                  >
+                    <svg
+                      width="16"
+                      height="16"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="#BA1A1A"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <path d="M18 6L6 18M6 6l12 12" />
+                    </svg>
+                  </button>
+                  {/* Accept */}
+                  <button
+                    className="w-9 h-9 rounded-full flex items-center justify-center"
+                    style={{ background: "#9FE870" }}
+                  >
+                    <svg
+                      width="16"
+                      height="16"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="#121212"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <path d="M20 6L9 17l-5-5" />
+                    </svg>
+                  </button>
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       </main>

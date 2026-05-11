@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import TopAppBar from "@/components/TopAppBar";
+import LevelRangeSlider from "@/components/LevelRangeSlider";
 import { createEvent } from "@/services/eventService";
 import type { CreateEventErrorResponse } from "@/types/event";
 import { useSnackbar } from "@/context/SnackbarContext";
@@ -25,8 +26,6 @@ export default function CreateEventForm({
   const [numberOfPlayers, setNumberOfPlayers] = useState("");
   const [minLevel, setMinLevel] = useState(1.5);
   const [maxLevel, setMaxLevel] = useState(4.5);
-  const [minInput, setMinInput] = useState("1.5");
-  const [maxInput, setMaxInput] = useState("4.5");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
@@ -196,126 +195,12 @@ export default function CreateEventForm({
           </div>
 
           {/* Level Range Selection */}
-          <div
-            className="flex flex-col gap-4 p-4 rounded-lg"
-            style={{ background: "#F0F3FF", border: "1px solid #C1CAB5" }}
-          >
-            <div className="flex items-center justify-between">
-              <span
-                className="text-xs font-semibold text-[#151C27]"
-                style={{ lineHeight: "12px" }}
-              >
-                Level Range
-              </span>
-              <div
-                className="px-3 py-1 rounded-full"
-                style={{ background: "#9FE870" }}
-              >
-                <span
-                  className="text-xs font-semibold text-[#2E6900]"
-                  style={{ lineHeight: "12px" }}
-                >
-                  {minLevel.toFixed(1)} - {maxLevel.toFixed(1)}
-                </span>
-              </div>
-            </div>
-
-            <div className="flex flex-col gap-4 py-4">
-              <div
-                className="w-full h-2 rounded-full relative"
-                style={{ background: "#DCE2F3" }}
-              >
-                <div
-                  className="absolute top-0 h-2 rounded-full"
-                  style={{
-                    background: "#9FE870",
-                    left: `${((minLevel - 1.0) / 6.0) * 100}%`,
-                    right: `${100 - ((maxLevel - 1.0) / 6.0) * 100}%`,
-                  }}
-                />
-              </div>
-              <div className="flex justify-between">
-                {[1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0].map((level) => (
-                  <span
-                    key={level}
-                    className="text-xs text-[#41493A]"
-                    style={{ lineHeight: "12px" }}
-                  >
-                    {level.toFixed(1)}
-                  </span>
-                ))}
-              </div>
-            </div>
-
-            <div className="flex gap-4">
-              <div className="flex flex-col gap-1 flex-1">
-                <span
-                  className="text-[10px] font-normal text-[#41493A] uppercase tracking-[5%]"
-                  style={{ lineHeight: "15px" }}
-                >
-                  MIN LEVEL
-                </span>
-                <div className="pt-1">
-                  <div
-                    className="w-full px-3 py-3 rounded-lg text-center"
-                    style={{ background: "#FFFFFF", border: "1px solid #C1CAB5" }}
-                  >
-                    <input
-                      type="number"
-                      value={minInput}
-                      onChange={(e) => setMinInput(e.target.value)}
-                      onBlur={() => {
-                        const v = parseFloat(minInput);
-                        const clamped = isNaN(v)
-                          ? minLevel
-                          : Math.min(Math.max(v, 1.0), maxLevel);
-                        setMinLevel(clamped);
-                        setMinInput(clamped.toString());
-                      }}
-                      step={0.5}
-                      min={1.0}
-                      max={maxLevel}
-                      className="w-full bg-transparent text-base font-normal text-[#151C27] outline-none text-center"
-                      style={{ lineHeight: "24px" }}
-                    />
-                  </div>
-                </div>
-              </div>
-              <div className="flex flex-col gap-1 flex-1">
-                <span
-                  className="text-[10px] font-normal text-[#41493A] uppercase tracking-[5%]"
-                  style={{ lineHeight: "15px" }}
-                >
-                  MAX LEVEL
-                </span>
-                <div className="pt-1">
-                  <div
-                    className="w-full px-3 py-3 rounded-lg text-center"
-                    style={{ background: "#FFFFFF", border: "1px solid #C1CAB5" }}
-                  >
-                    <input
-                      type="number"
-                      value={maxInput}
-                      onChange={(e) => setMaxInput(e.target.value)}
-                      onBlur={() => {
-                        const v = parseFloat(maxInput);
-                        const clamped = isNaN(v)
-                          ? maxLevel
-                          : Math.min(Math.max(v, minLevel), 7.0);
-                        setMaxLevel(clamped);
-                        setMaxInput(clamped.toString());
-                      }}
-                      step={0.5}
-                      min={minLevel}
-                      max={7.0}
-                      className="w-full bg-transparent text-base font-normal text-[#151C27] outline-none text-center"
-                      style={{ lineHeight: "24px" }}
-                    />
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
+          <LevelRangeSlider
+            minLevel={minLevel}
+            maxLevel={maxLevel}
+            onMinChange={setMinLevel}
+            onMaxChange={setMaxLevel}
+          />
         </div>
       </main>
 

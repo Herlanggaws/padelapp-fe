@@ -3,6 +3,7 @@
 import Image from "next/image";
 import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
+import ActivityCard from "@/components/ActivityCard";
 import ClubPopupMenu from "@/components/ClubPopupMenu";
 import ClubMembersBottomSheet from "@/components/ClubMembersBottomSheet";
 import TopAppBar from "@/components/TopAppBar";
@@ -235,19 +236,29 @@ export default function ClubDetailUser() {
                         className="flex flex-col items-center gap-2 px-1"
                       >
                         <div className="w-16 h-16 rounded-full overflow-hidden bg-[#F4F4F5] flex items-center justify-center">
-                          <svg
-                            width="32"
-                            height="32"
-                            viewBox="0 0 24 24"
-                            fill="none"
-                            stroke="#A1A1AA"
-                            strokeWidth="1.5"
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                          >
-                            <circle cx="12" cy="8" r="4" />
-                            <path d="M4 20c0-4 3.6-7 8-7s8 3 8 7" />
-                          </svg>
+                          {member.user.profile_photo ? (
+                            <Image
+                              src={member.user.profile_photo}
+                              alt={member.user.name}
+                              width={64}
+                              height={64}
+                              className="w-full h-full object-cover"
+                            />
+                          ) : (
+                            <svg
+                              width="32"
+                              height="32"
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              stroke="#A1A1AA"
+                              strokeWidth="1.5"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                            >
+                              <circle cx="12" cy="8" r="4" />
+                              <path d="M4 20c0-4 3.6-7 8-7s8 3 8 7" />
+                            </svg>
+                          )}
                         </div>
                         <span
                           className="text-xs text-[#151C27] text-center w-16 truncate"
@@ -269,250 +280,27 @@ export default function ClubDetailUser() {
           </h3>
 
           <div className="flex flex-col gap-4">
-            {/* Featured Activity Card */}
-            {/* <div
-              className="flex flex-col gap-4 p-5 rounded-2xl"
-              style={{
-                background: "#9FE870",
-                border: "1px solid rgba(47,108,0,0.2)",
-              }}
-            >
-              <div className="flex items-center justify-between">
-                <span
-                  className="text-[10px] font-bold text-[#151C27] uppercase tracking-[5%] px-3 py-1 rounded-full"
-                  style={{ background: "rgba(0,0,0,0.1)", lineHeight: "15px" }}
-                >
-                  TOURNAMENT
-                </span>
-                <div className="flex items-center" style={{ gap: "-12px" }}>
-                  <div className="w-8 h-8 rounded-full border-2 border-[#9FE870] overflow-hidden">
-                    <Image
-                      src="https://i.pravatar.cc/32?img=10"
-                      alt="Player"
-                      width={32}
-                      height={32}
-                      className="w-full h-full object-cover"
-                    />
-                  </div>
-                  <div className="w-8 h-8 rounded-full border-2 border-[#9FE870] overflow-hidden -ml-3">
-                    <Image
-                      src="https://i.pravatar.cc/32?img=11"
-                      alt="Player"
-                      width={32}
-                      height={32}
-                      className="w-full h-full object-cover"
-                    />
-                  </div>
-                  <div className="w-8 h-8 rounded-full bg-white border-2 border-[#9FE870] -ml-3 flex items-center justify-center">
-                    <span className="text-[10px] font-bold text-[#151C27]">
-                      +12
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              <div className="flex flex-col gap-2">
-                <h4
-                  className="text-xl text-[#2E6900]"
-                  style={{ lineHeight: "26px" }}
-                >
-                  Sunday Masters Open
-                </h4>
-                <div className="flex items-center gap-3">
-                  <div className="flex items-center gap-1">
-                    <svg
-                      width="14"
-                      height="15"
-                      viewBox="0 0 14 15"
-                      fill="none"
-                      xmlns="http://www.w3.org/2000/svg"
-                    >
-                      <path
-                        d="M1 14C0.716667 14 0.479167 13.9042 0.2875 13.7125C0.0958333 13.5208 0 13.2833 0 13V3C0 2.71667 0.0958333 2.47917 0.2875 2.2875C0.479167 2.09583 0.716667 2 1 2H2V0H3.5V2H10.5V0H12V2H13C13.2833 2 13.5208 2.09583 13.7125 2.2875C13.9042 2.47917 14 2.71667 14 3V13C14 13.2833 13.9042 13.5208 13.7125 13.7125C13.5208 13.9042 13.2833 14 13 14H1ZM1 12.5H13V6H1V12.5Z"
-                        fill="rgba(46,105,0,0.8)"
-                      />
-                    </svg>
-                    <span
-                      className="text-xs"
-                      style={{
-                        color: "rgba(46,105,0,0.8)",
-                        lineHeight: "12px",
-                      }}
-                    >
-                      Oct 15, 2023
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <svg
-                      width="15"
-                      height="15"
-                      viewBox="0 0 15 15"
-                      fill="none"
-                      xmlns="http://www.w3.org/2000/svg"
-                    >
-                      <path
-                        d="M7.5 15C3.36 15 0 11.64 0 7.5C0 3.36 3.36 0 7.5 0C11.64 0 15 3.36 15 7.5C15 11.64 11.64 15 7.5 15ZM7.5 1.5C4.185 1.5 1.5 4.185 1.5 7.5C1.5 10.815 4.185 13.5 7.5 13.5C10.815 13.5 13.5 10.815 13.5 7.5C13.5 4.185 10.815 1.5 7.5 1.5ZM7.5 3.75V7.5L10.5 9L9.75 10.245L6 8.25V3.75H7.5Z"
-                        fill="rgba(46,105,0,0.8)"
-                      />
-                    </svg>
-                    <span
-                      className="text-xs"
-                      style={{
-                        color: "rgba(46,105,0,0.8)",
-                        lineHeight: "12px",
-                      }}
-                    >
-                      09:00 - 14:00
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              <button
-                className="w-full py-3 rounded-[48px] text-base font-normal text-[#9FE870]"
-                style={{ background: "#121212", lineHeight: "24px" }}
-              >
-                Join Tournament
-              </button>
-            </div> */}
-
-            {/* Activity Card 2 */}
-            <div
-              className="flex items-center justify-between p-5 rounded-2xl bg-white"
-              style={{ border: "1px solid #F4F4F5" }}
-            >
-              <div className="flex items-center gap-4">
-                <div
-                  className="w-12 h-12 rounded-[48px] flex flex-col items-center justify-center"
-                  style={{ background: "#F0F3FF" }}
-                >
-                  <span
-                    className="text-base text-[#2F6C00]"
-                    style={{ lineHeight: "24px" }}
-                  >
-                    18
-                  </span>
-                  <span
-                    className="text-[8px] font-bold text-[#41493A] uppercase"
-                    style={{ lineHeight: "12px" }}
-                  >
-                    OCT
-                  </span>
-                </div>
-                <div className="flex flex-col gap-1">
-                  <span
-                    className="text-base text-[#151C27]"
-                    style={{ lineHeight: "24px" }}
-                  >
-                    Pro Coaching Session
-                  </span>
-                  <span
-                    className="text-xs text-[#41493A]"
-                    style={{ lineHeight: "12px" }}
-                  >
-                    With Coach Roberto • 4 Slots Left
-                  </span>
-                </div>
-              </div>
-              <button
-                className="px-4 py-2 rounded-full text-base font-normal text-[#18181B]"
-                style={{ background: "#F4F4F5", lineHeight: "24px" }}
-              >
-                Join
-              </button>
-            </div>
-
-            {/* Activity Card 3 */}
-            <div
-              className="flex items-center justify-between p-5 rounded-2xl bg-white"
-              style={{ border: "1px solid #F4F4F5" }}
-            >
-              <div className="flex items-center gap-4">
-                <div
-                  className="w-12 h-12 rounded-[48px] flex flex-col items-center justify-center"
-                  style={{ background: "#F0F3FF" }}
-                >
-                  <span
-                    className="text-base text-[#2F6C00]"
-                    style={{ lineHeight: "24px" }}
-                  >
-                    20
-                  </span>
-                  <span
-                    className="text-[8px] font-bold text-[#41493A] uppercase"
-                    style={{ lineHeight: "12px" }}
-                  >
-                    OCT
-                  </span>
-                </div>
-                <div className="flex flex-col gap-1">
-                  <span
-                    className="text-base text-[#151C27]"
-                    style={{ lineHeight: "24px" }}
-                  >
-                    Mixed Social Match
-                  </span>
-                  <span
-                    className="text-xs text-[#41493A]"
-                    style={{ lineHeight: "12px" }}
-                  >
-                    Level 3.5-4.5 • 2 Slots Left
-                  </span>
-                </div>
-              </div>
-              <button
-                className="px-4 py-2 rounded-full text-base font-normal text-[#18181B]"
-                style={{ background: "#F4F4F5", lineHeight: "24px" }}
-              >
-                Join
-              </button>
-            </div>
-
-            {/* Activity Card 4 */}
-            <div
-              className="flex items-center justify-between p-5 rounded-2xl bg-white"
-              style={{ border: "1px solid #F4F4F5" }}
-            >
-              <div className="flex items-center gap-4">
-                <div
-                  className="w-12 h-12 rounded-[48px] flex flex-col items-center justify-center"
-                  style={{ background: "#F0F3FF" }}
-                >
-                  <span
-                    className="text-base text-[#2F6C00]"
-                    style={{ lineHeight: "24px" }}
-                  >
-                    22
-                  </span>
-                  <span
-                    className="text-[8px] font-bold text-[#41493A] uppercase"
-                    style={{ lineHeight: "12px" }}
-                  >
-                    OCT
-                  </span>
-                </div>
-                <div className="flex flex-col gap-1">
-                  <span
-                    className="text-base text-[#151C27]"
-                    style={{ lineHeight: "24px" }}
-                  >
-                    Ladies Morning Padel
-                  </span>
-                  <span
-                    className="text-xs text-[#41493A]"
-                    style={{ lineHeight: "12px" }}
-                  >
-                    Intermediate • 6 Slots Left
-                  </span>
-                </div>
-              </div>
-              <button
-                className="px-4 py-2 rounded-full text-base font-normal text-[#18181B]"
-                style={{ background: "#F4F4F5", lineHeight: "24px" }}
-              >
-                Join
-              </button>
-            </div>
+            <ActivityCard
+              day="18"
+              month="OCT"
+              title="Pro Coaching Session"
+              subtitle="With Coach Roberto • 4 Slots Left"
+              link="/events/3dc87126-53f4-4f9e-941b-b3f2d48415a3"
+            />
+            <ActivityCard
+              day="20"
+              month="OCT"
+              title="Mixed Social Match"
+              subtitle="Level 3.5-4.5 • 2 Slots Left"
+              link="/events/34aa3ccf-99ed-49c9-ad24-6218f36d461f"
+            />
+            <ActivityCard
+              day="22"
+              month="OCT"
+              title="Ladies Morning Padel"
+              subtitle="Intermediate • 6 Slots Left"
+              link="/events/304ad1f6-0c27-417d-8dfc-402055a251ce"
+            />
           </div>
         </div>
 

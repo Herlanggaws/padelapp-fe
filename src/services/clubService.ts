@@ -15,6 +15,8 @@ import type {
   FetchClubMembersParams,
   FetchClubMembersSuccessResponse,
   FetchClubMembersErrorResponse,
+  FetchJoinedClubsSuccessResponse,
+  FetchJoinedClubsErrorResponse,
 } from "@/types/club";
 import { fetchWithAuth } from "@/services/authService";
 
@@ -35,6 +37,8 @@ export type {
   FetchClubMembersParams,
   FetchClubMembersSuccessResponse,
   FetchClubMembersErrorResponse,
+  FetchJoinedClubsSuccessResponse,
+  FetchJoinedClubsErrorResponse,
 };
 
 const BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
@@ -133,6 +137,17 @@ export async function joinClub(
   }
 
   return data as JoinClubSuccessResponse;
+}
+
+export async function fetchJoinedClubs(): Promise<FetchJoinedClubsSuccessResponse> {
+  const response = await fetchWithAuth(`${BASE_URL}/padel/club/joined`);
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw data as FetchJoinedClubsErrorResponse;
+  }
+
+  return data as FetchJoinedClubsSuccessResponse;
 }
 
 export async function leaveClub(

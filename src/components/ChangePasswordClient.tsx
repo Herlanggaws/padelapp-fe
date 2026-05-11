@@ -325,60 +325,6 @@ export default function ChangePasswordClient() {
               </button>
             </div>
           </form>
-
-          <section className="flex flex-col gap-2 p-4 bg-white border border-[#C1CAB5] rounded-[32px]">
-            <h3 className="text-xs font-normal text-[#151C27] tracking-widest uppercase">
-              RECENT LOGIN ACTIVITY
-            </h3>
-
-            <div className="flex flex-col">
-              <div className="flex items-center justify-between py-2 border-b border-[#DCE2F3]">
-                <div className="flex items-center gap-2">
-                  <svg
-                    width="12"
-                    height="18"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  >
-                    <rect width="14" height="20" x="5" y="2" rx="2" ry="2" />
-                    <path d="M12 18h.01" />
-                  </svg>
-                  <div className="flex flex-col">
-                    <span className="text-xs font-semibold text-[#151C27]">iPhone 15 Pro</span>
-                    <span className="text-xs text-[#41493A]">Madrid, ES • Active Now</span>
-                  </div>
-                </div>
-                <div className="w-2 h-2 rounded-full bg-[#9FE870]" />
-              </div>
-
-              <div className="flex items-center justify-between py-2">
-                <div className="flex items-center gap-2">
-                  <svg
-                    width="17"
-                    height="15"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  >
-                    <rect width="20" height="14" x="2" y="3" rx="2" />
-                    <line x1="8" x2="16" y1="21" y2="21" />
-                    <line x1="12" x2="12" y1="17" y2="21" />
-                  </svg>
-                  <div className="flex flex-col">
-                    <span className="text-xs font-semibold text-[#151C27]">MacBook Pro</span>
-                    <span className="text-xs text-[#41493A]">Madrid, ES • 2 hours ago</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </section>
         </main>
       </div>
     </>

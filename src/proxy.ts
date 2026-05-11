@@ -5,7 +5,7 @@ import type { NextRequest } from "next/server";
 const authRoutes = ["/login", "/register", "/forgot-password"];
 
 // Public content routes are accessible with or without authentication.
-const publicContentRoutes = ["/privacy-policy", "/terms-of-service"];
+const publicContentRoutes = ["/", "/privacy-policy", "/terms-of-service"];
 
 export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;

@@ -462,12 +462,15 @@ export default function RegisterForm() {
                   style={{ lineHeight: "21px" }}
                 >
                   I agree to the{" "}
-                  <span className="underline text-[#151C27] font-semibold cursor-pointer">
+                  <Link
+                    href="/terms-of-service"
+                    className="underline text-[#151C27] font-semibold"
+                  >
                     Terms of Service
-                  </span>{" "}
+                  </Link>{" "}
                   and{" "}
                   <Link
-                    href="#"
+                    href="/privacy-policy"
                     className="underline text-[#151C27] font-semibold"
                   >
                     Privacy Policy

@@ -1,15 +1,22 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
-// Public routes that don't require authentication
-const publicRoutes = ["/login", "/register", "/forgot-password"];
+// Auth routes are public and should redirect authenticated users to dashboard.
+const authRoutes = ["/login", "/register", "/forgot-password"];
+
+// Public content routes are accessible with or without authentication.
+const publicContentRoutes = ["/privacy-policy", "/terms-of-service"];
 
 export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  const isPublicRoute = publicRoutes.some(
+  const isAuthRoute = authRoutes.some(
     (route) => pathname === route || pathname.startsWith(route + "/"),
   );
+  const isPublicContentRoute = publicContentRoutes.some(
+    (route) => pathname === route || pathname.startsWith(route + "/"),
+  );
+  const isPublicRoute = isAuthRoute || isPublicContentRoute;
 
   // Check for auth token in cookies
   const token = request.cookies.get("access_token")?.value;
@@ -22,7 +29,7 @@ export function proxy(request: NextRequest) {
   }
 
   // If accessing a public route while authenticated, redirect to dashboard
-  if (isPublicRoute && isAuthenticated) {
+  if (isAuthRoute && isAuthenticated) {
     const dashboardUrl = new URL("/dashboard", request.url);
     return NextResponse.redirect(dashboardUrl);
   }

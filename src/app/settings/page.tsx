@@ -88,7 +88,7 @@ export default function SettingsPage() {
           <div className="flex flex-col">
             {/* Privacy Policy */}
             <Link
-              href="#"
+              href="/privacy-policy"
               className="flex items-center justify-between px-4 py-4 bg-white border border-[#F4F4F5] border-b-0 hover:bg-[#F9F9FF] transition-colors"
             >
               <div className="flex items-center gap-4">
@@ -124,7 +124,7 @@ export default function SettingsPage() {
 
             {/* Terms of Service */}
             <Link
-              href="#"
+              href="/terms-of-service"
               className="flex items-center justify-between px-4 py-4 bg-white border border-[#F4F4F5] hover:bg-[#F9F9FF] transition-colors"
             >
               <div className="flex items-center gap-4">

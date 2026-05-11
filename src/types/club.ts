@@ -91,6 +91,7 @@ export interface ClubMemberUser {
   guid: string;
   name: string;
   email: string;
+  profile_photo: string;
 }
 
 export interface ClubMember {
@@ -125,5 +126,15 @@ export interface FetchClubMembersSuccessResponse {
 }
 
 export interface FetchClubMembersErrorResponse {
+  message: string;
+}
+
+export interface FetchJoinedClubsSuccessResponse {
+  data: Club[];
+  message: string;
+  total_data: number;
+}
+
+export interface FetchJoinedClubsErrorResponse {
   message: string;
 }

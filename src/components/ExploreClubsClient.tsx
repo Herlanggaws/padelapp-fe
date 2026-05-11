@@ -84,12 +84,7 @@ export default function ExploreClubsClient() {
 
   return (
     <div className="min-h-screen bg-white max-w-[448px] mx-auto relative">
-      <TopAppBar
-        showBack
-        title="Explore Clubs"
-        backHref="/dashboard"
-        showSettings={false}
-      />
+      <TopAppBar showNotification={true} />
 
       <main className="flex flex-col gap-4 pt-[104px] pb-36 px-6">
         {/* Search Section */}
@@ -192,12 +187,7 @@ export default function ExploreClubsClient() {
               </p>
             </div>
           ) : (
-            clubs.map((club) => (
-              <ClubCard
-                key={club.guid}
-                club={club}
-              />
-            ))
+            clubs.map((club) => <ClubCard key={club.guid} club={club} />)
           )}
 
           {/* Infinite scroll sentinel */}
@@ -321,7 +311,6 @@ function ClubCard({ club }: ClubCardProps) {
           </div>
           <div className="w-px h-6 bg-[#F4F4F5]" />
         </div>
-
       </div>
     </Link>
   );

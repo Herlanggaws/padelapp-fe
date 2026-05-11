@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import ActivityCard from "@/components/ActivityCard";
 import ClubPopupMenu from "@/components/ClubPopupMenu";
@@ -14,12 +14,26 @@ import {
   leaveClub,
   fetchClubMembers,
 } from "@/services/clubService";
+import { fetchClubEvents } from "@/services/eventService";
 import type {
   Club,
   ClubMember,
   JoinClubErrorResponse,
   LeaveClubErrorResponse,
 } from "@/types/club";
+import type { Event } from "@/types/event";
+
+function ActivityCardSkeleton() {
+  return (
+    <div className="flex items-center gap-4 p-5 rounded-2xl border border-[#F4F4F5] animate-pulse">
+      <div className="w-12 h-12 rounded-[48px] bg-[#F0F3FF] shrink-0" />
+      <div className="flex flex-col gap-2 flex-1">
+        <div className="h-4 w-2/3 rounded bg-[#F4F4F5]" />
+        <div className="h-3 w-1/2 rounded bg-[#F4F4F5]" />
+      </div>
+    </div>
+  );
+}
 
 export default function ClubDetailUser() {
   const { id } = useParams<{ id: string }>();
@@ -31,9 +45,38 @@ export default function ClubDetailUser() {
   const [membersLoading, setMembersLoading] = useState(true);
   const [showBottomSheet, setShowBottomSheet] = useState(false);
   const [showMembersSheet, setShowMembersSheet] = useState(false);
+  const [events, setEvents] = useState<Event[]>([]);
+  const [eventsPage, setEventsPage] = useState(1);
+  const [eventsTotalPage, setEventsTotalPage] = useState(1);
+  const [eventsLoading, setEventsLoading] = useState(true);
+  const sentinelRef = useRef<HTMLDivElement>(null);
+  const loadingEventsRef = useRef(false);
+  const clubGuidRef = useRef<string | null>(null);
   const [isJoining, setIsJoining] = useState(false);
   const [isLeaving, setIsLeaving] = useState(false);
   const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
+
+  const loadEvents = useCallback(async (clubGuid: string, page: number) => {
+    if (loadingEventsRef.current) return;
+    loadingEventsRef.current = true;
+    setEventsLoading(true);
+    try {
+      const res = await fetchClubEvents({
+        club_guid: clubGuid,
+        sort: "created_at",
+        direction: "ASC",
+        page,
+        limit: 10,
+      });
+      setEvents((prev) => (page === 1 ? res.data : [...prev, ...res.data]));
+      setEventsTotalPage(res.paginate.total_page);
+    } catch {
+      // keep existing list on error
+    } finally {
+      setEventsLoading(false);
+      loadingEventsRef.current = false;
+    }
+  }, []);
 
   const loadMembers = async (clubGuid: string) => {
     setMembersLoading(true);
@@ -89,12 +132,45 @@ export default function ClubDetailUser() {
     fetchClubDetail(id)
       .then((res) => {
         setClub(res.data);
+        clubGuidRef.current = res.data.guid;
         loadMembers(res.data.guid);
+        loadEvents(res.data.guid, 1);
       })
       .catch(() => router.replace("/not-found"));
-  }, [id, router]);
+  }, [id, router, loadEvents]);
+
+  // Infinite scroll: observe sentinel, load next page when visible
+  useEffect(() => {
+    const sentinel = sentinelRef.current;
+    if (!sentinel) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (
+          entries[0].isIntersecting &&
+          !loadingEventsRef.current &&
+          clubGuidRef.current
+        ) {
+          setEventsPage((prev) => {
+            const next = prev + 1;
+            if (next <= eventsTotalPage) {
+              loadEvents(clubGuidRef.current!, next);
+              return next;
+            }
+            return prev;
+          });
+        }
+      },
+      { threshold: 0.1 },
+    );
+
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [eventsTotalPage, loadEvents]);
 
   if (!club) return null;
+
+  const hasMoreEvents = eventsPage < eventsTotalPage;
 
   return (
     <div className="min-h-screen bg-white max-w-[448px] mx-auto relative">
@@ -280,27 +356,36 @@ export default function ClubDetailUser() {
           </h3>
 
           <div className="flex flex-col gap-4">
-            <ActivityCard
-              day="18"
-              month="OCT"
-              title="Pro Coaching Session"
-              subtitle="With Coach Roberto • 4 Slots Left"
-              link="/events/3dc87126-53f4-4f9e-941b-b3f2d48415a3"
-            />
-            <ActivityCard
-              day="20"
-              month="OCT"
-              title="Mixed Social Match"
-              subtitle="Level 3.5-4.5 • 2 Slots Left"
-              link="/events/34aa3ccf-99ed-49c9-ad24-6218f36d461f"
-            />
-            <ActivityCard
-              day="22"
-              month="OCT"
-              title="Ladies Morning Padel"
-              subtitle="Intermediate • 6 Slots Left"
-              link="/events/304ad1f6-0c27-417d-8dfc-402055a251ce"
-            />
+            {eventsLoading && events.length === 0
+              ? Array.from({ length: 3 }).map((_, i) => (
+                  <ActivityCardSkeleton key={i} />
+                ))
+              : events.map((event) => {
+                  const dt = new Date(event.date_time);
+                  return (
+                    <ActivityCard
+                      key={event.guid}
+                      day={String(dt.getUTCDate()).padStart(2, "0")}
+                      month={dt
+                        .toLocaleString("en-US", {
+                          month: "short",
+                          timeZone: "UTC",
+                        })
+                        .toUpperCase()}
+                      title={event.name}
+                      subtitle={event.description}
+                      link={`/events/${event.guid}`}
+                    />
+                  );
+                })}
+
+            {/* Inline skeleton rows while fetching next page */}
+            {eventsLoading && events.length > 0 && (
+              <ActivityCardSkeleton />
+            )}
+
+            {/* Sentinel div — triggers next page load when scrolled into view */}
+            {hasMoreEvents && <div ref={sentinelRef} className="h-1" />}
           </div>
         </div>
 

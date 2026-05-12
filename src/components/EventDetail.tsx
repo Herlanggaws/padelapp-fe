@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
+import Link from "next/link";
 import TopAppBar from "@/components/TopAppBar";
 import { fetchEventDetail } from "@/services/eventService";
 import type { Event, PendingRequest } from "@/types/event";
@@ -380,8 +381,8 @@ function EventDetailContent({ event }: { event: Event }) {
       >
         {event.is_host ? (
           <div className="flex gap-3">
-            <a
-              href="/matches/configure"
+            <Link
+              href={`/matches/configure?event_guid=${encodeURIComponent(event.guid)}`}
               className="flex-1 flex items-center justify-center gap-2 text-base font-semibold text-[#121212] rounded-full"
               style={{ background: "#9FE870", height: "56px" }}
             >
@@ -400,7 +401,7 @@ function EventDetailContent({ event }: { event: Event }) {
                 <path d="M11 8v6M8 11h6" />
               </svg>
               Generate Match
-            </a>
+            </Link>
             <button
               className="flex-1 text-base font-normal text-[#9FE870] rounded-full"
               style={{ background: "#121212", height: "56px" }}

@@ -101,3 +101,35 @@ export interface GetMatchmakingSessionSuccessResponse {
 export interface GetMatchmakingSessionErrorResponse {
   message: string;
 }
+
+export interface SubmitMatchmakingMatchScorePayload {
+  team_a_score: number | null;
+  team_b_score: number | null;
+}
+
+export interface SubmitMatchmakingMatchScoreSuccessResponse {
+  data: null;
+  message: string;
+}
+
+export interface SubmitMatchmakingMatchScoreErrorResponse {
+  message: string;
+}
+
+export interface StartMatchmakingRoundSuccessResponse {
+  data: null;
+  message: string;
+}
+
+export interface StartMatchmakingRoundErrorResponse {
+  message: string;
+}
+
+export interface CancelMatchmakingRoundSuccessResponse {
+  data: null;
+  message: string;
+}
+
+export interface CancelMatchmakingRoundErrorResponse {
+  message: string;
+}

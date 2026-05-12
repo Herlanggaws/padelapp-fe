@@ -350,7 +350,7 @@ export default function ClubDetailUser() {
         )}
 
         {/* Upcoming Activities Section */}
-        <div className="flex flex-col gap-4 px-6 mt-8">
+        {(eventsLoading || events.length > 0) && <div className="flex flex-col gap-4 px-6 mt-8">
           <h3 className="text-xl text-[#151C27]" style={{ lineHeight: "26px" }}>
             Upcoming Activities
           </h3>
@@ -387,7 +387,7 @@ export default function ClubDetailUser() {
             {/* Sentinel div — triggers next page load when scrolled into view */}
             {hasMoreEvents && <div ref={sentinelRef} className="h-1" />}
           </div>
-        </div>
+        </div>}
 
         {/* FAB Button */}
         {club.is_joined && (

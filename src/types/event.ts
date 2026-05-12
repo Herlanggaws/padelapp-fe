@@ -1,3 +1,24 @@
+export interface PendingRequestUser {
+  guid: string;
+  name: string;
+  email: string;
+}
+
+export interface PendingRequest {
+  participant_guid: string;
+  user: PendingRequestUser;
+  requested_at: string;
+}
+
+export interface FetchEventDetailSuccessResponse {
+  data: Event;
+  message: string;
+}
+
+export interface FetchEventDetailErrorResponse {
+  message: string;
+}
+
 export interface CreateEventPayload {
   club_guid: string;
   name: string;
@@ -33,7 +54,7 @@ export interface Event {
   is_locked: boolean;
   session_guid: string;
   join_status: string;
-  pending_requests: null | unknown;
+  pending_requests: PendingRequest[] | null;
   created_at: string;
   created_by: string;
   updated_at: string;

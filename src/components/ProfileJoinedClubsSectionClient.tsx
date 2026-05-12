@@ -74,17 +74,17 @@ export default function ProfileJoinedClubsSectionClient() {
               href={`/clubs/${club.guid}`}
               className="flex items-center gap-4 p-4 bg-white border border-[#F2F2F2] rounded-2xl"
             >
-              <div className="w-14 h-14 rounded-full flex-shrink-0 overflow-hidden bg-[#F4F4F5]">
-                {club.cover_photo ? (
+              <div className="relative w-14 h-14 shrink-0 rounded-full overflow-hidden bg-[#F4F4F5]">
+                {club.cover_photo || club.logo ? (
                   <Image
-                    src={club.logo ?? club.cover_photo ?? ""}
+                    src={club.cover_photo || club.logo || ""}
                     alt={club.name}
-                    width={56}
-                    height={56}
-                    className="w-full h-full object-cover"
+                    fill
+                    className="object-cover"
+                    sizes="56px"
                   />
                 ) : (
-                  <div className="w-full h-full flex items-center justify-center text-[10px] font-semibold text-[#A1A1AA]">
+                  <div className="absolute inset-0 flex items-center justify-center text-[10px] font-semibold text-[#A1A1AA]">
                     {club.name.slice(0, 2).toUpperCase()}
                   </div>
                 )}

@@ -75,7 +75,7 @@ export default function ProfileJoinedClubsSectionClient() {
               className="flex items-center gap-4 p-4 bg-white border border-[#F2F2F2] rounded-2xl"
             >
               <div className="w-14 h-14 rounded-full flex-shrink-0 overflow-hidden bg-[#F4F4F5]">
-                {club.logo || club.cover_photo ? (
+                {club.cover_photo ? (
                   <Image
                     src={club.logo ?? club.cover_photo ?? ""}
                     alt={club.name}

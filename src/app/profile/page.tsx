@@ -1,7 +1,7 @@
-import Link from "next/link";
 import Image from "next/image";
 import TopAppBar from "@/components/TopAppBar";
 import BottomNavBar from "@/components/BottomNavBar";
+import ProfileJoinedClubsSectionClient from "@/components/ProfileJoinedClubsSectionClient";
 
 export default function ProfilePage() {
   return (
@@ -81,67 +81,7 @@ export default function ProfilePage() {
           </div>
         </section>
 
-        {/* Clubs Joined Section */}
-        <section className="flex flex-col gap-4">
-          <div className="flex items-center justify-between">
-            <h2 className="font-semibold text-xl text-[#151C27]">
-              Clubs Joined
-            </h2>
-            <Link href="#" className="text-xs font-semibold text-[#2F6C00]">
-              View All
-            </Link>
-          </div>
-
-          <div className="flex flex-col gap-3">
-            {/* Club 1 */}
-            <div className="flex items-center gap-4 p-4 bg-white border border-[#F2F2F2] rounded-2xl">
-              <div className="w-14 h-14 rounded-full flex-shrink-0 overflow-hidden">
-                <Image
-                  src="https://picsum.photos/seed/padelcentral/56/56"
-                  alt="The Padel Central"
-                  width={56}
-                  height={56}
-                  className="w-full h-full object-cover"
-                />
-              </div>
-              <div className="flex-1 flex flex-col">
-                <span className="text-xs font-semibold text-[#151C27]">
-                  The Padel Central
-                </span>
-                <span className="text-xs text-[#5F5E5E]">
-                  Madrid, ES • 8 Courts
-                </span>
-              </div>
-              <span className="bg-[#E7EEFE] text-[#41493A] text-xs rounded-2xl px-2 py-1">
-                Member
-              </span>
-            </div>
-
-            {/* Club 2 */}
-            <div className="flex items-center gap-4 p-4 bg-white border border-[#F2F2F2] rounded-2xl">
-              <div className="w-14 h-14 rounded-full flex-shrink-0 overflow-hidden">
-                <Image
-                  src="https://picsum.photos/seed/arenapadel/56/56"
-                  alt="Arena Padel Elite"
-                  width={56}
-                  height={56}
-                  className="w-full h-full object-cover"
-                />
-              </div>
-              <div className="flex-1 flex flex-col">
-                <span className="text-xs font-semibold text-[#151C27]">
-                  Arena Padel Elite
-                </span>
-                <span className="text-xs text-[#5F5E5E]">
-                  Barcelona, ES • 12 Courts
-                </span>
-              </div>
-              <span className="bg-[#E7EEFE] text-[#41493A] text-xs rounded-2xl px-2 py-1">
-                Pro
-              </span>
-            </div>
-          </div>
-        </section>
+        <ProfileJoinedClubsSectionClient />
       </main>
 
       <BottomNavBar />

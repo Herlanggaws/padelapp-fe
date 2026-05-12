@@ -5,6 +5,8 @@ import type {
   FetchClubEventsParams,
   FetchClubEventsSuccessResponse,
   FetchClubEventsErrorResponse,
+  FetchEventDetailSuccessResponse,
+  FetchEventDetailErrorResponse,
 } from "@/types/event";
 import { fetchWithAuth } from "@/services/authService";
 
@@ -15,6 +17,8 @@ export type {
   FetchClubEventsParams,
   FetchClubEventsSuccessResponse,
   FetchClubEventsErrorResponse,
+  FetchEventDetailSuccessResponse,
+  FetchEventDetailErrorResponse,
 };
 
 const BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
@@ -48,6 +52,19 @@ export async function fetchClubEvents(
   }
 
   return data as FetchClubEventsSuccessResponse;
+}
+
+export async function fetchEventDetail(
+  id: string,
+): Promise<FetchEventDetailSuccessResponse> {
+  const response = await fetchWithAuth(`${BASE_URL}/padel/event/${id}`);
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw data as FetchEventDetailErrorResponse;
+  }
+
+  return data as FetchEventDetailSuccessResponse;
 }
 
 export async function createEvent(

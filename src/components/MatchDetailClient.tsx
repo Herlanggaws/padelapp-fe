@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import Modal from "@/components/Modal";
+import ScoreKeyboardSheet from "@/components/ScoreKeyboardSheet";
 import { fetchMatchmakingSession } from "@/services/matchmakingService";
 import type {
   GetMatchmakingSessionErrorResponse,
@@ -79,6 +80,32 @@ function asRoundList(value: MatchmakingSessionDetail["rounds"]): MatchmakingSess
 
 function asTeamList(value: MatchmakingSessionDetail["teams"]): MatchmakingSessionTeam[] {
   return Array.isArray(value) ? value : [];
+}
+
+function patchMatchScore(
+  detail: MatchmakingSessionDetail,
+  matchGuid: string,
+  side: "a" | "b",
+  value: number | null,
+): MatchmakingSessionDetail {
+  const rounds = asRoundList(detail.rounds).map((r) => ({
+    ...r,
+    matches: (Array.isArray(r.matches) ? r.matches : []).map((m) => {
+      if (m.guid !== matchGuid) return m;
+      return {
+        ...m,
+        team_a_score: side === "a" ? value : m.team_a_score,
+        team_b_score: side === "b" ? value : m.team_b_score,
+      };
+    }),
+  }));
+  return { ...detail, rounds };
+}
+
+function parseScoreDisplay(display: string): number | null {
+  if (display === "—" || display.trim() === "") return null;
+  const n = parseInt(display, 10);
+  return Number.isNaN(n) ? null : n;
 }
 
 function teamToMatchPlayers(
@@ -198,7 +225,13 @@ function PlayerRow({
   );
 }
 
-function MatchCardComponent({ match }: { match: MatchCard }) {
+function MatchCardComponent({
+  match,
+  onScoreSidePress,
+}: {
+  match: MatchCard;
+  onScoreSidePress?: (side: "a" | "b") => void;
+}) {
   const isFeatured = match.isFeatured;
   const isTBD = match.round === "tbd";
 
@@ -301,34 +334,40 @@ function MatchCardComponent({ match }: { match: MatchCard }) {
           </div>
 
           <div className="flex items-center gap-2 flex-shrink-0">
-            <div
-              className="w-10 h-12 flex items-center justify-center"
+            <button
+              type="button"
+              className="w-10 h-12 flex items-center justify-center cursor-pointer border-0"
               style={{
                 background: isFeatured ? "rgba(255,255,255,0.2)" : "#F0F3FF",
                 borderRadius: "6px",
               }}
+              onClick={() => onScoreSidePress?.("a")}
+              aria-label="Edit team A score"
             >
               <span className="text-base font-normal text-[#18181B]">
                 {match.scoreA}
               </span>
-            </div>
+            </button>
             <span
               className={`text-base font-bold ${isFeatured ? "text-[#18181B]" : "text-[#D4D4D8]"}`}
               style={{ lineHeight: "24px" }}
             >
               -
             </span>
-            <div
-              className="w-10 h-12 flex items-center justify-center"
+            <button
+              type="button"
+              className="w-10 h-12 flex items-center justify-center cursor-pointer border-0"
               style={{
                 background: isFeatured ? "rgba(255,255,255,0.2)" : "#F0F3FF",
                 borderRadius: "6px",
               }}
+              onClick={() => onScoreSidePress?.("b")}
+              aria-label="Edit team B score"
             >
               <span className="text-base font-normal text-[#18181B]">
                 {match.scoreB}
               </span>
-            </div>
+            </button>
           </div>
 
           <div className="flex-1 flex flex-col gap-3 items-end">
@@ -346,7 +385,13 @@ function MatchCardComponent({ match }: { match: MatchCard }) {
   );
 }
 
-function MatchesTab({ rounds }: { rounds: Round[] }) {
+function MatchesTab({
+  rounds,
+  onScoreSidePress,
+}: {
+  rounds: Round[];
+  onScoreSidePress?: (matchGuid: string, side: "a" | "b") => void;
+}) {
   if (rounds.length === 0) {
     return (
       <div className="px-4 py-8 text-center text-sm text-[#71717A]">
@@ -381,7 +426,11 @@ function MatchesTab({ rounds }: { rounds: Round[] }) {
 
           <div className="flex flex-col gap-4">
             {round.matches.map((match) => (
-              <MatchCardComponent key={match.id} match={match} />
+              <MatchCardComponent
+                key={match.id}
+                match={match}
+                onScoreSidePress={(side) => onScoreSidePress?.(match.id, side)}
+              />
             ))}
           </div>
         </div>
@@ -611,6 +660,11 @@ export default function MatchDetailClient({
   const [isLoading, setIsLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
   const [modalMessage, setModalMessage] = useState("");
+  const [scoreSheet, setScoreSheet] = useState<{
+    matchGuid: string;
+    side: "a" | "b";
+    initial: number | null;
+  } | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -637,6 +691,26 @@ export default function MatchDetailClient({
   const headerTitle = detail?.event.name ?? (isLoading ? "Loading…" : "Match");
   const rounds = detail ? mapDetailToRounds(detail) : [];
   const standings = detail ? mapDetailToStandings(detail) : [];
+
+  const openScoreEditor = (matchGuid: string, side: "a" | "b") => {
+    const card = rounds
+      .flatMap((r) => r.matches)
+      .find((m) => m.id === matchGuid);
+    const display = side === "a" ? card?.scoreA : card?.scoreB;
+    setScoreSheet({
+      matchGuid,
+      side,
+      initial: display != null ? parseScoreDisplay(display) : null,
+    });
+  };
+
+  const applyScoreFromKeyboard = (value: number | null) => {
+    if (!detail || !scoreSheet) return;
+    setDetail(
+      patchMatchScore(detail, scoreSheet.matchGuid, scoreSheet.side, value),
+    );
+    setScoreSheet(null);
+  };
 
   return (
     <div className="min-h-screen bg-white max-w-[448px] mx-auto relative flex flex-col">
@@ -723,7 +797,10 @@ export default function MatchDetailClient({
             </div>
 
             {activeTab === "Matches" ? (
-              <MatchesTab rounds={rounds} />
+              <MatchesTab
+                rounds={rounds}
+                onScoreSidePress={openScoreEditor}
+              />
             ) : (
               <StandingsTab standings={standings} />
             )}
@@ -735,6 +812,13 @@ export default function MatchDetailClient({
         isOpen={modalOpen}
         onClose={() => setModalOpen(false)}
         message={modalMessage}
+      />
+
+      <ScoreKeyboardSheet
+        isOpen={scoreSheet !== null}
+        onRequestClose={() => setScoreSheet(null)}
+        onConfirm={applyScoreFromKeyboard}
+        initialValue={scoreSheet?.initial ?? null}
       />
     </div>
   );

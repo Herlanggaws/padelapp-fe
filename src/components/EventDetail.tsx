@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
+import Link from "next/link";
 import TopAppBar from "@/components/TopAppBar";
 import {
   fetchEventDetail,
@@ -444,16 +445,16 @@ function EventDetailContent({
         {event.is_host ? (
           <div className="flex gap-3">
             {event.session_guid ? (
-              <a
+              <Link
                 href={`/matches/${event.session_guid}`}
                 className="flex-1 flex items-center justify-center gap-2 text-base font-semibold text-[#121212] rounded-full"
                 style={{ background: "#9FE870", height: "56px" }}
               >
                 Match Detail
-              </a>
+              </Link>
             ) : (
-              <a
-                href="/matches/configure"
+              <Link
+                href={`/matches/configure?event_guid=${encodeURIComponent(event.guid)}`}
                 className="flex-1 flex items-center justify-center gap-2 text-base font-semibold text-[#121212] rounded-full"
                 style={{ background: "#9FE870", height: "56px" }}
               >
@@ -472,7 +473,7 @@ function EventDetailContent({
                   <path d="M11 8v6M8 11h6" />
                 </svg>
                 Generate Match
-              </a>
+              </Link>
             )}
             <button
               onClick={onJoin}
@@ -530,23 +531,20 @@ export default function EventDetail({ id }: { id: string }) {
   const { showSnackbar } = useSnackbar();
 
   const loadEvent = useCallback(async () => {
-    try {
-      const eventRes = await fetchEventDetail(id);
-      setEvent(eventRes.data);
-      const participantsRes = await fetchEventParticipants({
-        event_guid: id,
-        limit: MAX_VISIBLE_SLOTS,
-      });
-      setParticipantPhotos(participantsRes.data.map((p) => p.user.profile_photo));
-      return eventRes.data;
-    } catch {
-      router.replace("/not-found");
-    }
-  }, [id, router]);
+    const eventRes = await fetchEventDetail(id);
+    setEvent(eventRes.data);
+    const participantsRes = await fetchEventParticipants({
+      event_guid: id,
+      limit: MAX_VISIBLE_SLOTS,
+    });
+    setParticipantPhotos(participantsRes.data.map((p) => p.user.profile_photo));
+    return eventRes.data;
+  }, [id]);
 
   useEffect(() => {
-    loadEvent();
-  }, [loadEvent]);
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    loadEvent().catch(() => router.replace("/not-found"));
+  }, [loadEvent, router]);
 
   const handleJoin = async () => {
     if (!event) return;

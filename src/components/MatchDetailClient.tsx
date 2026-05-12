@@ -1,12 +1,30 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
+import Modal from "@/components/Modal";
+import ScoreKeyboardSheet from "@/components/ScoreKeyboardSheet";
+import { useSnackbar } from "@/context/SnackbarContext";
+import {
+  cancelMatchmakingRound,
+  fetchMatchmakingSession,
+  startMatchmakingRound,
+  submitMatchmakingMatchScore,
+} from "@/services/matchmakingService";
+import type {
+  CancelMatchmakingRoundErrorResponse,
+  GetMatchmakingSessionErrorResponse,
+  MatchmakingSessionDetail,
+  MatchmakingSessionMatch,
+  MatchmakingSessionRound,
+  MatchmakingSessionRoundStatus,
+  MatchmakingSessionTeam,
+  StartMatchmakingRoundErrorResponse,
+  SubmitMatchmakingMatchScoreErrorResponse,
+} from "@/types/matchmaking";
 
 type TabType = "Matches" | "Standings";
-
-// ─── Match Tab ───────────────────────────────────────────────────────────────
 
 interface MatchPlayer {
   name: string;
@@ -15,7 +33,7 @@ interface MatchPlayer {
 }
 
 interface MatchCard {
-  id: number;
+  id: string;
   court: string;
   time: string;
   isLive?: boolean;
@@ -24,71 +42,206 @@ interface MatchCard {
   teamB: MatchPlayer[];
   scoreA: string;
   scoreB: string;
-  round?: string; // "Winner M1" / "Winner M2" for TBD
+  round?: string;
 }
 
 interface Round {
+  guid: string;
+  status: MatchmakingSessionRoundStatus;
   label: string;
   badge: string;
   matches: MatchCard[];
 }
 
-const rounds: Round[] = [
-  {
-    label: "Round 1",
-    badge: "Quarter Finals",
-    matches: [
-      {
-        id: 1,
-        court: "Court 1",
-        time: "10:30 AM",
-        teamA: [
-          { name: "Alex M.", avatarSeed: "alexm", side: "left" },
-          { name: "David K.", avatarSeed: "davidk", side: "left" },
-        ],
-        teamB: [
-          { name: "Marc J.", avatarSeed: "marcj", side: "right" },
-          { name: "Leo R.", avatarSeed: "leor", side: "right" },
-        ],
-        scoreA: "6",
-        scoreB: "4",
-      },
-      {
-        id: 2,
-        court: "Center Court",
-        time: "LIVE",
-        isLive: true,
-        isFeatured: true,
-        teamA: [
-          { name: "Sarah W.", avatarSeed: "sarahw", side: "left" },
-          { name: "Emma L.", avatarSeed: "emmal", side: "left" },
-        ],
-        teamB: [
-          { name: "Julia V.", avatarSeed: "juliav", side: "right" },
-          { name: "Sia K.", avatarSeed: "siak", side: "right" },
-        ],
-        scoreA: "3",
-        scoreB: "2",
-      },
-    ],
-  },
-  {
-    label: "Round 2",
-    badge: "Semi Finals",
-    matches: [
-      {
-        id: 3,
-        court: "TBD",
-        time: "Tomorrow",
-        teamA: [],
-        teamB: [],
-        scoreA: "",
-        scoreB: "",
-        round: "tbd",
-      },
-    ],
-  },
-];
+function normalizeRoundStatusKey(
+  status: MatchmakingSessionRoundStatus | string | undefined,
+): string {
+  return String(status ?? "")
+    .trim()
+    .toLowerCase()
+    .replace(/[\s-]+/g, "_");
+}
+
+/** Start round only while the round is pending. */
+function shouldShowStartRound(
+  status: MatchmakingSessionRoundStatus | string | undefined,
+): boolean {
+  return normalizeRoundStatusKey(status) === "pending";
+}
+
+/** Cancel round only while in progress (pending shows Start only). */
+function shouldShowCancelRound(
+  status: MatchmakingSessionRoundStatus | string | undefined,
+): boolean {
+  return normalizeRoundStatusKey(status) === "in_progress";
+}
+
+interface StandingRow {
+  rank: number;
+  name: string;
+  avatarSeed: string;
+  mp: number;
+  wins: number;
+  pts: number;
+  winPct: string;
+  pPct: string;
+  isPlaceholder?: boolean;
+}
+
+function avatarSeedFromGuid(guid: string) {
+  return guid.replace(/[^a-zA-Z0-9]/g, "").slice(0, 12) || "player";
+}
+
+function formatEventTime(dateTime: string) {
+  const d = new Date(dateTime);
+  if (Number.isNaN(d.getTime())) return "—";
+  return d.toLocaleTimeString("en-US", {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+function humanizeRoundStatus(status: string) {
+  return status
+    .split(/[_\s]+/)
+    .filter(Boolean)
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
+    .join(" ");
+}
+
+function asRoundList(value: MatchmakingSessionDetail["rounds"]): MatchmakingSessionRound[] {
+  return Array.isArray(value) ? value : [];
+}
+
+function asTeamList(value: MatchmakingSessionDetail["teams"]): MatchmakingSessionTeam[] {
+  return Array.isArray(value) ? value : [];
+}
+
+function patchMatchScore(
+  detail: MatchmakingSessionDetail,
+  matchGuid: string,
+  side: "a" | "b",
+  value: number | null,
+): MatchmakingSessionDetail {
+  const rounds = asRoundList(detail.rounds).map((r) => ({
+    ...r,
+    matches: (Array.isArray(r.matches) ? r.matches : []).map((m) => {
+      if (m.guid !== matchGuid) return m;
+      return {
+        ...m,
+        team_a_score: side === "a" ? value : m.team_a_score,
+        team_b_score: side === "b" ? value : m.team_b_score,
+      };
+    }),
+  }));
+  return { ...detail, rounds };
+}
+
+function getMatchRawScores(
+  d: MatchmakingSessionDetail,
+  matchGuid: string,
+): { a: number | null; b: number | null } | null {
+  for (const r of asRoundList(d.rounds)) {
+    const ms = Array.isArray(r.matches) ? r.matches : [];
+    const m = ms.find((x) => x.guid === matchGuid);
+    if (m) {
+      return {
+        a: m.team_a_score ?? null,
+        b: m.team_b_score ?? null,
+      };
+    }
+  }
+  return null;
+}
+
+function parseScoreDisplay(display: string): number | null {
+  if (display === "—" || display.trim() === "") return null;
+  const n = parseInt(display, 10);
+  return Number.isNaN(n) ? null : n;
+}
+
+function teamToMatchPlayers(
+  team: MatchmakingSessionMatch["team_a_info"],
+  side: "left" | "right",
+): MatchPlayer[] {
+  const slot = (player: { name?: string; guid?: string } | null | undefined, i: number): MatchPlayer => ({
+    name: player?.name?.trim() || "TBD",
+    avatarSeed: avatarSeedFromGuid(player?.guid ?? `tbd-${side}-${i}`),
+    side,
+  });
+  if (!team) {
+    return [
+      { name: "TBD", avatarSeed: `tbd-${side}-1`, side },
+      { name: "TBD", avatarSeed: `tbd-${side}-2`, side },
+    ];
+  }
+  return [slot(team.player1, 1), slot(team.player2, 2)];
+}
+
+function mapMatchToCard(
+  m: MatchmakingSessionMatch,
+  opts: { timeLabel: string; isLive: boolean; isFeatured: boolean },
+): MatchCard {
+  return {
+    id: m.guid,
+    court: m.court_number ? `Court ${m.court_number}` : "Court",
+    time: opts.timeLabel,
+    isLive: opts.isLive,
+    isFeatured: opts.isFeatured,
+    teamA: teamToMatchPlayers(m.team_a_info, "left"),
+    teamB: teamToMatchPlayers(m.team_b_info, "right"),
+    scoreA: m.team_a_score == null ? "—" : String(m.team_a_score),
+    scoreB: m.team_b_score == null ? "—" : String(m.team_b_score),
+  };
+}
+
+function mapDetailToRounds(detail: MatchmakingSessionDetail): Round[] {
+  const sorted = [...asRoundList(detail.rounds)].sort(
+    (a, b) => a.round_number - b.round_number,
+  );
+  return sorted.map((round) => {
+    const isRoundLive = round.status === "in_progress";
+    const timeLabel = isRoundLive
+      ? "LIVE"
+      : formatEventTime(detail.event.date_time);
+    const matches = Array.isArray(round.matches) ? round.matches : [];
+    return {
+      guid: round.guid,
+      status: round.status,
+      label: `Round ${round.round_number}`,
+      badge: humanizeRoundStatus(String(round.status)),
+      matches: matches.map((m, idx) =>
+        mapMatchToCard(m, {
+          timeLabel,
+          isLive: isRoundLive,
+          isFeatured: isRoundLive && idx === 0,
+        }),
+      ),
+    };
+  });
+}
+
+function mapDetailToStandings(detail: MatchmakingSessionDetail): StandingRow[] {
+  const sorted = [...asTeamList(detail.teams)].sort(
+    (a, b) =>
+      (b.total_points ?? 0) - (a.total_points ?? 0) ||
+      (b.games_played ?? 0) - (a.games_played ?? 0),
+  );
+  return sorted.map((team, i) => {
+    const p1 = team.player1?.name?.trim() || "TBD";
+    const p2 = team.player2?.name?.trim() || "TBD";
+    return {
+      rank: i + 1,
+      name: `${p1} / ${p2}`,
+      avatarSeed: avatarSeedFromGuid(team.guid),
+      mp: team.games_played ?? 0,
+      wins: 0,
+      pts: team.total_points ?? 0,
+      winPct: "—",
+      pPct: "—",
+    };
+  });
+}
 
 function PlayerRow({
   player,
@@ -126,9 +279,39 @@ function PlayerRow({
   );
 }
 
-function MatchCardComponent({ match }: { match: MatchCard }) {
+function MatchCardComponent({
+  match,
+  onScoreSidePress,
+  scoresEditable,
+  showSave,
+  isSaving,
+  onSave,
+  showStartRound,
+  onStartRound,
+  isStartRoundLoading,
+  showCancelRound,
+  onCancelRound,
+  isCancelRoundLoading,
+  isRoundMutationBusy,
+}: {
+  match: MatchCard;
+  onScoreSidePress?: (side: "a" | "b") => void;
+  /** When false (e.g. round still pending), score cells are read-only. */
+  scoresEditable?: boolean;
+  showSave?: boolean;
+  isSaving?: boolean;
+  onSave?: () => void;
+  showStartRound?: boolean;
+  onStartRound?: () => void;
+  isStartRoundLoading?: boolean;
+  showCancelRound?: boolean;
+  onCancelRound?: () => void;
+  isCancelRoundLoading?: boolean;
+  isRoundMutationBusy?: boolean;
+}) {
   const isFeatured = match.isFeatured;
   const isTBD = match.round === "tbd";
+  const canEditScores = scoresEditable !== false;
 
   return (
     <div
@@ -139,7 +322,6 @@ function MatchCardComponent({ match }: { match: MatchCard }) {
         borderRadius: "32px",
       }}
     >
-      {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-1">
           <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
@@ -184,7 +366,40 @@ function MatchCardComponent({ match }: { match: MatchCard }) {
         </span>
       </div>
 
-      {/* Players & Score */}
+      {showStartRound && onStartRound ? (
+        <button
+          type="button"
+          disabled={isRoundMutationBusy}
+          onClick={onStartRound}
+          className="w-full py-2.5 text-center text-xs font-semibold rounded-xl border cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed transition-opacity"
+          style={{
+            borderColor: isFeatured ? "#18181B" : "#D4D4D8",
+            color: isFeatured ? "#18181B" : "#18181B",
+            background: isFeatured ? "rgba(255,255,255,0.35)" : "#FAFAFA",
+            lineHeight: "18px",
+          }}
+        >
+          {isStartRoundLoading ? "Starting…" : "Start round"}
+        </button>
+      ) : null}
+
+      {showCancelRound && onCancelRound ? (
+        <button
+          type="button"
+          disabled={isRoundMutationBusy}
+          onClick={onCancelRound}
+          className="w-full py-2.5 text-center text-xs font-semibold rounded-xl border cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed transition-opacity"
+          style={{
+            borderColor: isFeatured ? "#BA1A1A" : "#D4D4D8",
+            color: "#BA1A1A",
+            background: isFeatured ? "rgba(255,255,255,0.5)" : "#FEF2F2",
+            lineHeight: "18px",
+          }}
+        >
+          {isCancelRoundLoading ? "Cancelling…" : "Cancel round"}
+        </button>
+      ) : null}
+
       {isTBD ? (
         <div className="flex items-center gap-4">
           <div
@@ -220,67 +435,127 @@ function MatchCardComponent({ match }: { match: MatchCard }) {
         </div>
       ) : (
         <div className="flex items-center gap-2">
-          {/* Team A */}
           <div className="flex-1 flex flex-col gap-3">
             {match.teamA.map((p) => (
-              <PlayerRow key={p.name} player={p} isFeatured={isFeatured} />
+              <PlayerRow
+                key={`${p.avatarSeed}-a`}
+                player={p}
+                isFeatured={isFeatured}
+              />
             ))}
           </div>
 
-          {/* Score */}
           <div className="flex items-center gap-2 flex-shrink-0">
-            <div
-              className="w-10 h-12 flex items-center justify-center"
+            <button
+              type="button"
+              disabled={!canEditScores}
+              className={`w-10 h-12 flex items-center justify-center border-0 ${canEditScores ? "cursor-pointer" : "cursor-not-allowed opacity-50"}`}
               style={{
                 background: isFeatured ? "rgba(255,255,255,0.2)" : "#F0F3FF",
                 borderRadius: "6px",
               }}
+              onClick={() => onScoreSidePress?.("a")}
+              aria-label={
+                canEditScores ? "Edit team A score" : "Team A score (locked)"
+              }
             >
-              <span
-                className={`text-base font-normal ${isFeatured ? "text-[#18181B]" : "text-[#18181B]"}`}
-              >
+              <span className="text-base font-normal text-[#18181B]">
                 {match.scoreA}
               </span>
-            </div>
+            </button>
             <span
               className={`text-base font-bold ${isFeatured ? "text-[#18181B]" : "text-[#D4D4D8]"}`}
               style={{ lineHeight: "24px" }}
             >
               -
             </span>
-            <div
-              className="w-10 h-12 flex items-center justify-center"
+            <button
+              type="button"
+              disabled={!canEditScores}
+              className={`w-10 h-12 flex items-center justify-center border-0 ${canEditScores ? "cursor-pointer" : "cursor-not-allowed opacity-50"}`}
               style={{
                 background: isFeatured ? "rgba(255,255,255,0.2)" : "#F0F3FF",
                 borderRadius: "6px",
               }}
+              onClick={() => onScoreSidePress?.("b")}
+              aria-label={
+                canEditScores ? "Edit team B score" : "Team B score (locked)"
+              }
             >
-              <span
-                className={`text-base font-normal ${isFeatured ? "text-[#18181B]" : "text-[#18181B]"}`}
-              >
+              <span className="text-base font-normal text-[#18181B]">
                 {match.scoreB}
               </span>
-            </div>
+            </button>
           </div>
 
-          {/* Team B */}
           <div className="flex-1 flex flex-col gap-3 items-end">
             {match.teamB.map((p) => (
-              <PlayerRow key={p.name} player={p} isFeatured={isFeatured} />
+              <PlayerRow
+                key={`${p.avatarSeed}-b`}
+                player={p}
+                isFeatured={isFeatured}
+              />
             ))}
           </div>
         </div>
       )}
+
+      {showSave && !isTBD ? (
+        <div
+          className={`pt-3 mt-1 border-t ${isFeatured ? "border-[#18181B]/25" : "border-[#F4F4F5]"}`}
+        >
+          <button
+            type="button"
+            disabled={isSaving}
+            onClick={onSave}
+            className="w-full py-3 text-center text-sm font-semibold rounded-2xl border-0 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed transition-opacity"
+            style={{
+              background: isFeatured ? "#FFFFFF" : "#18181B",
+              color: isFeatured ? "#18181B" : "#FFFFFF",
+              lineHeight: "21px",
+            }}
+          >
+            {isSaving ? "Saving…" : "Save"}
+          </button>
+        </div>
+      ) : null}
     </div>
   );
 }
 
-function MatchesTab() {
+function MatchesTab({
+  rounds,
+  onScoreSidePress,
+  pendingSaveMatchIds,
+  savingMatchId,
+  onSaveMatch,
+  startRoundLoadingGuid,
+  onStartRound,
+  cancellingRoundGuid,
+  onCancelRound,
+}: {
+  rounds: Round[];
+  onScoreSidePress?: (matchGuid: string, side: "a" | "b") => void;
+  pendingSaveMatchIds: ReadonlySet<string>;
+  savingMatchId: string | null;
+  onSaveMatch: (matchGuid: string) => void;
+  startRoundLoadingGuid: string | null;
+  onStartRound: (roundGuid: string) => void;
+  cancellingRoundGuid: string | null;
+  onCancelRound: (roundGuid: string) => void;
+}) {
+  if (rounds.length === 0) {
+    return (
+      <div className="px-4 py-8 text-center text-sm text-[#71717A]">
+        No rounds scheduled yet.
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-col gap-6 px-4 py-4">
       {rounds.map((round) => (
-        <div key={round.label} className="flex flex-col gap-4">
-          {/* Round header */}
+        <div key={round.guid} className="flex flex-col gap-4">
           <div className="flex items-center justify-between">
             <span
               className="text-xl font-semibold text-[#151C27]"
@@ -301,14 +576,44 @@ function MatchesTab() {
             </div>
           </div>
 
-          {/* Match cards */}
-          <div
-            className="flex flex-col gap-4"
-            style={{ opacity: round.label === "Round 2" ? 0.6 : 1 }}
-          >
-            {round.matches.map((match) => (
-              <MatchCardComponent key={match.id} match={match} />
-            ))}
+          <div className="flex flex-col gap-4">
+            {round.matches.map((match) => {
+              const showStart = shouldShowStartRound(round.status);
+              const showCancel = shouldShowCancelRound(round.status);
+              const isRoundMutationBusy =
+                startRoundLoadingGuid === round.guid ||
+                cancellingRoundGuid === round.guid;
+              const scoresEditable =
+                normalizeRoundStatusKey(round.status) !== "pending";
+              return (
+                <MatchCardComponent
+                  key={match.id}
+                  match={match}
+                  scoresEditable={scoresEditable}
+                  onScoreSidePress={(side) =>
+                    onScoreSidePress?.(match.id, side)
+                  }
+                  showSave={pendingSaveMatchIds.has(match.id)}
+                  isSaving={savingMatchId === match.id}
+                  onSave={() => onSaveMatch(match.id)}
+                  showStartRound={showStart}
+                  onStartRound={
+                    showStart ? () => onStartRound(round.guid) : undefined
+                  }
+                  isStartRoundLoading={
+                    startRoundLoadingGuid === round.guid
+                  }
+                  showCancelRound={showCancel}
+                  onCancelRound={
+                    showCancel
+                      ? () => onCancelRound(round.guid)
+                      : undefined
+                  }
+                  isCancelRoundLoading={cancellingRoundGuid === round.guid}
+                  isRoundMutationBusy={isRoundMutationBusy}
+                />
+              );
+            })}
           </div>
         </div>
       ))}
@@ -316,132 +621,27 @@ function MatchesTab() {
   );
 }
 
-// ─── Standings Tab ────────────────────────────────────────────────────────────
+function StandingsTab({ standings }: { standings: StandingRow[] }) {
+  if (standings.length === 0) {
+    return (
+      <div className="px-4 py-8 text-center text-sm text-[#71717A]">
+        No teams in this session.
+      </div>
+    );
+  }
 
-interface StandingRow {
-  rank: number;
-  name: string;
-  avatarSeed: string;
-  mp: number;
-  wins: number;
-  pts: number;
-  winPct: string;
-  pPct: string;
-  isUser?: boolean;
-  isPlaceholder?: boolean;
-}
-
-const standings: StandingRow[] = [
-  {
-    rank: 1,
-    name: "Carlos Alcaraz",
-    avatarSeed: "carlos",
-    mp: 12,
-    wins: 11,
-    pts: 2450,
-    winPct: "92%",
-    pPct: "88%",
-  },
-  {
-    rank: 2,
-    name: "Marcus Nilsson",
-    avatarSeed: "marcus",
-    mp: 12,
-    wins: 10,
-    pts: 2120,
-    winPct: "83%",
-    pPct: "81%",
-  },
-  {
-    rank: 3,
-    name: "Elena Rossi",
-    avatarSeed: "elena",
-    mp: 12,
-    wins: 9,
-    pts: 1980,
-    winPct: "75%",
-    pPct: "79%",
-  },
-  {
-    rank: 12,
-    name: "You",
-    avatarSeed: "user",
-    mp: 10,
-    wins: 6,
-    pts: 1240,
-    winPct: "60%",
-    pPct: "55%",
-    isUser: true,
-  },
-  {
-    rank: 13,
-    name: "Liam Smith",
-    avatarSeed: "liam",
-    mp: 10,
-    wins: 5,
-    pts: 1180,
-    winPct: "45%",
-    pPct: "50%",
-    isPlaceholder: true,
-  },
-];
-
-function StandingsTab() {
   return (
     <div className="flex flex-col gap-6 pb-8">
-      {/* Your Rank Card */}
-      <div className="px-4 pt-4">
-        <div
-          className="flex items-center justify-between px-4 py-4"
-          style={{ background: "#9FE870", borderRadius: "32px" }}
-        >
-          <div className="flex flex-col gap-1">
-            <span
-              className="text-xs uppercase tracking-[5%] text-[rgba(46,105,0,0.7)]"
-              style={{ lineHeight: "12px" }}
-            >
-              YOUR RANK
-            </span>
-            <span
-              className="text-[28px] font-semibold text-[#2E6900]"
-              style={{ lineHeight: "33.6px", letterSpacing: "-1%" }}
-            >
-              #12
-            </span>
-          </div>
-          <div
-            className="flex items-center gap-1 px-3 py-2"
-            style={{
-              background: "rgba(255,255,255,0.3)",
-              backdropFilter: "blur(12px)",
-              borderRadius: "32px",
-            }}
-          >
-            <svg width="20" height="12" viewBox="0 0 20 12" fill="none">
-              <path d="M10 0L20 12H0L10 0Z" fill="#2E6900" />
-            </svg>
-            <span
-              className="text-xs font-semibold text-[#2E6900]"
-              style={{ lineHeight: "12px" }}
-            >
-              +4 Slots
-            </span>
-          </div>
-        </div>
-      </div>
-
-      {/* Leaderboard Table */}
       <div
-        className="mx-4 border border-[#F4F4F5]"
+        className="mx-4 mt-4 border border-[#F4F4F5]"
         style={{ borderRadius: "32px" }}
       >
-        {/* Table Header */}
         <div className="flex items-center justify-between px-4 py-4 border-b border-[#FAFAFA]">
           <span
             className="text-xs font-semibold uppercase text-[#18181B]"
             style={{ lineHeight: "12px" }}
           >
-            SEASON STANDINGS
+            TEAM STANDINGS
           </span>
           <svg width="15" height="10" viewBox="0 0 15 10" fill="none">
             <path
@@ -453,7 +653,6 @@ function StandingsTab() {
           </svg>
         </div>
 
-        {/* Column Headers */}
         <div
           className="flex items-center"
           style={{ background: "rgba(250,250,250,0.5)" }}
@@ -471,7 +670,7 @@ function StandingsTab() {
               className="text-xs uppercase text-[#A1A1AA]"
               style={{ lineHeight: "12px" }}
             >
-              PLAYER
+              TEAM
             </span>
           </div>
           <div className="w-[61px] px-2 py-4 text-center">
@@ -516,23 +715,19 @@ function StandingsTab() {
           </div>
         </div>
 
-        {/* Rows */}
         <div className="flex flex-col">
           {standings.map((row, idx) => {
-            const isUser = row.isUser;
             const isPlaceholder = row.isPlaceholder;
             return (
               <div
                 key={row.rank}
                 className="flex items-center"
                 style={{
-                  background: isUser ? "rgba(159,232,112,0.2)" : "transparent",
+                  background: "transparent",
                   borderTop: idx > 0 ? "1px solid #FAFAFA" : "none",
-                  borderLeft: isUser ? "4px solid #FAFAFA" : "none",
                   opacity: isPlaceholder ? 0.6 : 1,
                 }}
               >
-                {/* Rank */}
                 <div className="w-[79px] px-4 py-5 flex items-center gap-1">
                   <span
                     className="text-xs font-semibold text-[#18181B]"
@@ -556,15 +751,10 @@ function StandingsTab() {
                   )}
                 </div>
 
-                {/* Player */}
-                <div className="flex-1 px-2 py-3 flex items-center gap-3">
+                <div className="flex-1 px-2 py-3 flex items-center gap-3 min-w-0">
                   <div
                     className="w-8 h-8 rounded-full overflow-hidden flex-shrink-0"
-                    style={{
-                      border: isUser
-                        ? "2px solid #2F6C00"
-                        : "1px solid #F4F4F5",
-                    }}
+                    style={{ border: "1px solid #F4F4F5" }}
                   >
                     {isPlaceholder ? (
                       <div
@@ -582,14 +772,13 @@ function StandingsTab() {
                     )}
                   </div>
                   <span
-                    className="text-sm font-normal text-[#18181B]"
+                    className="text-sm font-normal text-[#18181B] truncate"
                     style={{ lineHeight: "21px" }}
                   >
                     {row.name}
                   </span>
                 </div>
 
-                {/* MP */}
                 <div className="w-[61px] px-2 py-5 text-center">
                   <span
                     className="text-sm font-normal text-[#52525B]"
@@ -599,39 +788,33 @@ function StandingsTab() {
                   </span>
                 </div>
 
-                {/* Wins */}
                 <div className="w-[57px] px-2 py-5 text-center">
                   <span
                     className="text-sm font-normal text-[#52525B]"
                     style={{ lineHeight: "21px" }}
                   >
-                    {isPlaceholder ? row.wins : row.wins}
+                    {row.wins === 0 ? "—" : row.wins}
                   </span>
                 </div>
 
-                {/* PTS */}
                 <div className="w-[94px] px-2 py-5 text-center">
                   <span
                     className="text-sm font-normal text-[#2F6C00]"
                     style={{ lineHeight: "21px" }}
                   >
-                    {isPlaceholder
-                      ? row.pts.toLocaleString()
-                      : row.pts.toLocaleString()}
+                    {row.pts.toLocaleString()}
                   </span>
                 </div>
 
-                {/* W% */}
                 <div className="w-[80px] px-2 py-5 text-center">
                   <span
                     className="text-sm font-normal text-[#52525B]"
                     style={{ lineHeight: "21px" }}
                   >
-                    {isPlaceholder ? row.winPct : row.winPct}
+                    {row.winPct}
                   </span>
                 </div>
 
-                {/* P% */}
                 <div className="w-[81px] px-2 py-5 text-right pr-4">
                   <span
                     className="text-sm font-normal text-[#A1A1AA]"
@@ -644,144 +827,283 @@ function StandingsTab() {
             );
           })}
         </div>
-
-        {/* View Full Rankings */}
-        <div className="px-4 py-4" style={{ background: "#FAFAFA" }}>
-          <button className="flex items-center justify-center gap-1 w-full">
-            <span
-              className="text-xs font-semibold text-[#18181B]"
-              style={{ lineHeight: "12px" }}
-            >
-              View Full Rankings
-            </span>
-            <svg width="9" height="6" viewBox="0 0 9 6" fill="none">
-              <path
-                d="M1 1L4.5 5L8 1"
-                stroke="#18181B"
-                strokeWidth="1.5"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            </svg>
-          </button>
-        </div>
-      </div>
-
-      {/* Key Performance Indices */}
-      <div className="flex flex-col gap-2 px-4">
-        <span
-          className="text-xs font-semibold uppercase text-[#A1A1AA]"
-          style={{ lineHeight: "12px" }}
-        >
-          KEY PERFORMANCE INDICES
-        </span>
-        <div
-          className="relative overflow-hidden px-4 py-4"
-          style={{ background: "#18181B", borderRadius: "32px" }}
-        >
-          {/* Decorative element */}
-          <div
-            className="absolute right-4 top-4 opacity-10"
-            style={{ width: "75px", height: "75px" }}
-          >
-            <svg width="75" height="75" viewBox="0 0 75 75" fill="none">
-              <circle
-                cx="37.5"
-                cy="37.5"
-                r="36"
-                stroke="white"
-                strokeWidth="3"
-              />
-              <circle
-                cx="37.5"
-                cy="37.5"
-                r="24"
-                stroke="white"
-                strokeWidth="3"
-              />
-              <circle
-                cx="37.5"
-                cy="37.5"
-                r="12"
-                stroke="white"
-                strokeWidth="3"
-              />
-            </svg>
-          </div>
-
-          <div className="flex flex-col gap-1">
-            <span
-              className="text-xs font-normal text-[#A1A1AA]"
-              style={{ lineHeight: "12px" }}
-            >
-              Win Rate Delta
-            </span>
-            <div className="flex items-end gap-2">
-              <span
-                className="text-[28px] font-semibold text-white"
-                style={{ lineHeight: "33.6px", letterSpacing: "-1%" }}
-              >
-                +12.5%
-              </span>
-              <div className="flex items-center gap-1 pb-1">
-                <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
-                  <path d="M6 1L11 11H1L6 1Z" fill="#9FE870" />
-                </svg>
-                <span
-                  className="text-sm font-normal text-[#9FE870]"
-                  style={{ lineHeight: "21px" }}
-                >
-                  vs last week
-                </span>
-              </div>
-            </div>
-          </div>
-        </div>
       </div>
     </div>
   );
 }
 
-// ─── Main Component ───────────────────────────────────────────────────────────
-
-export default function MatchDetailClient() {
+export default function MatchDetailClient({
+  sessionGuid,
+}: {
+  sessionGuid: string;
+}) {
+  const { showSnackbar } = useSnackbar();
   const [activeTab, setActiveTab] = useState<TabType>("Matches");
+  const [detail, setDetail] = useState<MatchmakingSessionDetail | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [modalOpen, setModalOpen] = useState(false);
+  const [modalMessage, setModalMessage] = useState("");
+  const [scoreSheet, setScoreSheet] = useState<{
+    matchGuid: string;
+    side: "a" | "b";
+    initial: number | null;
+  } | null>(null);
+  const [pendingSaveMatchIds, setPendingSaveMatchIds] = useState<Set<string>>(
+    () => new Set(),
+  );
+  const [savingMatchId, setSavingMatchId] = useState<string | null>(null);
+  const [startRoundLoadingGuid, setStartRoundLoadingGuid] = useState<
+    string | null
+  >(null);
+  const [cancellingRoundGuid, setCancellingRoundGuid] = useState<
+    string | null
+  >(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      setIsLoading(true);
+      try {
+        const res = await fetchMatchmakingSession(sessionGuid);
+        if (!cancelled) {
+          setDetail(res.data);
+          setPendingSaveMatchIds(new Set());
+        }
+      } catch (e) {
+        const err = e as GetMatchmakingSessionErrorResponse;
+        if (!cancelled) {
+          setModalMessage(err?.message ?? "Could not load match session.");
+          setModalOpen(true);
+        }
+      } finally {
+        if (!cancelled) setIsLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [sessionGuid]);
+
+  const headerTitle = detail?.event.name ?? (isLoading ? "Loading…" : "Match");
+  const rounds = detail ? mapDetailToRounds(detail) : [];
+  const standings = detail ? mapDetailToStandings(detail) : [];
+
+  const openScoreEditor = (matchGuid: string, side: "a" | "b") => {
+    const card = rounds
+      .flatMap((r) => r.matches)
+      .find((m) => m.id === matchGuid);
+    const display = side === "a" ? card?.scoreA : card?.scoreB;
+    setScoreSheet({
+      matchGuid,
+      side,
+      initial: display != null ? parseScoreDisplay(display) : null,
+    });
+  };
+
+  const applyScoreFromKeyboard = (value: number | null) => {
+    if (!detail || !scoreSheet) return;
+    const matchGuid = scoreSheet.matchGuid;
+    const before = getMatchRawScores(detail, matchGuid);
+    const afterA =
+      scoreSheet.side === "a" ? value : before?.a ?? null;
+    const afterB =
+      scoreSheet.side === "b" ? value : before?.b ?? null;
+    const scoresUnchanged =
+      before != null && before.a === afterA && before.b === afterB;
+
+    setDetail(patchMatchScore(detail, matchGuid, scoreSheet.side, value));
+    if (!scoresUnchanged) {
+      setPendingSaveMatchIds((prev) => {
+        const next = new Set(prev);
+        next.add(matchGuid);
+        return next;
+      });
+    }
+    setScoreSheet(null);
+  };
+
+  const handleSaveMatch = async (matchGuid: string) => {
+    if (!detail) return;
+    const scores = getMatchRawScores(detail, matchGuid);
+    if (!scores) {
+      showSnackbar("Could not find this match.");
+      return;
+    }
+
+    setSavingMatchId(matchGuid);
+    try {
+      const res = await submitMatchmakingMatchScore(matchGuid, {
+        team_a_score: scores.a,
+        team_b_score: scores.b,
+      });
+      showSnackbar(res.message);
+
+      const refreshed = await fetchMatchmakingSession(sessionGuid);
+      setDetail(refreshed.data);
+      setPendingSaveMatchIds((prev) => {
+        const next = new Set(prev);
+        next.delete(matchGuid);
+        return next;
+      });
+    } catch (e) {
+      const err = e as
+        | SubmitMatchmakingMatchScoreErrorResponse
+        | GetMatchmakingSessionErrorResponse;
+      showSnackbar(err?.message ?? "Could not save or refresh score.");
+    } finally {
+      setSavingMatchId(null);
+    }
+  };
+
+  const handleStartRound = async (roundGuid: string) => {
+    setStartRoundLoadingGuid(roundGuid);
+    try {
+      const res = await startMatchmakingRound(roundGuid);
+      showSnackbar(res.message);
+      const refreshed = await fetchMatchmakingSession(sessionGuid);
+      setDetail(refreshed.data);
+    } catch (e) {
+      const err = e as
+        | StartMatchmakingRoundErrorResponse
+        | GetMatchmakingSessionErrorResponse;
+      showSnackbar(err?.message ?? "Could not start round.");
+    } finally {
+      setStartRoundLoadingGuid(null);
+    }
+  };
+
+  const handleCancelRound = async (roundGuid: string) => {
+    setCancellingRoundGuid(roundGuid);
+    try {
+      const res = await cancelMatchmakingRound(roundGuid);
+      showSnackbar(res.message);
+      const refreshed = await fetchMatchmakingSession(sessionGuid);
+      setDetail(refreshed.data);
+    } catch (e) {
+      const err = e as
+        | CancelMatchmakingRoundErrorResponse
+        | GetMatchmakingSessionErrorResponse;
+      showSnackbar(err?.message ?? "Could not cancel round.");
+    } finally {
+      setCancellingRoundGuid(null);
+    }
+  };
 
   return (
-    <>
-      {/* Tab Switcher */}
-      <div
-        className="flex items-center gap-4 px-6 py-4 bg-white"
-        style={{ borderBottom: "none" }}
+    <div className="min-h-screen bg-white max-w-[448px] mx-auto relative flex flex-col">
+      <header
+        className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-6 max-w-[448px] mx-auto w-full"
+        style={{
+          background: "#FFFFFF",
+          borderBottom: "1px solid #F4F4F5",
+          height: "64px",
+        }}
       >
-        {(["Matches", "Standings"] as TabType[]).map((tab) => {
-          const isActive = activeTab === tab;
-          return (
-            <button
-              key={tab}
-              onClick={() => setActiveTab(tab)}
-              className="flex-1 py-3 text-center transition-all"
-              style={{
-                borderRadius: "9999px",
-                background: isActive ? "#FFFFFF" : "transparent",
-                border: isActive ? "none" : "none",
-                color: isActive ? "#18181B" : "#71717A",
-                fontSize: "14px",
-                fontWeight: isActive ? 700 : 500,
-                lineHeight: "21px",
-                boxShadow: isActive
-                  ? "0px 1px 2px 0px rgba(0,0,0,0.05)"
-                  : "none",
-              }}
+        <div className="flex items-center gap-3 min-w-0">
+          <Link href="/matches" className="p-1 flex-shrink-0">
+            <svg
+              width="20"
+              height="20"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
             >
-              {tab}
-            </button>
-          );
-        })}
+              <path d="M19 12H5M12 19l-7-7 7-7" />
+            </svg>
+          </Link>
+          <span
+            className="font-black text-xl text-[#18181B] truncate"
+            style={{ lineHeight: "28px" }}
+          >
+            {headerTitle}
+          </span>
+        </div>
+
+        <div
+          className="w-8 h-8 rounded-full overflow-hidden flex-shrink-0"
+          style={{ border: "1px solid #F4F4F5" }}
+        >
+          <Image
+            src="https://picsum.photos/seed/userprofile/32/32"
+            alt="Player profile"
+            width={32}
+            height={32}
+            className="w-full h-full object-cover"
+          />
+        </div>
+      </header>
+
+      <div className="flex flex-col" style={{ paddingTop: "64px" }}>
+        {isLoading ? (
+          <div className="px-6 py-8 text-center text-sm text-[#71717A]">
+            Loading session…
+          </div>
+        ) : detail ? (
+          <>
+            <div
+              className="flex items-center gap-4 px-6 py-4 bg-white"
+              style={{ borderBottom: "none" }}
+            >
+              {(["Matches", "Standings"] as TabType[]).map((tab) => {
+                const isActive = activeTab === tab;
+                return (
+                  <button
+                    key={tab}
+                    type="button"
+                    onClick={() => setActiveTab(tab)}
+                    className="flex-1 py-3 text-center transition-all"
+                    style={{
+                      borderRadius: "9999px",
+                      background: isActive ? "#FFFFFF" : "transparent",
+                      color: isActive ? "#18181B" : "#71717A",
+                      fontSize: "14px",
+                      fontWeight: isActive ? 700 : 500,
+                      lineHeight: "21px",
+                      boxShadow: isActive
+                        ? "0px 1px 2px 0px rgba(0,0,0,0.05)"
+                        : "none",
+                    }}
+                  >
+                    {tab}
+                  </button>
+                );
+              })}
+            </div>
+
+            {activeTab === "Matches" ? (
+              <MatchesTab
+                rounds={rounds}
+                onScoreSidePress={openScoreEditor}
+                pendingSaveMatchIds={pendingSaveMatchIds}
+                savingMatchId={savingMatchId}
+                onSaveMatch={handleSaveMatch}
+                startRoundLoadingGuid={startRoundLoadingGuid}
+                onStartRound={handleStartRound}
+                cancellingRoundGuid={cancellingRoundGuid}
+                onCancelRound={handleCancelRound}
+              />
+            ) : (
+              <StandingsTab standings={standings} />
+            )}
+          </>
+        ) : null}
       </div>
 
-      {/* Tab Content */}
-      {activeTab === "Matches" ? <MatchesTab /> : <StandingsTab />}
-    </>
+      <Modal
+        isOpen={modalOpen}
+        onClose={() => setModalOpen(false)}
+        message={modalMessage}
+      />
+
+      <ScoreKeyboardSheet
+        isOpen={scoreSheet !== null}
+        onRequestClose={() => setScoreSheet(null)}
+        onConfirm={applyScoreFromKeyboard}
+        initialValue={scoreSheet?.initial ?? null}
+      />
+    </div>
   );
 }

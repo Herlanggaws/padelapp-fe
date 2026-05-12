@@ -5,13 +5,23 @@ import Image from "next/image";
 import Link from "next/link";
 import Modal from "@/components/Modal";
 import ScoreKeyboardSheet from "@/components/ScoreKeyboardSheet";
-import { fetchMatchmakingSession } from "@/services/matchmakingService";
+import { useSnackbar } from "@/context/SnackbarContext";
+import {
+  cancelMatchmakingRound,
+  fetchMatchmakingSession,
+  startMatchmakingRound,
+  submitMatchmakingMatchScore,
+} from "@/services/matchmakingService";
 import type {
+  CancelMatchmakingRoundErrorResponse,
   GetMatchmakingSessionErrorResponse,
   MatchmakingSessionDetail,
   MatchmakingSessionMatch,
   MatchmakingSessionRound,
+  MatchmakingSessionRoundStatus,
   MatchmakingSessionTeam,
+  StartMatchmakingRoundErrorResponse,
+  SubmitMatchmakingMatchScoreErrorResponse,
 } from "@/types/matchmaking";
 
 type TabType = "Matches" | "Standings";
@@ -36,9 +46,34 @@ interface MatchCard {
 }
 
 interface Round {
+  guid: string;
+  status: MatchmakingSessionRoundStatus;
   label: string;
   badge: string;
   matches: MatchCard[];
+}
+
+function normalizeRoundStatusKey(
+  status: MatchmakingSessionRoundStatus | string | undefined,
+): string {
+  return String(status ?? "")
+    .trim()
+    .toLowerCase()
+    .replace(/[\s-]+/g, "_");
+}
+
+/** Start round only while the round is pending. */
+function shouldShowStartRound(
+  status: MatchmakingSessionRoundStatus | string | undefined,
+): boolean {
+  return normalizeRoundStatusKey(status) === "pending";
+}
+
+/** Cancel round only while in progress (pending shows Start only). */
+function shouldShowCancelRound(
+  status: MatchmakingSessionRoundStatus | string | undefined,
+): boolean {
+  return normalizeRoundStatusKey(status) === "in_progress";
 }
 
 interface StandingRow {
@@ -102,6 +137,23 @@ function patchMatchScore(
   return { ...detail, rounds };
 }
 
+function getMatchRawScores(
+  d: MatchmakingSessionDetail,
+  matchGuid: string,
+): { a: number | null; b: number | null } | null {
+  for (const r of asRoundList(d.rounds)) {
+    const ms = Array.isArray(r.matches) ? r.matches : [];
+    const m = ms.find((x) => x.guid === matchGuid);
+    if (m) {
+      return {
+        a: m.team_a_score ?? null,
+        b: m.team_b_score ?? null,
+      };
+    }
+  }
+  return null;
+}
+
 function parseScoreDisplay(display: string): number | null {
   if (display === "—" || display.trim() === "") return null;
   const n = parseInt(display, 10);
@@ -154,6 +206,8 @@ function mapDetailToRounds(detail: MatchmakingSessionDetail): Round[] {
       : formatEventTime(detail.event.date_time);
     const matches = Array.isArray(round.matches) ? round.matches : [];
     return {
+      guid: round.guid,
+      status: round.status,
       label: `Round ${round.round_number}`,
       badge: humanizeRoundStatus(String(round.status)),
       matches: matches.map((m, idx) =>
@@ -228,12 +282,36 @@ function PlayerRow({
 function MatchCardComponent({
   match,
   onScoreSidePress,
+  scoresEditable,
+  showSave,
+  isSaving,
+  onSave,
+  showStartRound,
+  onStartRound,
+  isStartRoundLoading,
+  showCancelRound,
+  onCancelRound,
+  isCancelRoundLoading,
+  isRoundMutationBusy,
 }: {
   match: MatchCard;
   onScoreSidePress?: (side: "a" | "b") => void;
+  /** When false (e.g. round still pending), score cells are read-only. */
+  scoresEditable?: boolean;
+  showSave?: boolean;
+  isSaving?: boolean;
+  onSave?: () => void;
+  showStartRound?: boolean;
+  onStartRound?: () => void;
+  isStartRoundLoading?: boolean;
+  showCancelRound?: boolean;
+  onCancelRound?: () => void;
+  isCancelRoundLoading?: boolean;
+  isRoundMutationBusy?: boolean;
 }) {
   const isFeatured = match.isFeatured;
   const isTBD = match.round === "tbd";
+  const canEditScores = scoresEditable !== false;
 
   return (
     <div
@@ -288,6 +366,40 @@ function MatchCardComponent({
         </span>
       </div>
 
+      {showStartRound && onStartRound ? (
+        <button
+          type="button"
+          disabled={isRoundMutationBusy}
+          onClick={onStartRound}
+          className="w-full py-2.5 text-center text-xs font-semibold rounded-xl border cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed transition-opacity"
+          style={{
+            borderColor: isFeatured ? "#18181B" : "#D4D4D8",
+            color: isFeatured ? "#18181B" : "#18181B",
+            background: isFeatured ? "rgba(255,255,255,0.35)" : "#FAFAFA",
+            lineHeight: "18px",
+          }}
+        >
+          {isStartRoundLoading ? "Starting…" : "Start round"}
+        </button>
+      ) : null}
+
+      {showCancelRound && onCancelRound ? (
+        <button
+          type="button"
+          disabled={isRoundMutationBusy}
+          onClick={onCancelRound}
+          className="w-full py-2.5 text-center text-xs font-semibold rounded-xl border cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed transition-opacity"
+          style={{
+            borderColor: isFeatured ? "#BA1A1A" : "#D4D4D8",
+            color: "#BA1A1A",
+            background: isFeatured ? "rgba(255,255,255,0.5)" : "#FEF2F2",
+            lineHeight: "18px",
+          }}
+        >
+          {isCancelRoundLoading ? "Cancelling…" : "Cancel round"}
+        </button>
+      ) : null}
+
       {isTBD ? (
         <div className="flex items-center gap-4">
           <div
@@ -336,13 +448,16 @@ function MatchCardComponent({
           <div className="flex items-center gap-2 flex-shrink-0">
             <button
               type="button"
-              className="w-10 h-12 flex items-center justify-center cursor-pointer border-0"
+              disabled={!canEditScores}
+              className={`w-10 h-12 flex items-center justify-center border-0 ${canEditScores ? "cursor-pointer" : "cursor-not-allowed opacity-50"}`}
               style={{
                 background: isFeatured ? "rgba(255,255,255,0.2)" : "#F0F3FF",
                 borderRadius: "6px",
               }}
               onClick={() => onScoreSidePress?.("a")}
-              aria-label="Edit team A score"
+              aria-label={
+                canEditScores ? "Edit team A score" : "Team A score (locked)"
+              }
             >
               <span className="text-base font-normal text-[#18181B]">
                 {match.scoreA}
@@ -356,13 +471,16 @@ function MatchCardComponent({
             </span>
             <button
               type="button"
-              className="w-10 h-12 flex items-center justify-center cursor-pointer border-0"
+              disabled={!canEditScores}
+              className={`w-10 h-12 flex items-center justify-center border-0 ${canEditScores ? "cursor-pointer" : "cursor-not-allowed opacity-50"}`}
               style={{
                 background: isFeatured ? "rgba(255,255,255,0.2)" : "#F0F3FF",
                 borderRadius: "6px",
               }}
               onClick={() => onScoreSidePress?.("b")}
-              aria-label="Edit team B score"
+              aria-label={
+                canEditScores ? "Edit team B score" : "Team B score (locked)"
+              }
             >
               <span className="text-base font-normal text-[#18181B]">
                 {match.scoreB}
@@ -381,6 +499,26 @@ function MatchCardComponent({
           </div>
         </div>
       )}
+
+      {showSave && !isTBD ? (
+        <div
+          className={`pt-3 mt-1 border-t ${isFeatured ? "border-[#18181B]/25" : "border-[#F4F4F5]"}`}
+        >
+          <button
+            type="button"
+            disabled={isSaving}
+            onClick={onSave}
+            className="w-full py-3 text-center text-sm font-semibold rounded-2xl border-0 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed transition-opacity"
+            style={{
+              background: isFeatured ? "#FFFFFF" : "#18181B",
+              color: isFeatured ? "#18181B" : "#FFFFFF",
+              lineHeight: "21px",
+            }}
+          >
+            {isSaving ? "Saving…" : "Save"}
+          </button>
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -388,9 +526,23 @@ function MatchCardComponent({
 function MatchesTab({
   rounds,
   onScoreSidePress,
+  pendingSaveMatchIds,
+  savingMatchId,
+  onSaveMatch,
+  startRoundLoadingGuid,
+  onStartRound,
+  cancellingRoundGuid,
+  onCancelRound,
 }: {
   rounds: Round[];
   onScoreSidePress?: (matchGuid: string, side: "a" | "b") => void;
+  pendingSaveMatchIds: ReadonlySet<string>;
+  savingMatchId: string | null;
+  onSaveMatch: (matchGuid: string) => void;
+  startRoundLoadingGuid: string | null;
+  onStartRound: (roundGuid: string) => void;
+  cancellingRoundGuid: string | null;
+  onCancelRound: (roundGuid: string) => void;
 }) {
   if (rounds.length === 0) {
     return (
@@ -403,7 +555,7 @@ function MatchesTab({
   return (
     <div className="flex flex-col gap-6 px-4 py-4">
       {rounds.map((round) => (
-        <div key={round.label} className="flex flex-col gap-4">
+        <div key={round.guid} className="flex flex-col gap-4">
           <div className="flex items-center justify-between">
             <span
               className="text-xl font-semibold text-[#151C27]"
@@ -425,13 +577,43 @@ function MatchesTab({
           </div>
 
           <div className="flex flex-col gap-4">
-            {round.matches.map((match) => (
-              <MatchCardComponent
-                key={match.id}
-                match={match}
-                onScoreSidePress={(side) => onScoreSidePress?.(match.id, side)}
-              />
-            ))}
+            {round.matches.map((match) => {
+              const showStart = shouldShowStartRound(round.status);
+              const showCancel = shouldShowCancelRound(round.status);
+              const isRoundMutationBusy =
+                startRoundLoadingGuid === round.guid ||
+                cancellingRoundGuid === round.guid;
+              const scoresEditable =
+                normalizeRoundStatusKey(round.status) !== "pending";
+              return (
+                <MatchCardComponent
+                  key={match.id}
+                  match={match}
+                  scoresEditable={scoresEditable}
+                  onScoreSidePress={(side) =>
+                    onScoreSidePress?.(match.id, side)
+                  }
+                  showSave={pendingSaveMatchIds.has(match.id)}
+                  isSaving={savingMatchId === match.id}
+                  onSave={() => onSaveMatch(match.id)}
+                  showStartRound={showStart}
+                  onStartRound={
+                    showStart ? () => onStartRound(round.guid) : undefined
+                  }
+                  isStartRoundLoading={
+                    startRoundLoadingGuid === round.guid
+                  }
+                  showCancelRound={showCancel}
+                  onCancelRound={
+                    showCancel
+                      ? () => onCancelRound(round.guid)
+                      : undefined
+                  }
+                  isCancelRoundLoading={cancellingRoundGuid === round.guid}
+                  isRoundMutationBusy={isRoundMutationBusy}
+                />
+              );
+            })}
           </div>
         </div>
       ))}
@@ -655,6 +837,7 @@ export default function MatchDetailClient({
 }: {
   sessionGuid: string;
 }) {
+  const { showSnackbar } = useSnackbar();
   const [activeTab, setActiveTab] = useState<TabType>("Matches");
   const [detail, setDetail] = useState<MatchmakingSessionDetail | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -665,6 +848,16 @@ export default function MatchDetailClient({
     side: "a" | "b";
     initial: number | null;
   } | null>(null);
+  const [pendingSaveMatchIds, setPendingSaveMatchIds] = useState<Set<string>>(
+    () => new Set(),
+  );
+  const [savingMatchId, setSavingMatchId] = useState<string | null>(null);
+  const [startRoundLoadingGuid, setStartRoundLoadingGuid] = useState<
+    string | null
+  >(null);
+  const [cancellingRoundGuid, setCancellingRoundGuid] = useState<
+    string | null
+  >(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -672,7 +865,10 @@ export default function MatchDetailClient({
       setIsLoading(true);
       try {
         const res = await fetchMatchmakingSession(sessionGuid);
-        if (!cancelled) setDetail(res.data);
+        if (!cancelled) {
+          setDetail(res.data);
+          setPendingSaveMatchIds(new Set());
+        }
       } catch (e) {
         const err = e as GetMatchmakingSessionErrorResponse;
         if (!cancelled) {
@@ -706,10 +902,91 @@ export default function MatchDetailClient({
 
   const applyScoreFromKeyboard = (value: number | null) => {
     if (!detail || !scoreSheet) return;
-    setDetail(
-      patchMatchScore(detail, scoreSheet.matchGuid, scoreSheet.side, value),
-    );
+    const matchGuid = scoreSheet.matchGuid;
+    const before = getMatchRawScores(detail, matchGuid);
+    const afterA =
+      scoreSheet.side === "a" ? value : before?.a ?? null;
+    const afterB =
+      scoreSheet.side === "b" ? value : before?.b ?? null;
+    const scoresUnchanged =
+      before != null && before.a === afterA && before.b === afterB;
+
+    setDetail(patchMatchScore(detail, matchGuid, scoreSheet.side, value));
+    if (!scoresUnchanged) {
+      setPendingSaveMatchIds((prev) => {
+        const next = new Set(prev);
+        next.add(matchGuid);
+        return next;
+      });
+    }
     setScoreSheet(null);
+  };
+
+  const handleSaveMatch = async (matchGuid: string) => {
+    if (!detail) return;
+    const scores = getMatchRawScores(detail, matchGuid);
+    if (!scores) {
+      showSnackbar("Could not find this match.");
+      return;
+    }
+
+    setSavingMatchId(matchGuid);
+    try {
+      const res = await submitMatchmakingMatchScore(matchGuid, {
+        team_a_score: scores.a,
+        team_b_score: scores.b,
+      });
+      showSnackbar(res.message);
+
+      const refreshed = await fetchMatchmakingSession(sessionGuid);
+      setDetail(refreshed.data);
+      setPendingSaveMatchIds((prev) => {
+        const next = new Set(prev);
+        next.delete(matchGuid);
+        return next;
+      });
+    } catch (e) {
+      const err = e as
+        | SubmitMatchmakingMatchScoreErrorResponse
+        | GetMatchmakingSessionErrorResponse;
+      showSnackbar(err?.message ?? "Could not save or refresh score.");
+    } finally {
+      setSavingMatchId(null);
+    }
+  };
+
+  const handleStartRound = async (roundGuid: string) => {
+    setStartRoundLoadingGuid(roundGuid);
+    try {
+      const res = await startMatchmakingRound(roundGuid);
+      showSnackbar(res.message);
+      const refreshed = await fetchMatchmakingSession(sessionGuid);
+      setDetail(refreshed.data);
+    } catch (e) {
+      const err = e as
+        | StartMatchmakingRoundErrorResponse
+        | GetMatchmakingSessionErrorResponse;
+      showSnackbar(err?.message ?? "Could not start round.");
+    } finally {
+      setStartRoundLoadingGuid(null);
+    }
+  };
+
+  const handleCancelRound = async (roundGuid: string) => {
+    setCancellingRoundGuid(roundGuid);
+    try {
+      const res = await cancelMatchmakingRound(roundGuid);
+      showSnackbar(res.message);
+      const refreshed = await fetchMatchmakingSession(sessionGuid);
+      setDetail(refreshed.data);
+    } catch (e) {
+      const err = e as
+        | CancelMatchmakingRoundErrorResponse
+        | GetMatchmakingSessionErrorResponse;
+      showSnackbar(err?.message ?? "Could not cancel round.");
+    } finally {
+      setCancellingRoundGuid(null);
+    }
   };
 
   return (
@@ -800,6 +1077,13 @@ export default function MatchDetailClient({
               <MatchesTab
                 rounds={rounds}
                 onScoreSidePress={openScoreEditor}
+                pendingSaveMatchIds={pendingSaveMatchIds}
+                savingMatchId={savingMatchId}
+                onSaveMatch={handleSaveMatch}
+                startRoundLoadingGuid={startRoundLoadingGuid}
+                onStartRound={handleStartRound}
+                cancellingRoundGuid={cancellingRoundGuid}
+                onCancelRound={handleCancelRound}
               />
             ) : (
               <StandingsTab standings={standings} />

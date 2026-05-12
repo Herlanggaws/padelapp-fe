@@ -83,3 +83,74 @@ export interface FetchClubEventsSuccessResponse {
 export interface FetchClubEventsErrorResponse {
   message: string;
 }
+
+export interface JoinEventPayload {
+  event_guid: string;
+}
+
+export interface JoinEventSuccessResponse {
+  data: null;
+  message: string;
+}
+
+export interface JoinEventErrorResponse {
+  message: string;
+}
+
+export interface LeaveEventSuccessResponse {
+  data: null;
+  message: string;
+}
+
+export interface LeaveEventErrorResponse {
+  message: string;
+}
+
+export interface ParticipantActionSuccessResponse {
+  data: null;
+  message: string;
+}
+
+export interface ParticipantActionErrorResponse {
+  message: string;
+}
+
+export interface EventParticipantUser {
+  guid: string;
+  name: string;
+  email: string;
+  profile_photo: string | null;
+}
+
+export interface EventParticipant {
+  guid: string;
+  event_guid: string;
+  user_guid: string;
+  user: EventParticipantUser;
+  status: string;
+  joined_at: string;
+  created_by: string;
+}
+
+export interface FetchEventParticipantsParams {
+  event_guid: string;
+  sort?: string;
+  direction?: string;
+  page?: number;
+  limit?: number;
+}
+
+export interface FetchEventParticipantsSuccessResponse {
+  data: EventParticipant[];
+  message: string;
+  paginate: {
+    current_page: number;
+    per_page: number;
+    total_page: number;
+    total_data: number;
+  };
+}
+
+export interface FetchEventParticipantsErrorResponse {
+  message: string;
+}

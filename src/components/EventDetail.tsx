@@ -1,12 +1,20 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
 import TopAppBar from "@/components/TopAppBar";
-import { fetchEventDetail } from "@/services/eventService";
-import type { Event, PendingRequest } from "@/types/event";
+import {
+  fetchEventDetail,
+  fetchEventParticipants,
+  joinEvent,
+  leaveEvent,
+  approveParticipant,
+  rejectParticipant,
+} from "@/services/eventService";
+import type { Event, EventParticipant, PendingRequest } from "@/types/event";
+import { useSnackbar } from "@/context/SnackbarContext";
 
 function formatDate(dateTime: string) {
   const d = new Date(dateTime);
@@ -30,9 +38,11 @@ const MAX_VISIBLE_SLOTS = 4;
 function PlayerSlots({
   participants,
   total,
+  participantPhotos,
 }: {
   participants: number;
   total: number;
+  participantPhotos: (string | null)[];
 }) {
   const filled = Math.min(participants, total);
   const empty = total - filled;
@@ -48,25 +58,46 @@ function PlayerSlots({
   return (
     <div className="pt-2 flex items-center gap-3">
       <div className="flex items-center">
-        {avatars.map((i) => (
-          <div
-            key={`avatar-${i}`}
-            className="relative"
-            style={{
-              width: "48px",
-              height: "48px",
-              marginLeft: i > 0 ? "-12px" : 0,
-            }}
-          >
-            <Image
-              src={`https://i.pravatar.cc/48?img=${i + 3}`}
-              alt={`Player ${i + 1}`}
-              width={48}
-              height={48}
-              className="rounded-full border-2 border-white object-cover"
-            />
-          </div>
-        ))}
+        {avatars.map((i) => {
+          const photo = participantPhotos[i];
+          return (
+            <div
+              key={`avatar-${i}`}
+              className="relative"
+              style={{
+                width: "48px",
+                height: "48px",
+                marginLeft: i > 0 ? "-12px" : 0,
+              }}
+            >
+              {photo ? (
+                <Image
+                  src={photo}
+                  alt={`Player ${i + 1}`}
+                  width={48}
+                  height={48}
+                  className="w-full h-full rounded-full border-2 border-white object-cover"
+                />
+              ) : (
+                <div className="w-12 h-12 rounded-full border-2 border-white bg-gray-200 flex items-center justify-center">
+                  <svg
+                    width="20"
+                    height="20"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="#71717A"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                    <circle cx="12" cy="7" r="4" />
+                  </svg>
+                </div>
+              )}
+            </div>
+          );
+        })}
         {slots.map((i) => (
           <div
             key={`slot-${i}`}
@@ -103,9 +134,15 @@ function PlayerSlots({
 function RequestCard({
   request,
   isHost,
+  onApprove,
+  onReject,
+  isActing,
 }: {
   request: PendingRequest;
   isHost: boolean;
+  onApprove: (guid: string) => void;
+  onReject: (guid: string) => void;
+  isActing: boolean;
 }) {
   return (
     <div
@@ -135,7 +172,9 @@ function RequestCard({
       {isHost && (
         <div className="flex items-center gap-2">
           <button
-            className="w-9 h-9 rounded-full flex items-center justify-center"
+            onClick={() => onReject(request.participant_guid)}
+            disabled={isActing}
+            className="w-9 h-9 rounded-full flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed"
             style={{ background: "#FFF0F0", border: "1px solid #FECACA" }}
           >
             <svg
@@ -152,7 +191,9 @@ function RequestCard({
             </svg>
           </button>
           <button
-            className="w-9 h-9 rounded-full flex items-center justify-center"
+            onClick={() => onApprove(request.participant_guid)}
+            disabled={isActing}
+            className="w-9 h-9 rounded-full flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed"
             style={{ background: "#9FE870" }}
           >
             <svg
@@ -174,7 +215,25 @@ function RequestCard({
   );
 }
 
-function EventDetailContent({ event }: { event: Event }) {
+function EventDetailContent({
+  event,
+  participantPhotos,
+  onJoin,
+  isJoining,
+  isLeaving,
+  onApprove,
+  onReject,
+  actingGuid,
+}: {
+  event: Event;
+  participantPhotos: (string | null)[];
+  onJoin: () => void;
+  isJoining: boolean;
+  isLeaving: boolean;
+  onApprove: (guid: string) => void;
+  onReject: (guid: string) => void;
+  actingGuid: string | null;
+}) {
   const slotsLeft = event.number_of_players - event.number_of_participants;
   const pendingRequests = event.pending_requests ?? [];
 
@@ -337,6 +396,7 @@ function EventDetailContent({ event }: { event: Event }) {
             <PlayerSlots
               participants={event.number_of_participants}
               total={event.number_of_players}
+              participantPhotos={participantPhotos}
             />
           </div>
         </div>
@@ -364,6 +424,9 @@ function EventDetailContent({ event }: { event: Event }) {
                   key={req.participant_guid}
                   request={req}
                   isHost={event.is_host}
+                  onApprove={onApprove}
+                  onReject={onReject}
+                  isActing={actingGuid === req.participant_guid}
                 />
               ))}
               {pendingRequests.length === 0 && (
@@ -381,40 +444,74 @@ function EventDetailContent({ event }: { event: Event }) {
       >
         {event.is_host ? (
           <div className="flex gap-3">
-            <Link
-              href={`/matches/configure?event_guid=${encodeURIComponent(event.guid)}`}
-              className="flex-1 flex items-center justify-center gap-2 text-base font-semibold text-[#121212] rounded-full"
-              style={{ background: "#9FE870", height: "56px" }}
-            >
-              <svg
-                width="20"
-                height="20"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="#121212"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
+            {event.session_guid ? (
+              <Link
+                href={`/matches/${event.session_guid}`}
+                className="flex-1 flex items-center justify-center gap-2 text-base font-semibold text-[#121212] rounded-full"
+                style={{ background: "#9FE870", height: "56px" }}
               >
-                <circle cx="11" cy="11" r="8" />
-                <path d="M21 21l-4.35-4.35" />
-                <path d="M11 8v6M8 11h6" />
-              </svg>
-              Generate Match
-            </Link>
+                Match Detail
+              </Link>
+            ) : (
+              <Link
+                href={`/matches/configure?event_guid=${encodeURIComponent(event.guid)}`}
+                className="flex-1 flex items-center justify-center gap-2 text-base font-semibold text-[#121212] rounded-full"
+                style={{ background: "#9FE870", height: "56px" }}
+              >
+                <svg
+                  width="20"
+                  height="20"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="#121212"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <circle cx="11" cy="11" r="8" />
+                  <path d="M21 21l-4.35-4.35" />
+                  <path d="M11 8v6M8 11h6" />
+                </svg>
+                Generate Match
+              </Link>
+            )}
             <button
-              className="flex-1 text-base font-normal text-[#9FE870] rounded-full"
-              style={{ background: "#121212", height: "56px" }}
+              onClick={onJoin}
+              disabled={isJoining || isLeaving}
+              className="flex-1 text-base font-normal rounded-full disabled:opacity-50 disabled:cursor-not-allowed"
+              style={{
+                background: event.is_joined ? "#BA1A1A" : "#121212",
+                color: event.is_joined ? "#FFFFFF" : "#9FE870",
+                height: "56px",
+              }}
             >
-              Join Event
+              {isLeaving
+                ? "Leaving..."
+                : isJoining
+                  ? "Joining..."
+                  : event.is_joined
+                    ? "Leave Event"
+                    : "Join Event"}
             </button>
           </div>
         ) : (
           <button
-            className="w-full text-base font-normal text-[#9FE870] rounded-full"
-            style={{ background: "#121212", height: "56px" }}
+            onClick={onJoin}
+            disabled={isJoining || isLeaving}
+            className="w-full text-base font-normal rounded-full disabled:opacity-50 disabled:cursor-not-allowed"
+            style={{
+              background: event.is_joined ? "#BA1A1A" : "#121212",
+              color: event.is_joined ? "#FFFFFF" : "#9FE870",
+              height: "56px",
+            }}
           >
-            Join Event
+            {isLeaving
+              ? "Leaving..."
+              : isJoining
+                ? "Joining..."
+                : event.is_joined
+                  ? "Leave Event"
+                  : "Join Event"}
           </button>
         )}
       </div>
@@ -425,12 +522,81 @@ function EventDetailContent({ event }: { event: Event }) {
 export default function EventDetail({ id }: { id: string }) {
   const router = useRouter();
   const [event, setEvent] = useState<Event | null>(null);
+  const [participantPhotos, setParticipantPhotos] = useState<(string | null)[]>(
+    [],
+  );
+  const [isJoining, setIsJoining] = useState(false);
+  const [isLeaving, setIsLeaving] = useState(false);
+  const [actingGuid, setActingGuid] = useState<string | null>(null);
+  const { showSnackbar } = useSnackbar();
+
+  const loadEvent = useCallback(async () => {
+    const eventRes = await fetchEventDetail(id);
+    setEvent(eventRes.data);
+    const participantsRes = await fetchEventParticipants({
+      event_guid: id,
+      limit: MAX_VISIBLE_SLOTS,
+    });
+    setParticipantPhotos(participantsRes.data.map((p) => p.user.profile_photo));
+    return eventRes.data;
+  }, [id]);
 
   useEffect(() => {
-    fetchEventDetail(id)
-      .then((res) => setEvent(res.data))
-      .catch(() => router.replace("/not-found"));
-  }, [id, router]);
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    loadEvent().catch(() => router.replace("/not-found"));
+  }, [loadEvent, router]);
+
+  const handleJoin = async () => {
+    if (!event) return;
+    if (event.is_joined) {
+      setIsLeaving(true);
+      try {
+        await leaveEvent(event.guid);
+        await loadEvent();
+        showSnackbar("You have left the event");
+      } finally {
+        setIsLeaving(false);
+      }
+    } else {
+      setIsJoining(true);
+      try {
+        await joinEvent({ event_guid: event.guid });
+        await loadEvent();
+        showSnackbar("Successfully joined the event");
+      } finally {
+        setIsJoining(false);
+      }
+    }
+  };
+
+  const handleApprove = async (guid: string) => {
+    setActingGuid(guid);
+    try {
+      await approveParticipant(guid);
+      await loadEvent();
+      showSnackbar("Participant approved successfully");
+    } finally {
+      setActingGuid(null);
+    }
+  };
+
+  const handleReject = async (guid: string) => {
+    if (!event) return;
+    setActingGuid(guid);
+    try {
+      await rejectParticipant(guid);
+      const freshEvent = await loadEvent();
+      showSnackbar("Participant rejected");
+      // If the host rejected their own pending request, the backend's /reject
+      // endpoint doesn't clear is_joined — so we explicitly leave the event.
+      if (freshEvent?.is_host && freshEvent?.is_joined) {
+        await leaveEvent(freshEvent.guid);
+        await loadEvent();
+      }
+    } finally {
+      setActingGuid(null);
+    }
+  };
 
   if (!event) {
     return (
@@ -440,5 +606,16 @@ export default function EventDetail({ id }: { id: string }) {
     );
   }
 
-  return <EventDetailContent event={event} />;
+  return (
+    <EventDetailContent
+      event={event}
+      participantPhotos={participantPhotos}
+      onJoin={handleJoin}
+      isJoining={isJoining}
+      isLeaving={isLeaving}
+      onApprove={handleApprove}
+      onReject={handleReject}
+      actingGuid={actingGuid}
+    />
+  );
 }

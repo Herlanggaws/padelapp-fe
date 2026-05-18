@@ -109,11 +109,15 @@ function humanizeRoundStatus(status: string) {
     .join(" ");
 }
 
-function asRoundList(value: MatchmakingSessionDetail["rounds"]): MatchmakingSessionRound[] {
+function asRoundList(
+  value: MatchmakingSessionDetail["rounds"],
+): MatchmakingSessionRound[] {
   return Array.isArray(value) ? value : [];
 }
 
-function asTeamList(value: MatchmakingSessionDetail["teams"]): MatchmakingSessionTeam[] {
+function asTeamList(
+  value: MatchmakingSessionDetail["teams"],
+): MatchmakingSessionTeam[] {
   return Array.isArray(value) ? value : [];
 }
 
@@ -164,7 +168,10 @@ function teamToMatchPlayers(
   team: MatchmakingSessionMatch["team_a_info"],
   side: "left" | "right",
 ): MatchPlayer[] {
-  const slot = (player: { name?: string; guid?: string } | null | undefined, i: number): MatchPlayer => ({
+  const slot = (
+    player: { name?: string; guid?: string } | null | undefined,
+    i: number,
+  ): MatchPlayer => ({
     name: player?.name?.trim() || "TBD",
     avatarSeed: avatarSeedFromGuid(player?.guid ?? `tbd-${side}-${i}`),
     side,
@@ -600,14 +607,10 @@ function MatchesTab({
                   onStartRound={
                     showStart ? () => onStartRound(round.guid) : undefined
                   }
-                  isStartRoundLoading={
-                    startRoundLoadingGuid === round.guid
-                  }
+                  isStartRoundLoading={startRoundLoadingGuid === round.guid}
                   showCancelRound={showCancel}
                   onCancelRound={
-                    showCancel
-                      ? () => onCancelRound(round.guid)
-                      : undefined
+                    showCancel ? () => onCancelRound(round.guid) : undefined
                   }
                   isCancelRoundLoading={cancellingRoundGuid === round.guid}
                   isRoundMutationBusy={isRoundMutationBusy}
@@ -622,6 +625,15 @@ function MatchesTab({
 }
 
 function StandingsTab({ standings }: { standings: StandingRow[] }) {
+  // Find the current user's rank (for demo, we use rank 12 or the last item)
+  const userRank =
+    standings.length > 0
+      ? (standings[standings.length - 1]?.rank ?? standings.length)
+      : 12;
+  const userRow =
+    standings.find((r) => r.rank === userRank) ??
+    standings[standings.length - 1];
+
   if (standings.length === 0) {
     return (
       <div className="px-4 py-8 text-center text-sm text-[#71717A]">
@@ -631,201 +643,441 @@ function StandingsTab({ standings }: { standings: StandingRow[] }) {
   }
 
   return (
-    <div className="flex flex-col gap-6 pb-8">
-      <div
-        className="mx-4 mt-4 border border-[#F4F4F5]"
-        style={{ borderRadius: "32px" }}
-      >
-        <div className="flex items-center justify-between px-4 py-4 border-b border-[#FAFAFA]">
-          <span
-            className="text-xs font-semibold uppercase text-[#18181B]"
-            style={{ lineHeight: "12px" }}
-          >
-            TEAM STANDINGS
-          </span>
-          <svg width="15" height="10" viewBox="0 0 15 10" fill="none">
-            <path
-              d="M1 1H14M4 5H11M6.5 9H8.5"
-              stroke="#A1A1AA"
-              strokeWidth="1.5"
-              strokeLinecap="round"
-            />
-          </svg>
-        </div>
-
+    <div className="flex flex-col gap-4 pb-8">
+      {/* Leaderboard Summary Card (Bento Style) */}
+      <div className="px-4 pt-6">
         <div
-          className="flex items-center"
-          style={{ background: "rgba(250,250,250,0.5)" }}
+          className="flex items-center justify-between px-4 py-4"
+          style={{
+            background: "#9FE870",
+            borderRadius: "32px",
+          }}
         >
-          <div className="w-[79px] px-4 py-4">
+          {/* Left: Your Rank */}
+          <div className="flex flex-col gap-1">
             <span
-              className="text-xs uppercase text-[#A1A1AA]"
-              style={{ lineHeight: "12px" }}
+              className="text-xs uppercase tracking-widest"
+              style={{
+                color: "rgba(46,105,0,0.7)",
+                lineHeight: "12px",
+                letterSpacing: "5%",
+              }}
             >
-              RK
+              YOUR RANK
+            </span>
+            <span
+              className="font-semibold text-[#2E6900]"
+              style={{
+                fontSize: "28px",
+                lineHeight: "33.6px",
+                letterSpacing: "-0.01em",
+              }}
+            >
+              #{userRow?.rank ?? "—"}
             </span>
           </div>
-          <div className="flex-1 px-2 py-4">
+
+          {/* Right: +N Slots badge */}
+          <div
+            className="flex items-center gap-2 px-3 py-2"
+            style={{
+              background: "rgba(255,255,255,0.3)",
+              backdropFilter: "blur(12px)",
+              borderRadius: "32px",
+            }}
+          >
+            {/* Arrow up icon */}
+            <svg width="20" height="12" viewBox="0 0 20 12" fill="none">
+              <path
+                d="M10 2L16 8M10 2L4 8M10 2V11"
+                stroke="#2E6900"
+                strokeWidth="1.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
             <span
-              className="text-xs uppercase text-[#A1A1AA]"
+              className="text-xs font-semibold text-[#2E6900]"
               style={{ lineHeight: "12px" }}
             >
-              TEAM
-            </span>
-          </div>
-          <div className="w-[61px] px-2 py-4 text-center">
-            <span
-              className="text-xs uppercase text-[#A1A1AA]"
-              style={{ lineHeight: "12px" }}
-            >
-              MP
-            </span>
-          </div>
-          <div className="w-[57px] px-2 py-4 text-center">
-            <span
-              className="text-xs uppercase text-[#A1A1AA]"
-              style={{ lineHeight: "12px" }}
-            >
-              W
-            </span>
-          </div>
-          <div className="w-[94px] px-2 py-4 text-center">
-            <span
-              className="text-xs uppercase text-[#A1A1AA]"
-              style={{ lineHeight: "12px" }}
-            >
-              PTS
-            </span>
-          </div>
-          <div className="w-[80px] px-2 py-4 text-center">
-            <span
-              className="text-xs uppercase text-[#A1A1AA]"
-              style={{ lineHeight: "12px" }}
-            >
-              W%
-            </span>
-          </div>
-          <div className="w-[81px] px-2 py-4 text-right pr-4">
-            <span
-              className="text-xs uppercase text-[#A1A1AA]"
-              style={{ lineHeight: "12px" }}
-            >
-              P%
+              +4 Slots
             </span>
           </div>
         </div>
+      </div>
 
-        <div className="flex flex-col">
-          {standings.map((row, idx) => {
-            const isPlaceholder = row.isPlaceholder;
-            return (
-              <div
-                key={row.rank}
-                className="flex items-center"
-                style={{
-                  background: "transparent",
-                  borderTop: idx > 0 ? "1px solid #FAFAFA" : "none",
-                  opacity: isPlaceholder ? 0.6 : 1,
-                }}
+      {/* Section - Detailed Leaderboard Table */}
+      <div className="px-4">
+        <div
+          className="border border-[#F4F4F5] overflow-hidden"
+          style={{ borderRadius: "32px" }}
+        >
+          {/* Header row */}
+          <div
+            className="flex items-center justify-between px-4 py-4"
+            style={{ borderBottom: "1px solid #FAFAFA" }}
+          >
+            <span
+              className="text-xs font-semibold uppercase text-[#18181B]"
+              style={{ lineHeight: "12px" }}
+            >
+              SEASON STANDINGS
+            </span>
+            {/* Filter icon */}
+            <svg width="15" height="10" viewBox="0 0 15 10" fill="none">
+              <path
+                d="M1 1H14M4 5H11M6.5 9H8.5"
+                stroke="#A1A1AA"
+                strokeWidth="1.5"
+                strokeLinecap="round"
+              />
+            </svg>
+          </div>
+
+          {/* Column headers */}
+          <div
+            className="flex items-center"
+            style={{ background: "rgba(250,250,250,0.5)" }}
+          >
+            <div className="px-4 py-4" style={{ width: "79px" }}>
+              <span
+                className="text-xs uppercase text-[#A1A1AA]"
+                style={{ lineHeight: "12px" }}
               >
-                <div className="w-[79px] px-4 py-5 flex items-center gap-1">
-                  <span
-                    className="text-xs font-semibold text-[#18181B]"
-                    style={{ lineHeight: "12px" }}
-                  >
-                    {row.rank}
-                  </span>
-                  {row.rank <= 3 && (
-                    <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
-                      <path
-                        d="M6 1L7.5 4.5L11 5L8.5 7.5L9 11L6 9.5L3 11L3.5 7.5L1 5L4.5 4.5L6 1Z"
-                        fill={
-                          row.rank === 1
-                            ? "#EAB308"
-                            : row.rank === 2
-                              ? "#A1A1AA"
-                              : "#FB923C"
-                        }
-                      />
-                    </svg>
-                  )}
-                </div>
+                RK
+              </span>
+            </div>
+            <div className="flex-1 px-2 py-4">
+              <span
+                className="text-xs uppercase text-[#A1A1AA]"
+                style={{ lineHeight: "12px" }}
+              >
+                PLAYER
+              </span>
+            </div>
+            <div className="px-2 py-4 text-center" style={{ width: "61px" }}>
+              <span
+                className="text-xs uppercase text-[#A1A1AA]"
+                style={{ lineHeight: "12px" }}
+              >
+                MP
+              </span>
+            </div>
+            <div className="px-2 py-4 text-center" style={{ width: "57px" }}>
+              <span
+                className="text-xs uppercase text-[#A1A1AA]"
+                style={{ lineHeight: "12px" }}
+              >
+                W
+              </span>
+            </div>
+            <div className="px-2 py-4 text-center" style={{ width: "94px" }}>
+              <span
+                className="text-xs uppercase text-[#A1A1AA]"
+                style={{ lineHeight: "12px" }}
+              >
+                PTS
+              </span>
+            </div>
+            <div className="px-2 py-4 text-center" style={{ width: "80px" }}>
+              <span
+                className="text-xs uppercase text-[#A1A1AA]"
+                style={{ lineHeight: "12px" }}
+              >
+                W%
+              </span>
+            </div>
+            <div className="px-4 py-4 text-right" style={{ width: "81px" }}>
+              <span
+                className="text-xs uppercase text-[#A1A1AA]"
+                style={{ lineHeight: "12px" }}
+              >
+                P%
+              </span>
+            </div>
+          </div>
 
-                <div className="flex-1 px-2 py-3 flex items-center gap-3 min-w-0">
+          {/* Table body */}
+          <div className="flex flex-col" style={{ gap: "-1px" }}>
+            {standings.map((row, idx) => {
+              const isPlaceholder = row.isPlaceholder;
+              const isCurrentUser =
+                row.rank === userRank && standings.length > 3;
+              return (
+                <div
+                  key={row.rank}
+                  className="flex items-center"
+                  style={{
+                    background: isCurrentUser
+                      ? "rgba(159,232,112,0.2)"
+                      : "transparent",
+                    borderTop: idx > 0 ? "1px solid #FAFAFA" : "none",
+                    borderLeft: isCurrentUser ? "4px solid #FAFAFA" : "none",
+                    opacity: isPlaceholder ? 0.6 : 1,
+                  }}
+                >
+                  {/* Rank cell */}
                   <div
-                    className="w-8 h-8 rounded-full overflow-hidden flex-shrink-0"
-                    style={{ border: "1px solid #F4F4F5" }}
+                    className="flex items-center gap-1 py-5"
+                    style={{
+                      width: isCurrentUser ? "79px" : "79px",
+                      paddingLeft: isCurrentUser ? "14px" : "16px",
+                      paddingRight: isCurrentUser ? "4px" : "4px",
+                    }}
                   >
-                    {isPlaceholder ? (
-                      <div
-                        className="w-full h-full rounded-full"
-                        style={{ background: "#E4E4E7" }}
-                      />
-                    ) : (
-                      <Image
-                        src={`https://picsum.photos/seed/${row.avatarSeed}/32/32`}
-                        alt={row.name}
-                        width={32}
-                        height={32}
-                        className="w-full h-full object-cover"
-                      />
+                    <span
+                      className="text-xs font-semibold"
+                      style={{
+                        lineHeight: "12px",
+                        color: isPlaceholder ? "#71717A" : "#18181B",
+                      }}
+                    >
+                      {row.rank}
+                    </span>
+                    {row.rank <= 3 && (
+                      <svg
+                        width="12"
+                        height="12"
+                        viewBox="0 0 12 12"
+                        fill="none"
+                      >
+                        <path
+                          d="M6 1L7.5 4.5L11 5L8.5 7.5L9 11L6 9.5L3 11L3.5 7.5L1 5L4.5 4.5L6 1Z"
+                          fill={
+                            row.rank === 1
+                              ? "#EAB308"
+                              : row.rank === 2
+                                ? "#A1A1AA"
+                                : "#FB923C"
+                          }
+                        />
+                      </svg>
                     )}
                   </div>
-                  <span
-                    className="text-sm font-normal text-[#18181B] truncate"
-                    style={{ lineHeight: "21px" }}
-                  >
-                    {row.name}
-                  </span>
-                </div>
 
-                <div className="w-[61px] px-2 py-5 text-center">
-                  <span
-                    className="text-sm font-normal text-[#52525B]"
-                    style={{ lineHeight: "21px" }}
+                  {/* Player cell */}
+                  <div
+                    className="flex items-center gap-3 py-3 min-w-0"
+                    style={{
+                      flex: 1,
+                      paddingLeft: isCurrentUser ? "8px" : "9px",
+                    }}
                   >
-                    {row.mp}
-                  </span>
-                </div>
+                    <div
+                      className="w-8 h-8 rounded-full overflow-hidden flex-shrink-0"
+                      style={{
+                        border: isCurrentUser
+                          ? "2px solid #2F6C00"
+                          : "1px solid #F4F4F5",
+                      }}
+                    >
+                      {isPlaceholder ? (
+                        <div
+                          className="w-full h-full rounded-full"
+                          style={{ background: "#E4E4E7" }}
+                        />
+                      ) : (
+                        <Image
+                          src={`https://picsum.photos/seed/${row.avatarSeed}/32/32`}
+                          alt={row.name}
+                          width={32}
+                          height={32}
+                          className="w-full h-full object-cover"
+                        />
+                      )}
+                    </div>
+                    <span
+                      className="text-sm font-normal truncate"
+                      style={{
+                        lineHeight: "21px",
+                        color: "#18181B",
+                      }}
+                    >
+                      {isCurrentUser ? "You" : row.name}
+                    </span>
+                  </div>
 
-                <div className="w-[57px] px-2 py-5 text-center">
-                  <span
-                    className="text-sm font-normal text-[#52525B]"
-                    style={{ lineHeight: "21px" }}
+                  {/* MP */}
+                  <div
+                    className="px-2 py-5 text-center"
+                    style={{ width: "61px" }}
                   >
-                    {row.wins === 0 ? "—" : row.wins}
-                  </span>
-                </div>
+                    <span
+                      className="text-sm font-normal text-[#52525B]"
+                      style={{ lineHeight: "21px" }}
+                    >
+                      {row.mp}
+                    </span>
+                  </div>
 
-                <div className="w-[94px] px-2 py-5 text-center">
-                  <span
-                    className="text-sm font-normal text-[#2F6C00]"
-                    style={{ lineHeight: "21px" }}
+                  {/* W */}
+                  <div
+                    className="px-2 py-5 text-center"
+                    style={{ width: "57px" }}
                   >
-                    {row.pts.toLocaleString()}
-                  </span>
-                </div>
+                    <span
+                      className="text-sm font-normal text-[#52525B]"
+                      style={{ lineHeight: "21px" }}
+                    >
+                      {row.wins === 0 ? "—" : row.wins}
+                    </span>
+                  </div>
 
-                <div className="w-[80px] px-2 py-5 text-center">
-                  <span
-                    className="text-sm font-normal text-[#52525B]"
-                    style={{ lineHeight: "21px" }}
+                  {/* PTS */}
+                  <div
+                    className="px-2 py-5 text-center"
+                    style={{ width: "94px" }}
                   >
-                    {row.winPct}
-                  </span>
-                </div>
+                    <span
+                      className="text-sm font-normal text-[#2F6C00]"
+                      style={{ lineHeight: "21px" }}
+                    >
+                      {row.pts.toLocaleString()}
+                    </span>
+                  </div>
 
-                <div className="w-[81px] px-2 py-5 text-right pr-4">
-                  <span
-                    className="text-sm font-normal text-[#A1A1AA]"
-                    style={{ lineHeight: "21px" }}
+                  {/* W% */}
+                  <div
+                    className="px-2 py-5 text-center"
+                    style={{ width: "80px" }}
                   >
-                    {row.pPct}
-                  </span>
+                    <span
+                      className="text-sm font-normal text-[#52525B]"
+                      style={{ lineHeight: "21px" }}
+                    >
+                      {row.winPct}
+                    </span>
+                  </div>
+
+                  {/* P% */}
+                  <div
+                    className="px-4 py-5 text-right"
+                    style={{ width: "81px" }}
+                  >
+                    <span
+                      className="text-sm font-normal text-[#A1A1AA]"
+                      style={{ lineHeight: "21px" }}
+                    >
+                      {row.pPct}
+                    </span>
+                  </div>
                 </div>
+              );
+            })}
+          </div>
+
+          {/* View Full Rankings button */}
+          <div className="px-4 py-4" style={{ background: "#FAFAFA" }}>
+            <button
+              type="button"
+              className="w-full flex items-center justify-center gap-1 cursor-pointer"
+              style={{ background: "transparent", border: "none" }}
+            >
+              <span
+                className="text-xs font-semibold text-[#18181B]"
+                style={{ lineHeight: "12px" }}
+              >
+                View Full Rankings
+              </span>
+              {/* Chevron down icon */}
+              <svg width="9" height="6" viewBox="0 0 9 6" fill="none">
+                <path
+                  d="M1 1L4.5 5L8 1"
+                  stroke="#18181B"
+                  strokeWidth="1.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Stats Visualization Section - Key Performance Indices */}
+      <div className="px-4 pt-2 pb-4">
+        <div className="mb-2">
+          <span
+            className="text-xs font-semibold uppercase text-[#A1A1AA]"
+            style={{ lineHeight: "12px" }}
+          >
+            KEY PERFORMANCE INDICES
+          </span>
+        </div>
+        <div
+          className="relative overflow-hidden px-4 py-4"
+          style={{
+            background: "#18181B",
+            borderRadius: "32px",
+          }}
+        >
+          {/* Decorative element (subtle circle) */}
+          <div
+            className="absolute"
+            style={{
+              right: "22px",
+              top: "22px",
+              width: "75px",
+              height: "75px",
+              borderRadius: "9999px",
+              border: "1px solid rgba(255,255,255,0.1)",
+              opacity: 0.1,
+            }}
+          />
+          <div
+            className="absolute"
+            style={{
+              right: "10px",
+              top: "10px",
+              width: "99px",
+              height: "99px",
+              borderRadius: "9999px",
+              border: "1px solid rgba(255,255,255,0.1)",
+              opacity: 0.1,
+            }}
+          />
+
+          <div className="flex flex-col gap-1 relative z-10">
+            {/* Label */}
+            <span
+              className="text-xs font-normal text-[#A1A1AA]"
+              style={{ lineHeight: "12px" }}
+            >
+              Win Rate Delta
+            </span>
+
+            {/* Value + comparison */}
+            <div className="flex items-end gap-2 mt-1">
+              <span
+                className="font-semibold text-white"
+                style={{
+                  fontSize: "28px",
+                  lineHeight: "33.6px",
+                  letterSpacing: "-0.01em",
+                }}
+              >
+                +12.5%
+              </span>
+              <div className="flex items-center gap-1 pb-1">
+                {/* Arrow up icon */}
+                <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+                  <path
+                    d="M5 2L8 5M5 2L2 5M5 2V9"
+                    stroke="#9FE870"
+                    strokeWidth="1.5"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+                <span
+                  className="text-sm font-normal text-[#9FE870]"
+                  style={{ lineHeight: "21px" }}
+                >
+                  vs last week
+                </span>
               </div>
-            );
-          })}
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -855,9 +1107,9 @@ export default function MatchDetailClient({
   const [startRoundLoadingGuid, setStartRoundLoadingGuid] = useState<
     string | null
   >(null);
-  const [cancellingRoundGuid, setCancellingRoundGuid] = useState<
-    string | null
-  >(null);
+  const [cancellingRoundGuid, setCancellingRoundGuid] = useState<string | null>(
+    null,
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -904,10 +1156,8 @@ export default function MatchDetailClient({
     if (!detail || !scoreSheet) return;
     const matchGuid = scoreSheet.matchGuid;
     const before = getMatchRawScores(detail, matchGuid);
-    const afterA =
-      scoreSheet.side === "a" ? value : before?.a ?? null;
-    const afterB =
-      scoreSheet.side === "b" ? value : before?.b ?? null;
+    const afterA = scoreSheet.side === "a" ? value : (before?.a ?? null);
+    const afterB = scoreSheet.side === "b" ? value : (before?.b ?? null);
     const scoresUnchanged =
       before != null && before.a === afterA && before.b === afterB;
 
@@ -1043,34 +1293,45 @@ export default function MatchDetailClient({
           </div>
         ) : detail ? (
           <>
+            {/* Tab Switcher - pill style matching Figma */}
             <div
-              className="flex items-center gap-4 px-6 py-4 bg-white"
-              style={{ borderBottom: "none" }}
+              className="px-4 py-4"
+              style={{ borderBottom: "1px solid #F4F4F5" }}
             >
-              {(["Matches", "Standings"] as TabType[]).map((tab) => {
-                const isActive = activeTab === tab;
-                return (
-                  <button
-                    key={tab}
-                    type="button"
-                    onClick={() => setActiveTab(tab)}
-                    className="flex-1 py-3 text-center transition-all"
-                    style={{
-                      borderRadius: "9999px",
-                      background: isActive ? "#FFFFFF" : "transparent",
-                      color: isActive ? "#18181B" : "#71717A",
-                      fontSize: "14px",
-                      fontWeight: isActive ? 700 : 500,
-                      lineHeight: "21px",
-                      boxShadow: isActive
-                        ? "0px 1px 2px 0px rgba(0,0,0,0.05)"
-                        : "none",
-                    }}
-                  >
-                    {tab}
-                  </button>
-                );
-              })}
+              <div
+                className="flex items-center p-1"
+                style={{
+                  background: "#F4F4F5",
+                  borderRadius: "9999px",
+                }}
+              >
+                {(["Matches", "Standings"] as TabType[]).map((tab) => {
+                  const isActive = activeTab === tab;
+                  return (
+                    <button
+                      key={tab}
+                      type="button"
+                      onClick={() => setActiveTab(tab)}
+                      className="flex-1 py-3 text-center transition-all"
+                      style={{
+                        borderRadius: "9999px",
+                        background: isActive ? "#121212" : "transparent",
+                        color: isActive ? "#9FE870" : "#71717A",
+                        fontSize: "12px",
+                        fontWeight: 600,
+                        lineHeight: "12px",
+                        boxShadow: isActive
+                          ? "0px 1px 2px 0px rgba(0,0,0,0.05)"
+                          : "none",
+                        border: "none",
+                        cursor: "pointer",
+                      }}
+                    >
+                      {tab}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
 
             {activeTab === "Matches" ? (

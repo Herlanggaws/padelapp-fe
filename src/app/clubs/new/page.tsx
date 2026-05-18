@@ -6,7 +6,7 @@ export default function ClubFormPage() {
     <div className="min-h-screen bg-white max-w-[448px] mx-auto relative">
       <TopAppBar
         showBack
-        backHref="/dashboard"
+        backFallback="/dashboard"
         title="Club Management"
         showSettings={false}
         rightAction={

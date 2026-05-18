@@ -9,7 +9,7 @@ export default function ClubDetailAdminPage() {
       {/* Top App Bar */}
       <TopAppBar
         showBack
-        backHref="/dashboard"
+        backFallback="/dashboard"
         title="PadelPro"
         showSettings={false}
         transparent

@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
 import TopAppBar from "@/components/TopAppBar";
+import BottomSheetAddOutsider from "@/components/BottomSheetAddOutsider";
+import BottomSheetSeeAllPlayers from "@/components/BottomSheetSeeAllPlayers";
 import {
   fetchEventDetail,
   fetchEventParticipants,
@@ -12,8 +14,9 @@ import {
   leaveEvent,
   approveParticipant,
   rejectParticipant,
+  addOutsiderParticipant,
 } from "@/services/eventService";
-import type { Event, EventParticipant, PendingRequest } from "@/types/event";
+import type { Event, PendingRequest } from "@/types/event";
 import { useSnackbar } from "@/context/SnackbarContext";
 
 function formatDate(dateTime: string) {
@@ -155,9 +158,19 @@ function RequestCard({
     >
       <div className="flex items-center gap-3">
         <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center overflow-hidden">
-          <span className="text-sm font-semibold text-gray-600">
-            {request.user.name.charAt(0).toUpperCase()}
-          </span>
+          {request.user.profile_photo ? (
+            <Image
+              src={request.user.profile_photo}
+              alt={request.user.name}
+              width={40}
+              height={40}
+              className="w-full h-full object-cover"
+            />
+          ) : (
+            <span className="text-sm font-semibold text-gray-600">
+              {request.user.name.charAt(0).toUpperCase()}
+            </span>
+          )}
         </div>
         <div className="flex flex-col gap-1">
           <span
@@ -224,6 +237,7 @@ function EventDetailContent({
   onApprove,
   onReject,
   actingGuid,
+  onAddOutsider,
 }: {
   event: Event;
   participantPhotos: (string | null)[];
@@ -233,15 +247,17 @@ function EventDetailContent({
   onApprove: (guid: string) => void;
   onReject: (guid: string) => void;
   actingGuid: string | null;
+  onAddOutsider: (name: string) => Promise<void>;
 }) {
-  const slotsLeft = event.number_of_players - event.number_of_participants;
+  const [showAddOutsider, setShowAddOutsider] = useState(false);
+  const [showSeeAllPlayers, setShowSeeAllPlayers] = useState(false);
   const pendingRequests = event.pending_requests ?? [];
 
   return (
     <div className="min-h-screen bg-white max-w-[448px] mx-auto relative flex flex-col">
       <TopAppBar
         showBack
-        backHref={`/clubs/${event.club_guid}`}
+        backFallback={`/clubs/${event.club_guid}`}
         title="Event Details"
         showSettings={false}
       />
@@ -379,19 +395,49 @@ function EventDetailContent({
             style={{ borderTop: "1px solid #FAFAFA" }}
           >
             <div className="flex items-center justify-between">
-              <span
-                className="text-[10px] font-bold text-[#71717A] uppercase tracking-[5%]"
-                style={{ lineHeight: "15px" }}
-              >
-                PLAYERS ({event.number_of_participants}/
-                {event.number_of_players})
-              </span>
-              <span
-                className="text-xs font-semibold text-[#2F6C00]"
-                style={{ lineHeight: "12px" }}
-              >
-                {slotsLeft} Slot{slotsLeft !== 1 ? "s" : ""} left
-              </span>
+              <div className="flex items-center gap-2">
+                <span
+                  className="text-[10px] font-bold text-[#71717A] uppercase tracking-[5%]"
+                  style={{ lineHeight: "15px" }}
+                >
+                  PLAYERS ({event.number_of_participants}/
+                  {event.number_of_players})
+                </span>
+
+                {event.is_host && (
+                  <button
+                    className="text-xs font-semibold text-[#2F6C00] cursor-pointer"
+                    onClick={() => setShowSeeAllPlayers(true)}
+                  >
+                    See More
+                  </button>
+                )}
+              </div>
+
+              {event.is_host && (
+                <button
+                  className="flex items-center gap-1 cursor-pointer"
+                  onClick={() => setShowAddOutsider(true)}
+                >
+                  <div className="shrink-0">
+                    <svg
+                      width="19"
+                      height="14"
+                      viewBox="0 0 19 14"
+                      fill="none"
+                      xmlns="http://www.w3.org/2000/svg"
+                    >
+                      <path
+                        d="M14.1667 8.33333V5.83333H11.6667V4.16667H14.1667V1.66667H15.8333V4.16667H18.3333V5.83333H15.8333V8.33333H14.1667ZM6.66667 6.66667C5.75 6.66667 4.96528 6.34028 4.3125 5.6875C3.65972 5.03472 3.33333 4.25 3.33333 3.33333C3.33333 2.41667 3.65972 1.63194 4.3125 0.979167C4.96528 0.326389 5.75 0 6.66667 0C7.58333 0 8.36806 0.326389 9.02083 0.979167C9.67361 1.63194 10 2.41667 10 3.33333C10 4.25 9.67361 5.03472 9.02083 5.6875C8.36806 6.34028 7.58333 6.66667 6.66667 6.66667ZM0 13.3333V11C0 10.5278 0.121528 10.0938 0.364583 9.69792C0.607639 9.30208 0.930556 9 1.33333 8.79167C2.19444 8.36111 3.06944 8.03819 3.95833 7.82292C4.84722 7.60764 5.75 7.5 6.66667 7.5C7.58333 7.5 8.48611 7.60764 9.375 7.82292C10.2639 8.03819 11.1389 8.36111 12 8.79167C12.4028 9 12.7257 9.30208 12.9688 9.69792C13.2118 10.0938 13.3333 10.5278 13.3333 11V13.3333H0ZM1.66667 11.6667H11.6667V11C11.6667 10.8472 11.6285 10.7083 11.5521 10.5833C11.4757 10.4583 11.375 10.3611 11.25 10.2917C10.5 9.91667 9.74306 9.63542 8.97917 9.44792C8.21528 9.26042 7.44444 9.16667 6.66667 9.16667C5.88889 9.16667 5.11806 9.26042 4.35417 9.44792C3.59028 9.63542 2.83333 9.91667 2.08333 10.2917C1.95833 10.3611 1.85764 10.4583 1.78125 10.5833C1.70486 10.7083 1.66667 10.8472 1.66667 11V11.6667ZM6.66667 5C7.125 5 7.51736 4.83681 7.84375 4.51042C8.17014 4.18403 8.33333 3.79167 8.33333 3.33333C8.33333 2.875 8.17014 2.48264 7.84375 2.15625C7.51736 1.82986 7.125 1.66667 6.66667 1.66667C6.20833 1.66667 5.81597 1.82986 5.48958 2.15625C5.16319 2.48264 5 2.875 5 3.33333C5 3.79167 5.16319 4.18403 5.48958 4.51042C5.81597 4.83681 6.20833 5 6.66667 5Z"
+                        fill="#2F6C00"
+                      />
+                    </svg>
+                  </div>
+                  <span className="text-xs font-semibold text-[#2F6C00]">
+                    Add Player
+                  </span>
+                </button>
+              )}
             </div>
             <PlayerSlots
               participants={event.number_of_participants}
@@ -515,6 +561,23 @@ function EventDetailContent({
           </button>
         )}
       </div>
+
+      {/* Bottom Sheet: Add Outsider */}
+      {showAddOutsider && (
+        <BottomSheetAddOutsider
+          onClose={() => setShowAddOutsider(false)}
+          onAdd={onAddOutsider}
+        />
+      )}
+
+      {/* Bottom Sheet: See All Players */}
+      {showSeeAllPlayers && (
+        <BottomSheetSeeAllPlayers
+          eventGuid={event.guid}
+          isHost={event.is_host}
+          onClose={() => setShowSeeAllPlayers(false)}
+        />
+      )}
     </div>
   );
 }
@@ -540,7 +603,7 @@ export default function EventDetail({ id }: { id: string }) {
     setParticipantPhotos(participantsRes.data.map((p) => p.user.profile_photo));
     return eventRes.data;
   }, [id]);
-
+  console.log("participantPhotos", participantPhotos);
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     loadEvent().catch(() => router.replace("/not-found"));
@@ -606,6 +669,14 @@ export default function EventDetail({ id }: { id: string }) {
     );
   }
 
+  const handleAddOutsider = async (name: string) => {
+    const res = await addOutsiderParticipant({
+      event_guid: event!.guid,
+      outsider_name: name,
+    });
+    showSnackbar(res.message);
+  };
+
   return (
     <EventDetailContent
       event={event}
@@ -616,6 +687,7 @@ export default function EventDetail({ id }: { id: string }) {
       onApprove={handleApprove}
       onReject={handleReject}
       actingGuid={actingGuid}
+      onAddOutsider={handleAddOutsider}
     />
   );
 }

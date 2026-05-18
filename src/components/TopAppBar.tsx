@@ -1,9 +1,11 @@
 import Link from "next/link";
 import { ReactNode } from "react";
+import BackButtonClient from "@/components/BackButtonClient";
 
 interface TopAppBarProps {
   showBack?: boolean;
   backHref?: string;
+  backFallback?: string;
   title?: string;
   showNotification?: boolean;
   showSettings?: boolean;
@@ -14,6 +16,7 @@ interface TopAppBarProps {
 export default function TopAppBar({
   showBack = false,
   backHref,
+  backFallback,
   title,
   showNotification = false,
   showSettings = true,
@@ -41,20 +44,24 @@ export default function TopAppBar({
     >
       <div className="flex items-center gap-4">
         {showBack && (
-          <Link href={backLink} className="p-2 rounded-full">
-            <svg
-              width="20"
-              height="20"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <path d="M19 12H5M12 19l-7-7 7-7" />
-            </svg>
-          </Link>
+          backFallback ? (
+            <BackButtonClient fallbackHref={backFallback} />
+          ) : (
+            <Link href={backLink} className="p-2 rounded-full">
+              <svg
+                width="20"
+                height="20"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M19 12H5M12 19l-7-7 7-7" />
+              </svg>
+            </Link>
+          )
         )}
         {title ? (
           <span className="font-semibold text-lg tracking-tight text-[#18181B]">

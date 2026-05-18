@@ -176,7 +176,7 @@ export default function ClubDetailUser() {
     <div className="min-h-screen bg-white max-w-[448px] mx-auto relative">
       <TopAppBar
         showBack
-        backHref="/clubs"
+        backFallback="/clubs"
         title={club.name}
         showSettings={false}
         transparent

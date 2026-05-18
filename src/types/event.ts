@@ -2,6 +2,7 @@ export interface PendingRequestUser {
   guid: string;
   name: string;
   email: string;
+  profile_photo: string;
 }
 
 export interface PendingRequest {
@@ -152,5 +153,19 @@ export interface FetchEventParticipantsSuccessResponse {
 }
 
 export interface FetchEventParticipantsErrorResponse {
+  message: string;
+}
+
+export interface AddOutsiderParticipantPayload {
+  event_guid: string;
+  outsider_name: string;
+}
+
+export interface AddOutsiderParticipantSuccessResponse {
+  data: null;
+  message: string;
+}
+
+export interface AddOutsiderParticipantErrorResponse {
   message: string;
 }

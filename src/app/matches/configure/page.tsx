@@ -12,7 +12,7 @@ export default async function MatchConfigurePage({
     <div className="min-h-screen bg-white max-w-[448px] mx-auto relative flex flex-col">
       <TopAppBar
         showBack
-        backHref="/matches"
+        backFallback="/"
         title="Configure Game"
         showSettings={false}
       />

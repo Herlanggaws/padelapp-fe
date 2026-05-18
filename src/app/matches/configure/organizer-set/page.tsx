@@ -6,7 +6,7 @@ export default function MatchOrganizerSetPage() {
     <div className="min-h-screen bg-white max-w-[448px] mx-auto relative flex flex-col">
       <TopAppBar
         showBack
-        backHref="/matches/configure"
+        backFallback="/matches/configure"
         title="Configure Game"
         showSettings={false}
       />

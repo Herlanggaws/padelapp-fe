@@ -58,7 +58,7 @@ export default function CreateEventForm({
     <div className="min-h-screen bg-white max-w-[448px] mx-auto relative flex flex-col">
       <TopAppBar
         showBack
-        backHref={`/clubs/${clubId}`}
+        backFallback={`/clubs/${clubId}`}
         title="Create Event"
         showSettings={false}
       />

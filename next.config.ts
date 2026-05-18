@@ -27,6 +27,10 @@ const nextConfig: NextConfig = {
         protocol: "https",
         hostname: "linkphoto.com",
       },
+      {
+        protocol: "https",
+        hostname: "api.rallyrank.id",
+      },
     ],
   },
 };

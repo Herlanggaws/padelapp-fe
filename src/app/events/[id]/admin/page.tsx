@@ -30,7 +30,7 @@ export default function EventDetailAdminPage() {
       {/* Header */}
       <TopAppBar
         showBack
-        backHref="/clubs/1/admin"
+        backFallback="/clubs/1/admin"
         title="Event Details"
         showSettings={false}
         rightAction={

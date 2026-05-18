@@ -8,7 +8,7 @@ export default function EventDetailRequestedPage() {
       {/* Header */}
       <TopAppBar
         showBack
-        backHref="/clubs/1"
+        backFallback="/clubs/1"
         title="Event Details"
         showSettings={false}
         rightAction={

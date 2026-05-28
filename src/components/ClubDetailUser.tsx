@@ -64,7 +64,7 @@ export default function ClubDetailUser() {
       const res = await fetchClubEvents({
         club_guid: clubGuid,
         sort: "created_at",
-        direction: "ASC",
+        direction: "DESC",
         page,
         limit: 10,
       });
@@ -350,44 +350,47 @@ export default function ClubDetailUser() {
         )}
 
         {/* Upcoming Activities Section */}
-        {(eventsLoading || events.length > 0) && <div className="flex flex-col gap-4 px-6 mt-8">
-          <h3 className="text-xl text-[#151C27]" style={{ lineHeight: "26px" }}>
-            Upcoming Activities
-          </h3>
+        {(eventsLoading || events.length > 0) && (
+          <div className="flex flex-col gap-4 px-6 mt-8">
+            <h3
+              className="text-xl text-[#151C27]"
+              style={{ lineHeight: "26px" }}
+            >
+              Upcoming Activities
+            </h3>
 
-          <div className="flex flex-col gap-4">
-            {eventsLoading && events.length === 0
-              ? Array.from({ length: 3 }).map((_, i) => (
-                  <ActivityCardSkeleton key={i} />
-                ))
-              : events.map((event) => {
-                  const dt = new Date(event.date_time);
-                  return (
-                    <ActivityCard
-                      key={event.guid}
-                      day={String(dt.getUTCDate()).padStart(2, "0")}
-                      month={dt
-                        .toLocaleString("en-US", {
-                          month: "short",
-                          timeZone: "UTC",
-                        })
-                        .toUpperCase()}
-                      title={event.name}
-                      subtitle={event.description}
-                      link={`/events/${event.guid}`}
-                    />
-                  );
-                })}
+            <div className="flex flex-col gap-4">
+              {eventsLoading && events.length === 0
+                ? Array.from({ length: 3 }).map((_, i) => (
+                    <ActivityCardSkeleton key={i} />
+                  ))
+                : events.map((event) => {
+                    const dt = new Date(event.date_time);
+                    return (
+                      <ActivityCard
+                        key={event.guid}
+                        day={String(dt.getUTCDate()).padStart(2, "0")}
+                        month={dt
+                          .toLocaleString("en-US", {
+                            month: "short",
+                            timeZone: "UTC",
+                          })
+                          .toUpperCase()}
+                        title={event.name}
+                        subtitle={event.description}
+                        link={`/events/${event.guid}`}
+                      />
+                    );
+                  })}
 
-            {/* Inline skeleton rows while fetching next page */}
-            {eventsLoading && events.length > 0 && (
-              <ActivityCardSkeleton />
-            )}
+              {/* Inline skeleton rows while fetching next page */}
+              {eventsLoading && events.length > 0 && <ActivityCardSkeleton />}
 
-            {/* Sentinel div — triggers next page load when scrolled into view */}
-            {hasMoreEvents && <div ref={sentinelRef} className="h-1" />}
+              {/* Sentinel div — triggers next page load when scrolled into view */}
+              {hasMoreEvents && <div ref={sentinelRef} className="h-1" />}
+            </div>
           </div>
-        </div>}
+        )}
 
         {/* FAB Button */}
         {club.is_joined && (

@@ -31,6 +31,7 @@ export interface MatchmakingSessionEventSummary {
 
 export interface MatchmakingSession {
   guid: string;
+  event_guid?: string;
   event: MatchmakingSessionEventSummary;
   format: MatchmakingSessionFormatApi;
   number_of_courts: number;
@@ -39,11 +40,33 @@ export interface MatchmakingSession {
   created_by: MatchmakingSessionCreatedBy;
 }
 
-export interface MatchmakingSessionPlayer {
+export interface MatchmakingSessionPlayerUser {
+  guid?: string;
+  name?: string;
+  email?: string;
+}
+
+/** Player on a match side (americano / random sessions) */
+export interface MatchmakingMatchParticipant {
   guid: string;
   name: string;
   email: string;
+  profile_photo?: string;
 }
+
+export interface MatchmakingSessionPlayer {
+  guid?: string;
+  name?: string;
+  email?: string;
+  profile_photo?: string;
+  user?: MatchmakingSessionPlayerUser | null;
+}
+
+/** `team_a` / `team_b` may be a player list or a paired team object */
+export type MatchmakingSessionMatchSide =
+  | MatchmakingMatchParticipant[]
+  | MatchmakingSessionTeam
+  | null;
 
 export interface MatchmakingSessionTeam {
   guid: string;
@@ -62,9 +85,16 @@ export type MatchmakingSessionRoundStatus =
 export interface MatchmakingSessionMatch {
   guid: string;
   court_number: number;
-  bracket: string;
+  bracket?: string;
+  /** Organizer-set / mexicano: nested team with player1 & player2 */
   team_a_info?: MatchmakingSessionTeam | null;
   team_b_info?: MatchmakingSessionTeam | null;
+  /** Present when match only references teams by id */
+  team_a_guid?: string | null;
+  team_b_guid?: string | null;
+  /** Player list (americano) or team object (organizer-set) */
+  team_a?: MatchmakingSessionMatchSide;
+  team_b?: MatchmakingSessionMatchSide;
   team_a_score: number | null;
   team_b_score: number | null;
 }

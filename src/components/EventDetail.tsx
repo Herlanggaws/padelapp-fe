@@ -306,7 +306,7 @@ function EventDetailContent({
               style={{ background: "#F0F3FF" }}
             >
               <div
-                className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0"
+                className="w-10 h-10 rounded-full flex items-center justify-center shrink-0"
                 style={{
                   background: "#FFFFFF",
                   boxShadow: "0px 1px 2px 0px rgba(0,0,0,0.05)",
@@ -340,7 +340,7 @@ function EventDetailContent({
               style={{ background: "#F0F3FF" }}
             >
               <div
-                className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0"
+                className="w-10 h-10 rounded-full flex items-center justify-center shrink-0"
                 style={{
                   background: "#FFFFFF",
                   boxShadow: "0px 1px 2px 0px rgba(0,0,0,0.05)",
@@ -492,7 +492,7 @@ function EventDetailContent({
           <div className="flex gap-3">
             {event.session_guid ? (
               <Link
-                href={`/matches/${event.session_guid}`}
+                href={`/matches/${event.session_guid}?event_guid=${encodeURIComponent(event.guid)}`}
                 className="flex-1 flex items-center justify-center gap-2 text-base font-semibold text-[#121212] rounded-full"
                 style={{ background: "#9FE870", height: "56px" }}
               >

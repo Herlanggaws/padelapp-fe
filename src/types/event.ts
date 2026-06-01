@@ -87,6 +87,7 @@ export interface Event {
   min_level: number;
   max_level: number;
   is_active: boolean;
+  is_finished: boolean;
   is_joined: boolean;
   is_host: boolean;
   is_locked: boolean;
@@ -204,5 +205,14 @@ export interface AddOutsiderParticipantSuccessResponse {
 }
 
 export interface AddOutsiderParticipantErrorResponse {
+  message: string;
+}
+
+export interface FinishEventSuccessResponse {
+  data: null;
+  message: string;
+}
+
+export interface FinishEventErrorResponse {
   message: string;
 }

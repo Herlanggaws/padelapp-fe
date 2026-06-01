@@ -12,7 +12,11 @@ import {
   startMatchmakingRound,
   submitMatchmakingMatchScore,
 } from "@/services/matchmakingService";
-import { fetchEventStandings } from "@/services/eventService";
+import {
+  fetchEventDetail,
+  fetchEventStandings,
+  finishEvent,
+} from "@/services/eventService";
 import type {
   CancelMatchmakingRoundErrorResponse,
   GetMatchmakingSessionErrorResponse,
@@ -28,9 +32,11 @@ import type {
   SubmitMatchmakingMatchScoreErrorResponse,
 } from "@/types/matchmaking";
 import type {
+  Event,
   EventStandingRow,
   EventStandingsType,
   FetchEventStandingsErrorResponse,
+  FinishEventErrorResponse,
 } from "@/types/event";
 
 type TabType = "Matches" | "Standings";
@@ -1142,6 +1148,8 @@ export default function MatchDetailClient({
   const [cancellingRoundGuid, setCancellingRoundGuid] = useState<string | null>(
     null,
   );
+  const [isFinishing, setIsFinishing] = useState(false);
+  const [eventDetail, setEventDetail] = useState<Event | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -1171,6 +1179,27 @@ export default function MatchDetailClient({
 
   const eventGuid =
     eventGuidProp?.trim() || detail?.event_guid || detail?.event.guid;
+
+  useEffect(() => {
+    if (!eventGuid) {
+      setEventDetail(null);
+      return;
+    }
+
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetchEventDetail(eventGuid);
+        if (!cancelled) setEventDetail(res.data);
+      } catch {
+        if (!cancelled) setEventDetail(null);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [eventGuid]);
 
   useEffect(() => {
     if (activeTab !== "Standings" || !eventGuid) return;
@@ -1305,6 +1334,29 @@ export default function MatchDetailClient({
     }
   };
 
+  const handleFinishEvent = async () => {
+    if (!eventGuid) {
+      showSnackbar("Event not found for this session.");
+      return;
+    }
+
+    setIsFinishing(true);
+    try {
+      const res = await finishEvent(eventGuid);
+      showSnackbar(res.message);
+      const refreshed = await fetchEventDetail(eventGuid);
+      setEventDetail(refreshed.data);
+    } catch (e) {
+      const err = e as FinishEventErrorResponse;
+      showSnackbar(err?.message ?? "Could not finish event.");
+    } finally {
+      setIsFinishing(false);
+    }
+  };
+
+  const showFinishFooter = Boolean(detail && eventGuid);
+  const isEventFinished = eventDetail?.is_finished === true;
+
   return (
     <div className="min-h-screen bg-white max-w-[448px] mx-auto relative flex flex-col">
       <header
@@ -1352,7 +1404,13 @@ export default function MatchDetailClient({
         </div>
       </header>
 
-      <div className="flex flex-col" style={{ paddingTop: "64px" }}>
+      <div
+        className="flex flex-col"
+        style={{
+          paddingTop: "64px",
+          paddingBottom: showFinishFooter ? "96px" : undefined,
+        }}
+      >
         {isLoading ? (
           <div className="px-6 py-8 text-center text-sm text-[#71717A]">
             Loading session…
@@ -1436,6 +1494,27 @@ export default function MatchDetailClient({
         onConfirm={applyScoreFromKeyboard}
         initialValue={scoreSheet?.initial ?? null}
       />
+
+      {showFinishFooter ? (
+        <div
+          className="fixed bottom-0 left-0 right-0 z-50 max-w-[448px] mx-auto px-6 py-4 pb-8"
+          style={{ background: "#FFFFFF", borderTop: "1px solid #F4F4F5" }}
+        >
+          <button
+            type="button"
+            onClick={handleFinishEvent}
+            disabled={isFinishing || isEventFinished}
+            className="w-full text-base font-semibold text-[#121212] rounded-full disabled:opacity-50 disabled:cursor-not-allowed"
+            style={{ background: "#9FE870", height: "56px" }}
+          >
+            {isFinishing
+              ? "Finishing…"
+              : isEventFinished
+                ? "Event finished"
+                : "Finish"}
+          </button>
+        </div>
+      ) : null}
     </div>
   );
 }

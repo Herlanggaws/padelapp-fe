@@ -92,7 +92,9 @@ export default function MatchConfigClient({
         total_set_points: selectedPoints,
         teams: [],
       });
-      router.push(`/matches/${result.data.guid}`);
+      router.push(
+        `/matches/${result.data.guid}?event_guid=${encodeURIComponent(eventGuid)}`,
+      );
     } catch (err) {
       const apiError = err as CreateMatchmakingSessionErrorResponse;
       showModal("Error", apiError?.message ?? "Could not create match.");
@@ -156,7 +158,7 @@ export default function MatchConfigClient({
                 </div>
                 {/* Radio indicator */}
                 <div
-                  className="w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0"
+                  className="w-6 h-6 rounded-full flex items-center justify-center shrink-0"
                   style={{
                     border: isSelected
                       ? "2px solid #9FE870"

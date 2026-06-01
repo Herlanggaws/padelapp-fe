@@ -7,6 +7,9 @@ import type {
   FetchClubEventsErrorResponse,
   FetchEventDetailSuccessResponse,
   FetchEventDetailErrorResponse,
+  FetchEventStandingsParams,
+  FetchEventStandingsSuccessResponse,
+  FetchEventStandingsErrorResponse,
   JoinEventPayload,
   JoinEventSuccessResponse,
   JoinEventErrorResponse,
@@ -32,6 +35,9 @@ export type {
   FetchClubEventsErrorResponse,
   FetchEventDetailSuccessResponse,
   FetchEventDetailErrorResponse,
+  FetchEventStandingsParams,
+  FetchEventStandingsSuccessResponse,
+  FetchEventStandingsErrorResponse,
   JoinEventPayload,
   JoinEventSuccessResponse,
   JoinEventErrorResponse,
@@ -122,6 +128,22 @@ export async function fetchEventDetail(
   }
 
   return data as FetchEventDetailSuccessResponse;
+}
+
+export async function fetchEventStandings(
+  params: FetchEventStandingsParams,
+): Promise<FetchEventStandingsSuccessResponse> {
+  const query = new URLSearchParams({ type: params.type });
+  const response = await fetchWithAuth(
+    `${BASE_URL}/padel/event/${params.event_guid}/standings?${query.toString()}`,
+  );
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw data as FetchEventStandingsErrorResponse;
+  }
+
+  return data as FetchEventStandingsSuccessResponse;
 }
 
 export async function joinEvent(

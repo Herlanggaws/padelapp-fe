@@ -12,17 +12,26 @@ import {
   startMatchmakingRound,
   submitMatchmakingMatchScore,
 } from "@/services/matchmakingService";
+import { fetchEventStandings } from "@/services/eventService";
 import type {
   CancelMatchmakingRoundErrorResponse,
   GetMatchmakingSessionErrorResponse,
+  MatchmakingMatchParticipant,
   MatchmakingSessionDetail,
   MatchmakingSessionMatch,
+  MatchmakingSessionMatchSide,
+  MatchmakingSessionPlayer,
   MatchmakingSessionRound,
   MatchmakingSessionRoundStatus,
   MatchmakingSessionTeam,
   StartMatchmakingRoundErrorResponse,
   SubmitMatchmakingMatchScoreErrorResponse,
 } from "@/types/matchmaking";
+import type {
+  EventStandingRow,
+  EventStandingsType,
+  FetchEventStandingsErrorResponse,
+} from "@/types/event";
 
 type TabType = "Matches" | "Standings";
 
@@ -80,11 +89,11 @@ interface StandingRow {
   rank: number;
   name: string;
   avatarSeed: string;
+  avatarUrl?: string;
   mp: number;
   wins: number;
-  pts: number;
+  scoreDiff: number;
   winPct: string;
-  pPct: string;
   isPlaceholder?: boolean;
 }
 
@@ -119,6 +128,88 @@ function asTeamList(
   value: MatchmakingSessionDetail["teams"],
 ): MatchmakingSessionTeam[] {
   return Array.isArray(value) ? value : [];
+}
+
+function buildTeamsByGuid(
+  detail: MatchmakingSessionDetail,
+): Map<string, MatchmakingSessionTeam> {
+  const map = new Map<string, MatchmakingSessionTeam>();
+  for (const team of asTeamList(detail.teams)) {
+    if (team.guid) map.set(team.guid, team);
+  }
+  return map;
+}
+
+function playerLabel(
+  player: MatchmakingSessionPlayer | null | undefined,
+): string {
+  if (!player) return "";
+  return (
+    player.name?.trim() ||
+    player.user?.name?.trim() ||
+    player.email?.trim() ||
+    player.user?.email?.trim() ||
+    ""
+  );
+}
+
+function playerGuid(
+  player: MatchmakingSessionPlayer | null | undefined,
+): string | undefined {
+  return player?.guid || player?.user?.guid;
+}
+
+function isParticipantArray(
+  value: MatchmakingSessionMatchSide | undefined,
+): value is MatchmakingMatchParticipant[] {
+  return Array.isArray(value);
+}
+
+function mergeTeamWithSession(
+  partial: MatchmakingSessionTeam | null | undefined,
+  teamsByGuid: Map<string, MatchmakingSessionTeam>,
+): MatchmakingSessionTeam | null {
+  if (!partial) return null;
+  const guid = partial.guid?.trim();
+  if (!guid) return partial;
+  const full = teamsByGuid.get(guid);
+  if (!full) return partial;
+  const pickPlayer = (
+    fromMatch: MatchmakingSessionPlayer | null | undefined,
+    fromSession: MatchmakingSessionPlayer | null | undefined,
+  ) => (playerLabel(fromMatch) ? fromMatch : fromSession);
+  return {
+    ...full,
+    ...partial,
+    player1: pickPlayer(partial.player1, full.player1),
+    player2: pickPlayer(partial.player2, full.player2),
+  };
+}
+
+function resolveMatchSidePlayers(
+  m: MatchmakingSessionMatch,
+  side: "a" | "b",
+  teamsByGuid: Map<string, MatchmakingSessionTeam>,
+): MatchmakingSessionPlayer[] {
+  const raw = side === "a" ? m.team_a : m.team_b;
+  if (isParticipantArray(raw)) return raw as MatchmakingSessionPlayer[];
+
+  const info = side === "a" ? m.team_a_info : m.team_b_info;
+  const teamRaw =
+    info ?? (raw && !Array.isArray(raw) ? raw : null);
+  const guidOnly = (side === "a" ? m.team_a_guid : m.team_b_guid)?.trim();
+
+  let team: MatchmakingSessionTeam | null = null;
+  if (teamRaw) {
+    team = mergeTeamWithSession(teamRaw, teamsByGuid);
+  } else if (guidOnly) {
+    team = teamsByGuid.get(guidOnly) ?? null;
+  }
+
+  if (!team) return [];
+  return [team.player1, team.player2].filter(
+    (p): p is MatchmakingSessionPlayer => Boolean(p),
+  );
 }
 
 function patchMatchScore(
@@ -164,30 +255,34 @@ function parseScoreDisplay(display: string): number | null {
   return Number.isNaN(n) ? null : n;
 }
 
-function teamToMatchPlayers(
-  team: MatchmakingSessionMatch["team_a_info"],
+function playersToMatchPlayers(
+  players: MatchmakingSessionPlayer[],
   side: "left" | "right",
 ): MatchPlayer[] {
   const slot = (
-    player: { name?: string; guid?: string } | null | undefined,
+    player: MatchmakingSessionPlayer | null | undefined,
     i: number,
-  ): MatchPlayer => ({
-    name: player?.name?.trim() || "TBD",
-    avatarSeed: avatarSeedFromGuid(player?.guid ?? `tbd-${side}-${i}`),
-    side,
-  });
-  if (!team) {
+  ): MatchPlayer => {
+    const label = playerLabel(player);
+    return {
+      name: label || "TBD",
+      avatarSeed: avatarSeedFromGuid(playerGuid(player) ?? `tbd-${side}-${i}`),
+      side,
+    };
+  };
+  if (players.length === 0) {
     return [
       { name: "TBD", avatarSeed: `tbd-${side}-1`, side },
       { name: "TBD", avatarSeed: `tbd-${side}-2`, side },
     ];
   }
-  return [slot(team.player1, 1), slot(team.player2, 2)];
+  return [slot(players[0], 1), slot(players[1], 2)];
 }
 
 function mapMatchToCard(
   m: MatchmakingSessionMatch,
   opts: { timeLabel: string; isLive: boolean; isFeatured: boolean },
+  teamsByGuid: Map<string, MatchmakingSessionTeam>,
 ): MatchCard {
   return {
     id: m.guid,
@@ -195,14 +290,21 @@ function mapMatchToCard(
     time: opts.timeLabel,
     isLive: opts.isLive,
     isFeatured: opts.isFeatured,
-    teamA: teamToMatchPlayers(m.team_a_info, "left"),
-    teamB: teamToMatchPlayers(m.team_b_info, "right"),
+    teamA: playersToMatchPlayers(
+      resolveMatchSidePlayers(m, "a", teamsByGuid),
+      "left",
+    ),
+    teamB: playersToMatchPlayers(
+      resolveMatchSidePlayers(m, "b", teamsByGuid),
+      "right",
+    ),
     scoreA: m.team_a_score == null ? "—" : String(m.team_a_score),
     scoreB: m.team_b_score == null ? "—" : String(m.team_b_score),
   };
 }
 
 function mapDetailToRounds(detail: MatchmakingSessionDetail): Round[] {
+  const teamsByGuid = buildTeamsByGuid(detail);
   const sorted = [...asRoundList(detail.rounds)].sort(
     (a, b) => a.round_number - b.round_number,
   );
@@ -218,36 +320,41 @@ function mapDetailToRounds(detail: MatchmakingSessionDetail): Round[] {
       label: `Round ${round.round_number}`,
       badge: humanizeRoundStatus(String(round.status)),
       matches: matches.map((m, idx) =>
-        mapMatchToCard(m, {
-          timeLabel,
-          isLive: isRoundLive,
-          isFeatured: isRoundLive && idx === 0,
-        }),
+        mapMatchToCard(
+          m,
+          {
+            timeLabel,
+            isLive: isRoundLive,
+            isFeatured: isRoundLive && idx === 0,
+          },
+          teamsByGuid,
+        ),
       ),
     };
   });
 }
 
-function mapDetailToStandings(detail: MatchmakingSessionDetail): StandingRow[] {
-  const sorted = [...asTeamList(detail.teams)].sort(
-    (a, b) =>
-      (b.total_points ?? 0) - (a.total_points ?? 0) ||
-      (b.games_played ?? 0) - (a.games_played ?? 0),
-  );
-  return sorted.map((team, i) => {
-    const p1 = team.player1?.name?.trim() || "TBD";
-    const p2 = team.player2?.name?.trim() || "TBD";
-    return {
-      rank: i + 1,
-      name: `${p1} / ${p2}`,
-      avatarSeed: avatarSeedFromGuid(team.guid),
-      mp: team.games_played ?? 0,
-      wins: 0,
-      pts: team.total_points ?? 0,
-      winPct: "—",
-      pPct: "—",
-    };
-  });
+function formatWinRate(wins: number, gamesPlayed: number) {
+  if (gamesPlayed <= 0) return "—";
+  return `${Math.round((wins / gamesPlayed) * 100)}%`;
+}
+
+function formatScoreDiff(value: number) {
+  if (value > 0) return `+${value}`;
+  return String(value);
+}
+
+function mapEventStandingsToRows(rows: EventStandingRow[]): StandingRow[] {
+  return rows.map((row) => ({
+    rank: row.rank,
+    name: row.user.name.trim() || row.user.email,
+    avatarSeed: avatarSeedFromGuid(row.user.guid),
+    avatarUrl: row.user.profile_photo?.trim() || undefined,
+    mp: row.games_played,
+    wins: row.wins,
+    scoreDiff: row.score_diff,
+    winPct: formatWinRate(row.wins, row.games_played),
+  }));
 }
 
 function PlayerRow({
@@ -263,7 +370,7 @@ function PlayerRow({
       className={`flex items-center gap-3 ${isRight ? "flex-row-reverse" : ""}`}
     >
       <div
-        className="w-8 h-8 rounded-full overflow-hidden flex-shrink-0"
+        className="w-8 h-8 rounded-full overflow-hidden shrink-0"
         style={{
           border: `2px solid ${isFeatured ? "#18181B" : "#9FE870"}`,
         }}
@@ -452,7 +559,7 @@ function MatchCardComponent({
             ))}
           </div>
 
-          <div className="flex items-center gap-2 flex-shrink-0">
+          <div className="flex items-center gap-2 shrink-0">
             <button
               type="button"
               disabled={!canEditScores}
@@ -624,28 +731,72 @@ function MatchesTab({
   );
 }
 
-function StandingsTab({ standings }: { standings: StandingRow[] }) {
-  // Find the current user's rank (for demo, we use rank 12 or the last item)
-  const userRank =
-    standings.length > 0
-      ? (standings[standings.length - 1]?.rank ?? standings.length)
-      : 12;
-  const userRow =
-    standings.find((r) => r.rank === userRank) ??
-    standings[standings.length - 1];
+function StandingsTab({
+  standings,
+  standingsType,
+  onStandingsTypeChange,
+  isLoading,
+}: {
+  standings: StandingRow[];
+  standingsType: EventStandingsType;
+  onStandingsTypeChange: (type: EventStandingsType) => void;
+  isLoading: boolean;
+}) {
+  const topRow = standings[0];
+  const standingsTypeLabel =
+    standingsType === "wins" ? "Most Wins" : "Point Difference";
+  const typeControl = (
+    <div className="px-4 pt-4">
+      <label className="flex flex-col gap-2">
+        <span
+          className="text-xs font-semibold uppercase text-[#A1A1AA]"
+          style={{ lineHeight: "12px" }}
+        >
+          Standings Type
+        </span>
+        <select
+          value={standingsType}
+          onChange={(e) =>
+            onStandingsTypeChange(e.target.value as EventStandingsType)
+          }
+          disabled={isLoading}
+          className="w-full px-4 py-3 text-sm font-semibold text-[#18181B] border border-[#F4F4F5] bg-white disabled:opacity-50 disabled:cursor-not-allowed"
+          style={{ borderRadius: "16px" }}
+        >
+          <option value="wins">Wins</option>
+          <option value="points">Points</option>
+        </select>
+      </label>
+    </div>
+  );
+
+  if (isLoading) {
+    return (
+      <div className="flex flex-col gap-4 pb-8">
+        {typeControl}
+        <div className="px-4 py-8 text-center text-sm text-[#71717A]">
+          Loading standings…
+        </div>
+      </div>
+    );
+  }
 
   if (standings.length === 0) {
     return (
-      <div className="px-4 py-8 text-center text-sm text-[#71717A]">
-        No teams in this session.
+      <div className="flex flex-col gap-4 pb-8">
+        {typeControl}
+        <div className="px-4 py-8 text-center text-sm text-[#71717A]">
+          No standings available yet.
+        </div>
       </div>
     );
   }
 
   return (
     <div className="flex flex-col gap-4 pb-8">
+      {typeControl}
       {/* Leaderboard Summary Card (Bento Style) */}
-      <div className="px-4 pt-6">
+      <div className="px-4">
         <div
           className="flex items-center justify-between px-4 py-4"
           style={{
@@ -653,7 +804,7 @@ function StandingsTab({ standings }: { standings: StandingRow[] }) {
             borderRadius: "32px",
           }}
         >
-          {/* Left: Your Rank */}
+          {/* Left: top rank */}
           <div className="flex flex-col gap-1">
             <span
               className="text-xs uppercase tracking-widest"
@@ -663,7 +814,7 @@ function StandingsTab({ standings }: { standings: StandingRow[] }) {
                 letterSpacing: "5%",
               }}
             >
-              YOUR RANK
+              TOP PLAYER
             </span>
             <span
               className="font-semibold text-[#2E6900]"
@@ -673,11 +824,11 @@ function StandingsTab({ standings }: { standings: StandingRow[] }) {
                 letterSpacing: "-0.01em",
               }}
             >
-              #{userRow?.rank ?? "—"}
+              #{topRow?.rank ?? "—"}
             </span>
           </div>
 
-          {/* Right: +N Slots badge */}
+          {/* Right: standings type badge */}
           <div
             className="flex items-center gap-2 px-3 py-2"
             style={{
@@ -700,7 +851,7 @@ function StandingsTab({ standings }: { standings: StandingRow[] }) {
               className="text-xs font-semibold text-[#2E6900]"
               style={{ lineHeight: "12px" }}
             >
-              +4 Slots
+              {standingsTypeLabel}
             </span>
           </div>
         </div>
@@ -723,15 +874,12 @@ function StandingsTab({ standings }: { standings: StandingRow[] }) {
             >
               SEASON STANDINGS
             </span>
-            {/* Filter icon */}
-            <svg width="15" height="10" viewBox="0 0 15 10" fill="none">
-              <path
-                d="M1 1H14M4 5H11M6.5 9H8.5"
-                stroke="#A1A1AA"
-                strokeWidth="1.5"
-                strokeLinecap="round"
-              />
-            </svg>
+            <span
+              className="text-xs font-semibold uppercase text-[#A1A1AA]"
+              style={{ lineHeight: "12px" }}
+            >
+              {standingsTypeLabel}
+            </span>
           </div>
 
           {/* Column headers */}
@@ -776,7 +924,7 @@ function StandingsTab({ standings }: { standings: StandingRow[] }) {
                 className="text-xs uppercase text-[#A1A1AA]"
                 style={{ lineHeight: "12px" }}
               >
-                PTS
+                +/-
               </span>
             </div>
             <div className="px-2 py-4 text-center" style={{ width: "80px" }}>
@@ -787,32 +935,19 @@ function StandingsTab({ standings }: { standings: StandingRow[] }) {
                 W%
               </span>
             </div>
-            <div className="px-4 py-4 text-right" style={{ width: "81px" }}>
-              <span
-                className="text-xs uppercase text-[#A1A1AA]"
-                style={{ lineHeight: "12px" }}
-              >
-                P%
-              </span>
-            </div>
           </div>
 
           {/* Table body */}
           <div className="flex flex-col" style={{ gap: "-1px" }}>
             {standings.map((row, idx) => {
               const isPlaceholder = row.isPlaceholder;
-              const isCurrentUser =
-                row.rank === userRank && standings.length > 3;
               return (
                 <div
-                  key={row.rank}
+                  key={`${row.rank}-${row.avatarSeed}`}
                   className="flex items-center"
                   style={{
-                    background: isCurrentUser
-                      ? "rgba(159,232,112,0.2)"
-                      : "transparent",
+                    background: "transparent",
                     borderTop: idx > 0 ? "1px solid #FAFAFA" : "none",
-                    borderLeft: isCurrentUser ? "4px solid #FAFAFA" : "none",
                     opacity: isPlaceholder ? 0.6 : 1,
                   }}
                 >
@@ -820,9 +955,9 @@ function StandingsTab({ standings }: { standings: StandingRow[] }) {
                   <div
                     className="flex items-center gap-1 py-5"
                     style={{
-                      width: isCurrentUser ? "79px" : "79px",
-                      paddingLeft: isCurrentUser ? "14px" : "16px",
-                      paddingRight: isCurrentUser ? "4px" : "4px",
+                      width: "79px",
+                      paddingLeft: "16px",
+                      paddingRight: "4px",
                     }}
                   >
                     <span
@@ -860,15 +995,13 @@ function StandingsTab({ standings }: { standings: StandingRow[] }) {
                     className="flex items-center gap-3 py-3 min-w-0"
                     style={{
                       flex: 1,
-                      paddingLeft: isCurrentUser ? "8px" : "9px",
+                      paddingLeft: "9px",
                     }}
                   >
                     <div
-                      className="w-8 h-8 rounded-full overflow-hidden flex-shrink-0"
+                      className="w-8 h-8 rounded-full overflow-hidden shrink-0"
                       style={{
-                        border: isCurrentUser
-                          ? "2px solid #2F6C00"
-                          : "1px solid #F4F4F5",
+                        border: "1px solid #F4F4F5",
                       }}
                     >
                       {isPlaceholder ? (
@@ -878,7 +1011,10 @@ function StandingsTab({ standings }: { standings: StandingRow[] }) {
                         />
                       ) : (
                         <Image
-                          src={`https://picsum.photos/seed/${row.avatarSeed}/32/32`}
+                          src={
+                            row.avatarUrl ??
+                            `https://picsum.photos/seed/${row.avatarSeed}/32/32`
+                          }
                           alt={row.name}
                           width={32}
                           height={32}
@@ -893,7 +1029,7 @@ function StandingsTab({ standings }: { standings: StandingRow[] }) {
                         color: "#18181B",
                       }}
                     >
-                      {isCurrentUser ? "You" : row.name}
+                      {row.name}
                     </span>
                   </div>
 
@@ -919,11 +1055,11 @@ function StandingsTab({ standings }: { standings: StandingRow[] }) {
                       className="text-sm font-normal text-[#52525B]"
                       style={{ lineHeight: "21px" }}
                     >
-                      {row.wins === 0 ? "—" : row.wins}
+                      {row.wins}
                     </span>
                   </div>
 
-                  {/* PTS */}
+                  {/* Score difference */}
                   <div
                     className="px-2 py-5 text-center"
                     style={{ width: "94px" }}
@@ -932,7 +1068,7 @@ function StandingsTab({ standings }: { standings: StandingRow[] }) {
                       className="text-sm font-normal text-[#2F6C00]"
                       style={{ lineHeight: "21px" }}
                     >
-                      {row.pts.toLocaleString()}
+                      {formatScoreDiff(row.scoreDiff)}
                     </span>
                   </div>
 
@@ -949,150 +1085,46 @@ function StandingsTab({ standings }: { standings: StandingRow[] }) {
                     </span>
                   </div>
 
-                  {/* P% */}
-                  <div
-                    className="px-4 py-5 text-right"
-                    style={{ width: "81px" }}
-                  >
-                    <span
-                      className="text-sm font-normal text-[#A1A1AA]"
-                      style={{ lineHeight: "21px" }}
-                    >
-                      {row.pPct}
-                    </span>
-                  </div>
                 </div>
               );
             })}
           </div>
 
-          {/* View Full Rankings button */}
           <div className="px-4 py-4" style={{ background: "#FAFAFA" }}>
-            <button
-              type="button"
-              className="w-full flex items-center justify-center gap-1 cursor-pointer"
+            <div
+              className="w-full flex items-center justify-center"
               style={{ background: "transparent", border: "none" }}
             >
               <span
-                className="text-xs font-semibold text-[#18181B]"
+                className="text-xs font-semibold text-[#71717A]"
                 style={{ lineHeight: "12px" }}
               >
-                View Full Rankings
+                {standings.length} player{standings.length === 1 ? "" : "s"}
               </span>
-              {/* Chevron down icon */}
-              <svg width="9" height="6" viewBox="0 0 9 6" fill="none">
-                <path
-                  d="M1 1L4.5 5L8 1"
-                  stroke="#18181B"
-                  strokeWidth="1.5"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </svg>
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {/* Stats Visualization Section - Key Performance Indices */}
-      <div className="px-4 pt-2 pb-4">
-        <div className="mb-2">
-          <span
-            className="text-xs font-semibold uppercase text-[#A1A1AA]"
-            style={{ lineHeight: "12px" }}
-          >
-            KEY PERFORMANCE INDICES
-          </span>
-        </div>
-        <div
-          className="relative overflow-hidden px-4 py-4"
-          style={{
-            background: "#18181B",
-            borderRadius: "32px",
-          }}
-        >
-          {/* Decorative element (subtle circle) */}
-          <div
-            className="absolute"
-            style={{
-              right: "22px",
-              top: "22px",
-              width: "75px",
-              height: "75px",
-              borderRadius: "9999px",
-              border: "1px solid rgba(255,255,255,0.1)",
-              opacity: 0.1,
-            }}
-          />
-          <div
-            className="absolute"
-            style={{
-              right: "10px",
-              top: "10px",
-              width: "99px",
-              height: "99px",
-              borderRadius: "9999px",
-              border: "1px solid rgba(255,255,255,0.1)",
-              opacity: 0.1,
-            }}
-          />
-
-          <div className="flex flex-col gap-1 relative z-10">
-            {/* Label */}
-            <span
-              className="text-xs font-normal text-[#A1A1AA]"
-              style={{ lineHeight: "12px" }}
-            >
-              Win Rate Delta
-            </span>
-
-            {/* Value + comparison */}
-            <div className="flex items-end gap-2 mt-1">
-              <span
-                className="font-semibold text-white"
-                style={{
-                  fontSize: "28px",
-                  lineHeight: "33.6px",
-                  letterSpacing: "-0.01em",
-                }}
-              >
-                +12.5%
-              </span>
-              <div className="flex items-center gap-1 pb-1">
-                {/* Arrow up icon */}
-                <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
-                  <path
-                    d="M5 2L8 5M5 2L2 5M5 2V9"
-                    stroke="#9FE870"
-                    strokeWidth="1.5"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                </svg>
-                <span
-                  className="text-sm font-normal text-[#9FE870]"
-                  style={{ lineHeight: "21px" }}
-                >
-                  vs last week
-                </span>
-              </div>
             </div>
           </div>
         </div>
       </div>
+
     </div>
   );
 }
 
 export default function MatchDetailClient({
   sessionGuid,
+  eventGuid: eventGuidProp,
 }: {
   sessionGuid: string;
+  eventGuid?: string;
 }) {
   const { showSnackbar } = useSnackbar();
   const [activeTab, setActiveTab] = useState<TabType>("Matches");
   const [detail, setDetail] = useState<MatchmakingSessionDetail | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [standingsType, setStandingsType] =
+    useState<EventStandingsType>("wins");
+  const [standings, setStandings] = useState<StandingRow[]>([]);
+  const [isStandingsLoading, setIsStandingsLoading] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
   const [modalMessage, setModalMessage] = useState("");
   const [scoreSheet, setScoreSheet] = useState<{
@@ -1119,6 +1151,7 @@ export default function MatchDetailClient({
         const res = await fetchMatchmakingSession(sessionGuid);
         if (!cancelled) {
           setDetail(res.data);
+          setStandings([]);
           setPendingSaveMatchIds(new Set());
         }
       } catch (e) {
@@ -1136,9 +1169,42 @@ export default function MatchDetailClient({
     };
   }, [sessionGuid]);
 
+  const eventGuid =
+    eventGuidProp?.trim() || detail?.event_guid || detail?.event.guid;
+
+  useEffect(() => {
+    if (activeTab !== "Standings" || !eventGuid) return;
+
+    let cancelled = false;
+    (async () => {
+      setIsStandingsLoading(true);
+      setStandings([]);
+      try {
+        const res = await fetchEventStandings({
+          event_guid: eventGuid,
+          type: standingsType,
+        });
+        if (!cancelled) {
+          setStandings(mapEventStandingsToRows(res.data.standings));
+        }
+      } catch (e) {
+        const err = e as FetchEventStandingsErrorResponse;
+        if (!cancelled) {
+          setModalMessage(err?.message ?? "Could not load standings.");
+          setModalOpen(true);
+        }
+      } finally {
+        if (!cancelled) setIsStandingsLoading(false);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [activeTab, eventGuid, standingsType]);
+
   const headerTitle = detail?.event.name ?? (isLoading ? "Loading…" : "Match");
   const rounds = detail ? mapDetailToRounds(detail) : [];
-  const standings = detail ? mapDetailToStandings(detail) : [];
 
   const openScoreEditor = (matchGuid: string, side: "a" | "b") => {
     const card = rounds
@@ -1250,7 +1316,7 @@ export default function MatchDetailClient({
         }}
       >
         <div className="flex items-center gap-3 min-w-0">
-          <Link href="/matches" className="p-1 flex-shrink-0">
+          <Link href="/matches" className="p-1 shrink-0">
             <svg
               width="20"
               height="20"
@@ -1273,7 +1339,7 @@ export default function MatchDetailClient({
         </div>
 
         <div
-          className="w-8 h-8 rounded-full overflow-hidden flex-shrink-0"
+          className="w-8 h-8 rounded-full overflow-hidden shrink-0"
           style={{ border: "1px solid #F4F4F5" }}
         >
           <Image
@@ -1347,7 +1413,12 @@ export default function MatchDetailClient({
                 onCancelRound={handleCancelRound}
               />
             ) : (
-              <StandingsTab standings={standings} />
+              <StandingsTab
+                standings={standings}
+                standingsType={standingsType}
+                onStandingsTypeChange={setStandingsType}
+                isLoading={isStandingsLoading}
+              />
             )}
           </>
         ) : null}

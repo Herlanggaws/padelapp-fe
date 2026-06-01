@@ -20,6 +20,43 @@ export interface FetchEventDetailErrorResponse {
   message: string;
 }
 
+export type EventStandingsType = "wins" | "points";
+
+export interface EventStandingUser {
+  guid: string;
+  name: string;
+  email: string;
+  profile_photo: string | null;
+}
+
+export interface EventStandingRow {
+  user: EventStandingUser;
+  rank: number;
+  wins: number;
+  games_played: number;
+  score_diff: number;
+}
+
+export interface EventStandingsData {
+  event_guid: string;
+  type: EventStandingsType;
+  standings: EventStandingRow[];
+}
+
+export interface FetchEventStandingsParams {
+  event_guid: string;
+  type: EventStandingsType;
+}
+
+export interface FetchEventStandingsSuccessResponse {
+  data: EventStandingsData;
+  message: string;
+}
+
+export interface FetchEventStandingsErrorResponse {
+  message: string;
+}
+
 export interface CreateEventPayload {
   club_guid: string;
   name: string;

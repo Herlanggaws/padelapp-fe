@@ -6,6 +6,11 @@ import { useEffect, useState } from "react";
 import TopAppBar from "@/components/TopAppBar";
 import BottomNavBar from "@/components/BottomNavBar";
 import { fetchJoinedClubs } from "@/services/clubService";
+import { fetchUserProfile } from "@/services/authService";
+import {
+  getUserProfileCache,
+  setUserProfileCache,
+} from "@/lib/userProfileCache";
 import type { Club } from "@/types/club";
 
 function ClubCardSkeleton() {
@@ -23,6 +28,21 @@ function ClubCardSkeleton() {
 export default function DashboardClient() {
   const [clubs, setClubs] = useState<Club[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [rankPoints, setRankPoints] = useState<number | null>(null);
+
+  useEffect(() => {
+    const cached = getUserProfileCache();
+    if (cached) setRankPoints(cached.rank_points);
+
+    fetchUserProfile()
+      .then((res) => {
+        setUserProfileCache(res.data);
+        setRankPoints(res.data.rank_points);
+      })
+      .catch(() => {
+        if (!cached) setRankPoints(null);
+      });
+  }, []);
 
   useEffect(() => {
     fetchJoinedClubs()
@@ -95,7 +115,7 @@ export default function DashboardClient() {
                 className="text-xl text-[#2E6900]"
                 style={{ lineHeight: "26px" }}
               >
-                Advanced 4.5
+                {rankPoints != null ? rankPoints : "—"}
               </span>
             </div>
           </div>

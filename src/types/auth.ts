@@ -99,3 +99,29 @@ export interface ChangePasswordErrorResponse {
   message: string;
   error?: Record<string, string>;
 }
+
+export interface UserProfile {
+  guid: string;
+  name: string;
+  email: string;
+  profile_photo: string;
+  verified_at: string;
+  is_active: boolean;
+  active_at: string;
+  active_by: string | null;
+  rank_points: number;
+  events_played: number;
+  created_at: string;
+  created_by: string | null;
+  updated_at: string | null;
+  updated_by: string | null;
+}
+
+export interface GetUserProfileSuccessResponse {
+  data: UserProfile;
+  message: string;
+}
+
+export interface GetUserProfileErrorResponse {
+  message: string;
+}

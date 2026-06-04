@@ -16,6 +16,8 @@ import type {
   ChangePasswordPayload,
   ChangePasswordSuccessResponse,
   ChangePasswordErrorResponse,
+  GetUserProfileSuccessResponse,
+  GetUserProfileErrorResponse,
 } from "@/types/auth";
 
 export type {
@@ -36,6 +38,8 @@ export type {
   ChangePasswordPayload,
   ChangePasswordSuccessResponse,
   ChangePasswordErrorResponse,
+  GetUserProfileSuccessResponse,
+  GetUserProfileErrorResponse,
 };
 
 const BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
@@ -176,6 +180,20 @@ export async function loginUser(
   }
 
   return data as LoginSuccessResponse;
+}
+
+export async function fetchUserProfile(): Promise<GetUserProfileSuccessResponse> {
+  const response = await fetchWithAuth(`${BASE_URL}/auth/profile`, {
+    method: "GET",
+  });
+
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw data as GetUserProfileErrorResponse;
+  }
+
+  return data as GetUserProfileSuccessResponse;
 }
 
 export async function logoutUser(accessToken: string): Promise<LogoutSuccessResponse> {

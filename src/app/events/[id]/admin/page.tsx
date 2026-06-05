@@ -1,6 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import TopAppBar from "@/components/TopAppBar";
+import EventAdminRankPoint from "@/components/EventAdminRankPoint";
 
 // Event Details as Admin
 export default function EventDetailAdminPage() {
@@ -93,12 +94,7 @@ export default function EventDetailAdminPage() {
                   fill="#2F6C00"
                 />
               </svg>
-              <span
-                className="text-xs text-[#2F6C00]"
-                style={{ lineHeight: "12px" }}
-              >
-                Rank Point (1.5 - 4.5)
-              </span>
+              <EventAdminRankPoint />
             </div>
           </div>
 

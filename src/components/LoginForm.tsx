@@ -4,7 +4,8 @@ import Link from "next/link";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Modal from "@/components/Modal";
-import { loginUser } from "@/services/authService";
+import { fetchUserProfile, loginUser } from "@/services/authService";
+import { setUserProfileCache } from "@/lib/userProfileCache";
 import type { LoginErrorResponse } from "@/types/auth";
 import { useSnackbar } from "@/context/SnackbarContext";
 
@@ -57,6 +58,10 @@ export default function LoginForm() {
 
       document.cookie = `access_token=${result.data.access_token}; path=/; SameSite=Lax`;
       document.cookie = `refresh_token=${result.data.refresh_token}; path=/; SameSite=Lax`;
+
+      const profileResult = await fetchUserProfile();
+      setUserProfileCache(profileResult.data);
+
       showSnackbar("Welcome back!");
       router.push("/dashboard");
     } catch (err) {

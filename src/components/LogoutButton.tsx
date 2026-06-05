@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { logoutUser } from "@/services/authService";
+import { clearUserProfileCache } from "@/lib/userProfileCache";
 
 export default function LogoutButton() {
   const router = useRouter();
@@ -21,6 +22,7 @@ export default function LogoutButton() {
         "access_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax";
       document.cookie =
         "refresh_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax";
+      clearUserProfileCache();
       router.push("/login");
     } finally {
       setIsLoading(false);

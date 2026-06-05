@@ -7,11 +7,43 @@ import TopAppBar from "@/components/TopAppBar";
 import BottomNavBar from "@/components/BottomNavBar";
 import { fetchJoinedClubs } from "@/services/clubService";
 import { fetchUserProfile } from "@/services/authService";
+import { fetchUpcomingEvents } from "@/services/eventService";
 import {
   getUserProfileCache,
   setUserProfileCache,
 } from "@/lib/userProfileCache";
 import type { Club } from "@/types/club";
+import type { UpcomingEvent } from "@/types/event";
+
+function formatUpcomingDateTime(dateTime: string): string {
+  const d = new Date(dateTime);
+  const now = new Date();
+  const isToday =
+    d.getFullYear() === now.getFullYear() &&
+    d.getMonth() === now.getMonth() &&
+    d.getDate() === now.getDate();
+
+  const time = d.toLocaleTimeString("en-US", {
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  });
+
+  if (isToday) {
+    return `Today, ${time}`;
+  }
+
+  const dayStr = d.toLocaleDateString("en-US", {
+    weekday: "short",
+    day: "numeric",
+    month: "short",
+  });
+  return `${dayStr} • ${time}`;
+}
+
+function formatLevelRange(minLevel: number, maxLevel: number): string {
+  return `LV ${minLevel}–${maxLevel}`;
+}
 
 function ClubCardSkeleton() {
   return (
@@ -25,9 +57,106 @@ function ClubCardSkeleton() {
   );
 }
 
+function UpcomingMatchCardSkeleton() {
+  return (
+    <div className="bg-white border border-[#F4F4F5] rounded-[32px] animate-pulse">
+      <div className="flex items-center justify-between px-4 py-4 border-b border-[#FAFAFA]">
+        <div className="h-4 bg-[#E4E4E7] rounded w-28" />
+        <div className="h-6 bg-[#E4E4E7] rounded-full w-20" />
+      </div>
+      <div className="flex items-center justify-between px-4 py-4">
+        <div className="flex flex-col gap-2">
+          <div className="h-4 bg-[#E4E4E7] rounded w-32" />
+          <div className="h-8 bg-[#E4E4E7] rounded-full w-20" />
+        </div>
+        <div className="h-8 bg-[#E4E4E7] rounded-full w-16" />
+      </div>
+    </div>
+  );
+}
+
+function UpcomingMatchCard({
+  event,
+  club,
+}: {
+  event: UpcomingEvent;
+  club?: Club;
+}) {
+  return (
+    <div className="bg-white border border-[#F4F4F5] rounded-[32px]">
+      <div className="flex items-center justify-between px-4 py-4 border-b border-[#FAFAFA]">
+        <div className="flex items-center gap-2">
+          <svg
+            width="18"
+            height="20"
+            viewBox="0 0 18 20"
+            fill="none"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <path
+              d="M2 20C1.45 20 0.979167 19.8042 0.5875 19.4125C0.195833 19.0208 0 18.55 0 18V4C0 3.45 0.195833 2.97917 0.5875 2.5875C0.979167 2.19583 1.45 2 2 2H3V0H5V2H13V0H15V2H16C16.55 2 17.0208 2.19583 17.4125 2.5875C17.8042 2.97917 18 3.45 18 4V18C18 18.55 17.8042 19.0208 17.4125 19.4125C17.0208 19.8042 16.55 20 16 20H2ZM2 18H16V8H2V18Z"
+              fill="#2F6C00"
+            />
+          </svg>
+          <span className="text-xs font-semibold text-[#151C27]">
+            {formatUpcomingDateTime(event.date_time)}
+          </span>
+        </div>
+        <span className="bg-[#F4F4F5] text-[#151C27] text-[10px] uppercase rounded-full px-3 py-1">
+          {formatLevelRange(event.min_level, event.max_level)}
+        </span>
+      </div>
+      <div className="flex items-center justify-between px-4 py-4">
+        <div className="flex flex-col gap-2">
+          <div className="flex items-center gap-2">
+            <div className="w-6 h-6 rounded-full overflow-hidden bg-[#E4E4E7]">
+              {club?.logo ? (
+                <Image
+                  src={club.logo}
+                  alt={club.name}
+                  width={24}
+                  height={24}
+                  className="w-full h-full object-cover"
+                />
+              ) : null}
+            </div>
+            <span className="text-sm font-semibold text-[#18181B] line-clamp-1">
+              {club?.name ?? event.name}
+            </span>
+          </div>
+          {event.number_of_participants > 0 && (
+            <div className="flex items-center">
+              <div className="w-8 h-8 rounded-full bg-[#E4E4E7] border-2 border-white" />
+              {event.number_of_participants > 1 && (
+                <div className="w-8 h-8 rounded-full bg-[#FAFAFA] border-2 border-white -ml-2 flex items-center justify-center">
+                  <span className="text-[10px] font-bold text-[#A1A1AA]">
+                    +{event.number_of_participants - 1}
+                  </span>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+        <Link
+          href={`/events/${event.guid}`}
+          className={
+            event.is_joined
+              ? "bg-[#121212] text-[#9FE870] text-xs font-semibold rounded-full px-4 py-2"
+              : "bg-[#FAFAFA] text-[#18181B] border border-[#E4E4E7] text-xs font-semibold rounded-full px-4 py-2"
+          }
+        >
+          Details
+        </Link>
+      </div>
+    </div>
+  );
+}
+
 export default function DashboardClient() {
   const [clubs, setClubs] = useState<Club[]>([]);
+  const [upcomingEvents, setUpcomingEvents] = useState<UpcomingEvent[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isLoadingUpcoming, setIsLoadingUpcoming] = useState(true);
   const [rankPoints, setRankPoints] = useState<number | null>(null);
 
   useEffect(() => {
@@ -50,6 +179,15 @@ export default function DashboardClient() {
       .catch(() => setClubs([]))
       .finally(() => setIsLoading(false));
   }, []);
+
+  useEffect(() => {
+    fetchUpcomingEvents({ page: 1, limit: 5 })
+      .then((res) => setUpcomingEvents(res.data))
+      .catch(() => setUpcomingEvents([]))
+      .finally(() => setIsLoadingUpcoming(false));
+  }, []);
+
+  const clubByGuid = Object.fromEntries(clubs.map((club) => [club.guid, club]));
 
   return (
     <div className="min-h-screen bg-white max-w-[448px] mx-auto relative">
@@ -138,148 +276,54 @@ export default function DashboardClient() {
             </Link>
           </div>
 
-          <div className="flex flex-col gap-4">
-            {/* Match Card 1 */}
-            <div className="bg-white border border-[#F4F4F5] rounded-[32px]">
-              {/* Header */}
-              <div className="flex items-center justify-between px-4 py-4 border-b border-[#FAFAFA]">
-                <div className="flex items-center gap-2">
-                  <svg
-                    width="18"
-                    height="20"
-                    viewBox="0 0 18 20"
-                    fill="none"
-                    xmlns="http://www.w3.org/2000/svg"
-                  >
-                    <path
-                      d="M2 20C1.45 20 0.979167 19.8042 0.5875 19.4125C0.195833 19.0208 0 18.55 0 18V4C0 3.45 0.195833 2.97917 0.5875 2.5875C0.979167 2.19583 1.45 2 2 2H3V0H5V2H13V0H15V2H16C16.55 2 17.0208 2.19583 17.4125 2.5875C17.8042 2.97917 18 3.45 18 4V18C18 18.55 17.8042 19.0208 17.4125 19.4125C17.0208 19.8042 16.55 20 16 20H2ZM2 18H16V8H2V18Z"
-                      fill="#2F6C00"
-                    />
-                  </svg>
-                  <span className="text-xs font-semibold text-[#151C27]">
-                    Today, 18:30
-                  </span>
-                </div>
-                <span className="bg-[#F4F4F5] text-[#151C27] text-[10px] uppercase rounded-full px-3 py-1">
-                  COMPETITIVE
-                </span>
-              </div>
-              {/* Body */}
-              <div className="flex items-center justify-between px-4 py-4">
-                <div className="flex flex-col gap-2">
-                  <div className="flex items-center gap-2">
-                    <div className="w-6 h-6 rounded-full overflow-hidden bg-[#E4E4E7]">
-                      <Image
-                        src="https://picsum.photos/seed/club1/24/24"
-                        alt="Elite Padel Club"
-                        width={24}
-                        height={24}
-                        className="w-full h-full object-cover"
-                      />
-                    </div>
-                    <span className="text-sm font-semibold text-[#18181B]">
-                      Elite Padel Club
-                    </span>
-                  </div>
-                  {/* Player Avatars */}
-                  <div className="flex items-center" style={{ gap: "-8px" }}>
-                    <div className="w-8 h-8 rounded-full border-2 border-white overflow-hidden">
-                      <Image
-                        src="https://i.pravatar.cc/32?img=1"
-                        alt="Player 1"
-                        width={32}
-                        height={32}
-                        className="w-full h-full object-cover"
-                      />
-                    </div>
-                    <div className="w-8 h-8 rounded-full border-2 border-white -ml-2 overflow-hidden">
-                      <Image
-                        src="https://i.pravatar.cc/32?img=2"
-                        alt="Player 2"
-                        width={32}
-                        height={32}
-                        className="w-full h-full object-cover"
-                      />
-                    </div>
-                    <div className="w-8 h-8 rounded-full bg-[#FAFAFA] border-2 border-white -ml-2 flex items-center justify-center">
-                      <span className="text-[10px] font-bold text-[#A1A1AA]">
-                        +2
-                      </span>
-                    </div>
-                  </div>
-                </div>
-                <button className="bg-[#121212] text-[#9FE870] text-xs font-semibold rounded-full px-4 py-2">
-                  Details
-                </button>
-              </div>
+          {isLoadingUpcoming ? (
+            <div className="flex flex-col gap-4">
+              {Array.from({ length: 2 }).map((_, i) => (
+                <UpcomingMatchCardSkeleton key={i} />
+              ))}
             </div>
-
-            {/* Match Card 2 */}
-            <div className="bg-white border border-[#F4F4F5] rounded-[32px]">
-              {/* Header */}
-              <div className="flex items-center justify-between px-4 py-4 border-b border-[#FAFAFA]">
-                <div className="flex items-center gap-2">
-                  <svg
-                    width="18"
-                    height="20"
-                    viewBox="0 0 18 20"
-                    fill="none"
-                    xmlns="http://www.w3.org/2000/svg"
-                  >
-                    <path
-                      d="M2 20C1.45 20 0.979167 19.8042 0.5875 19.4125C0.195833 19.0208 0 18.55 0 18V4C0 3.45 0.195833 2.97917 0.5875 2.5875C0.979167 2.19583 1.45 2 2 2H3V0H5V2H13V0H15V2H16C16.55 2 17.0208 2.19583 17.4125 2.5875C17.8042 2.97917 18 3.45 18 4V18C18 18.55 17.8042 19.0208 17.4125 19.4125C17.0208 19.8042 16.55 20 16 20H2ZM2 18H16V8H2V18Z"
-                      fill="#2F6C00"
-                    />
-                  </svg>
-                  <span className="text-xs font-semibold text-[#151C27]">
-                    Fri, 22 Oct • 10:00
-                  </span>
-                </div>
-                <span className="bg-[#F4F4F5] text-[#151C27] text-[10px] uppercase rounded-full px-3 py-1">
-                  FRIENDLY
-                </span>
-              </div>
-              {/* Body */}
-              <div className="flex items-center justify-between px-4 py-4">
-                <div className="flex flex-col gap-2">
-                  <div className="flex items-center gap-2">
-                    <div className="w-6 h-6 rounded-full overflow-hidden bg-[#E4E4E7]">
-                      <Image
-                        src="https://picsum.photos/seed/club2/24/24"
-                        alt="Central Courts"
-                        width={24}
-                        height={24}
-                        className="w-full h-full object-cover"
-                      />
-                    </div>
-                    <span className="text-sm font-semibold text-[#18181B]">
-                      Central Courts
-                    </span>
-                  </div>
-                  {/* Player Avatars */}
-                  <div className="flex items-center">
-                    <div className="w-8 h-8 rounded-full border-2 border-white overflow-hidden">
-                      <Image
-                        src="https://i.pravatar.cc/32?img=4"
-                        alt="Player 1"
-                        width={32}
-                        height={32}
-                        className="w-full h-full object-cover"
-                      />
-                    </div>
-                    <div className="w-8 h-8 rounded-full bg-[#FAFAFA] border-2 border-white -ml-2 flex items-center justify-center">
-                      <span className="text-[10px] font-bold text-[#A1A1AA]">
-                        +3
-                      </span>
-                    </div>
-                  </div>
-                </div>
-                <button className="bg-[#FAFAFA] text-[#18181B] border border-[#E4E4E7] text-xs font-semibold rounded-full px-4 py-2">
-                  Details
-                </button>
-              </div>
+          ) : upcomingEvents.length > 0 ? (
+            <div className="flex flex-col gap-4">
+              {upcomingEvents.map((event) => (
+                <UpcomingMatchCard
+                  key={event.guid}
+                  event={event}
+                  club={clubByGuid[event.club_guid]}
+                />
+              ))}
             </div>
-          </div>
+          ) : (
+            <div
+              className="flex flex-col items-center justify-center text-center px-4 py-8 w-full rounded-[32px] border border-dashed border-[#E4E4E7]"
+            >
+              <svg
+                width="48"
+                height="48"
+                viewBox="0 0 48 48"
+                fill="none"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <rect width="48" height="48" rx="24" fill="#FAFAFA" />
+                <path
+                  d="M17 34C16.45 34 15.9792 33.8042 15.5875 33.4125C15.1958 33.0208 15 32.55 15 32V18C15 17.45 15.1958 16.9792 15.5875 16.5875C15.9792 16.1958 16.45 16 17 16H18V14H20V16H28V14H30V16H31C31.55 16 32.0208 16.1958 32.4125 16.5875C32.8042 16.9792 33 17.45 33 18V32C33 32.55 32.8042 33.0208 32.4125 33.4125C32.0208 33.8042 31.55 34 31 34H17ZM17 32H31V22H17V32Z"
+                  fill="#A1A1AA"
+                />
+              </svg>
+              <h5 className="mt-4 text-base font-semibold text-[#151C27]">
+                No upcoming matches
+              </h5>
+              <p className="max-w-[260px] mt-2 text-sm text-[#41493A]">
+                You don&apos;t have any upcoming matches yet. Browse open matches
+                to find your next game.
+              </p>
+              <Link
+                href="/matches"
+                className="mt-4 text-sm font-semibold text-[#2F6C00]"
+              >
+                See all matches
+              </Link>
+            </div>
+          )}
         </section>
 
         {/* Your Clubs */}

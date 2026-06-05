@@ -2,6 +2,12 @@ import type {
   CreateEventPayload,
   CreateEventSuccessResponse,
   CreateEventErrorResponse,
+  FetchUpcomingEventsParams,
+  FetchUpcomingEventsSuccessResponse,
+  FetchUpcomingEventsErrorResponse,
+  FetchEventsParams,
+  FetchEventsSuccessResponse,
+  FetchEventsErrorResponse,
   FetchClubEventsParams,
   FetchClubEventsSuccessResponse,
   FetchClubEventsErrorResponse,
@@ -32,6 +38,12 @@ export type {
   CreateEventPayload,
   CreateEventSuccessResponse,
   CreateEventErrorResponse,
+  FetchUpcomingEventsParams,
+  FetchUpcomingEventsSuccessResponse,
+  FetchUpcomingEventsErrorResponse,
+  FetchEventsParams,
+  FetchEventsSuccessResponse,
+  FetchEventsErrorResponse,
   FetchClubEventsParams,
   FetchClubEventsSuccessResponse,
   FetchClubEventsErrorResponse,
@@ -58,6 +70,50 @@ export type {
 };
 
 const BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
+
+export async function fetchUpcomingEvents(
+  params: FetchUpcomingEventsParams = {},
+): Promise<FetchUpcomingEventsSuccessResponse> {
+  const { page = 1, limit = 10 } = params;
+
+  const query = new URLSearchParams({
+    page: String(page),
+    limit: String(limit),
+  });
+
+  const response = await fetchWithAuth(
+    `${BASE_URL}/padel/event/upcoming?${query.toString()}`,
+  );
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw data as FetchUpcomingEventsErrorResponse;
+  }
+
+  return data as FetchUpcomingEventsSuccessResponse;
+}
+
+export async function fetchEvents(
+  params: FetchEventsParams = {},
+): Promise<FetchEventsSuccessResponse> {
+  const { page = 1, limit = 10 } = params;
+
+  const query = new URLSearchParams({
+    page: String(page),
+    limit: String(limit),
+  });
+
+  const response = await fetchWithAuth(
+    `${BASE_URL}/padel/event?${query.toString()}`,
+  );
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw data as FetchEventsErrorResponse;
+  }
+
+  return data as FetchEventsSuccessResponse;
+}
 
 export async function fetchClubEvents(
   params: FetchClubEventsParams,

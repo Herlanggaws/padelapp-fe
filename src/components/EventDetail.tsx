@@ -488,7 +488,7 @@ function EventDetailContent({
         className="fixed bottom-0 left-0 right-0 z-50 max-w-[448px] mx-auto px-6 py-4 pb-8"
         style={{ background: "#FFFFFF", borderTop: "1px solid #F4F4F5" }}
       >
-        {event.is_host ? (
+        {event.session_guid || event.is_host ? (
           <div className="flex gap-3">
             {event.session_guid ? (
               <Link
@@ -523,7 +523,7 @@ function EventDetailContent({
             )}
             <button
               onClick={onJoin}
-              disabled={isJoining || isLeaving}
+              disabled={isJoining || isLeaving || event.is_locked}
               className="flex-1 text-base font-normal rounded-full disabled:opacity-50 disabled:cursor-not-allowed"
               style={{
                 background: event.is_joined ? "#BA1A1A" : "#121212",
@@ -543,7 +543,7 @@ function EventDetailContent({
         ) : (
           <button
             onClick={onJoin}
-            disabled={isJoining || isLeaving}
+            disabled={isJoining || isLeaving || event.is_locked}
             className="w-full text-base font-normal rounded-full disabled:opacity-50 disabled:cursor-not-allowed"
             style={{
               background: event.is_joined ? "#BA1A1A" : "#121212",
@@ -610,7 +610,7 @@ export default function EventDetail({ id }: { id: string }) {
   }, [loadEvent, router]);
 
   const handleJoin = async () => {
-    if (!event) return;
+    if (!event || event.is_locked) return;
     if (event.is_joined) {
       setIsLeaving(true);
       try {

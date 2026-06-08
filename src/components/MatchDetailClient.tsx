@@ -645,6 +645,7 @@ function MatchCardComponent({
 
 function MatchesTab({
   rounds,
+  canManageEvent,
   onScoreSidePress,
   pendingSaveMatchIds,
   savingMatchId,
@@ -655,6 +656,8 @@ function MatchesTab({
   onCancelRound,
 }: {
   rounds: Round[];
+  /** Host-only edits while the event is not finished. */
+  canManageEvent: boolean;
   onScoreSidePress?: (matchGuid: string, side: "a" | "b") => void;
   pendingSaveMatchIds: ReadonlySet<string>;
   savingMatchId: string | null;
@@ -704,26 +707,35 @@ function MatchesTab({
                 startRoundLoadingGuid === round.guid ||
                 cancellingRoundGuid === round.guid;
               const scoresEditable =
+                canManageEvent &&
                 normalizeRoundStatusKey(round.status) !== "pending";
               return (
                 <MatchCardComponent
                   key={match.id}
                   match={match}
                   scoresEditable={scoresEditable}
-                  onScoreSidePress={(side) =>
-                    onScoreSidePress?.(match.id, side)
+                  onScoreSidePress={
+                    canManageEvent
+                      ? (side) => onScoreSidePress?.(match.id, side)
+                      : undefined
                   }
-                  showSave={pendingSaveMatchIds.has(match.id)}
+                  showSave={
+                    canManageEvent && pendingSaveMatchIds.has(match.id)
+                  }
                   isSaving={savingMatchId === match.id}
                   onSave={() => onSaveMatch(match.id)}
-                  showStartRound={showStart}
+                  showStartRound={canManageEvent && showStart}
                   onStartRound={
-                    showStart ? () => onStartRound(round.guid) : undefined
+                    canManageEvent && showStart
+                      ? () => onStartRound(round.guid)
+                      : undefined
                   }
                   isStartRoundLoading={startRoundLoadingGuid === round.guid}
-                  showCancelRound={showCancel}
+                  showCancelRound={canManageEvent && showCancel}
                   onCancelRound={
-                    showCancel ? () => onCancelRound(round.guid) : undefined
+                    canManageEvent && showCancel
+                      ? () => onCancelRound(round.guid)
+                      : undefined
                   }
                   isCancelRoundLoading={cancellingRoundGuid === round.guid}
                   isRoundMutationBusy={isRoundMutationBusy}
@@ -1235,7 +1247,11 @@ export default function MatchDetailClient({
   const headerTitle = detail?.event.name ?? (isLoading ? "Loading…" : "Match");
   const rounds = detail ? mapDetailToRounds(detail) : [];
 
+  const canManageEvent =
+    eventDetail?.is_host === true && eventDetail?.is_finished !== true;
+
   const openScoreEditor = (matchGuid: string, side: "a" | "b") => {
+    if (!canManageEvent) return;
     const card = rounds
       .flatMap((r) => r.matches)
       .find((m) => m.id === matchGuid);
@@ -1248,7 +1264,7 @@ export default function MatchDetailClient({
   };
 
   const applyScoreFromKeyboard = (value: number | null) => {
-    if (!detail || !scoreSheet) return;
+    if (!canManageEvent || !detail || !scoreSheet) return;
     const matchGuid = scoreSheet.matchGuid;
     const before = getMatchRawScores(detail, matchGuid);
     const afterA = scoreSheet.side === "a" ? value : (before?.a ?? null);
@@ -1268,7 +1284,7 @@ export default function MatchDetailClient({
   };
 
   const handleSaveMatch = async (matchGuid: string) => {
-    if (!detail) return;
+    if (!canManageEvent || !detail) return;
     const scores = getMatchRawScores(detail, matchGuid);
     if (!scores) {
       showSnackbar("Could not find this match.");
@@ -1301,6 +1317,7 @@ export default function MatchDetailClient({
   };
 
   const handleStartRound = async (roundGuid: string) => {
+    if (!canManageEvent) return;
     setStartRoundLoadingGuid(roundGuid);
     try {
       const res = await startMatchmakingRound(roundGuid);
@@ -1318,6 +1335,7 @@ export default function MatchDetailClient({
   };
 
   const handleCancelRound = async (roundGuid: string) => {
+    if (!canManageEvent) return;
     setCancellingRoundGuid(roundGuid);
     try {
       const res = await cancelMatchmakingRound(roundGuid);
@@ -1335,6 +1353,7 @@ export default function MatchDetailClient({
   };
 
   const handleFinishEvent = async () => {
+    if (!canManageEvent) return;
     if (!eventGuid) {
       showSnackbar("Event not found for this session.");
       return;
@@ -1354,8 +1373,10 @@ export default function MatchDetailClient({
     }
   };
 
-  const showFinishFooter = Boolean(detail && eventGuid);
   const isEventFinished = eventDetail?.is_finished === true;
+  const showFinishFooter = Boolean(
+    detail && eventGuid && eventDetail?.is_host === true,
+  );
 
   return (
     <div className="min-h-screen bg-white max-w-[448px] mx-auto relative flex flex-col">
@@ -1461,6 +1482,7 @@ export default function MatchDetailClient({
             {activeTab === "Matches" ? (
               <MatchesTab
                 rounds={rounds}
+                canManageEvent={canManageEvent}
                 onScoreSidePress={openScoreEditor}
                 pendingSaveMatchIds={pendingSaveMatchIds}
                 savingMatchId={savingMatchId}
@@ -1503,7 +1525,7 @@ export default function MatchDetailClient({
           <button
             type="button"
             onClick={handleFinishEvent}
-            disabled={isFinishing || isEventFinished}
+            disabled={isFinishing || isEventFinished || !canManageEvent}
             className="w-full text-base font-semibold text-[#121212] rounded-full disabled:opacity-50 disabled:cursor-not-allowed"
             style={{ background: "#9FE870", height: "56px" }}
           >

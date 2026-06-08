@@ -100,6 +100,65 @@ export interface Event {
   updated_by: string | null;
 }
 
+export interface UpcomingEvent {
+  guid: string;
+  club_guid: string;
+  name: string;
+  description: string;
+  date_time: string;
+  number_of_players: number;
+  number_of_participants: number;
+  min_level: number;
+  max_level: number;
+  is_active: boolean;
+  is_joined: boolean;
+  is_host: boolean;
+  is_locked: boolean;
+  join_status: string;
+  created_at: string;
+  created_by: string;
+}
+
+export interface FetchUpcomingEventsParams {
+  page?: number;
+  limit?: number;
+}
+
+export interface FetchUpcomingEventsSuccessResponse {
+  data: UpcomingEvent[];
+  message: string;
+  paginate: {
+    current_page: number;
+    per_page: number;
+    total_page: number;
+    total_data: number;
+  };
+}
+
+export interface FetchUpcomingEventsErrorResponse {
+  message: string;
+}
+
+export interface FetchEventsParams {
+  page?: number;
+  limit?: number;
+}
+
+export interface FetchEventsSuccessResponse {
+  data: UpcomingEvent[];
+  message: string;
+  paginate: {
+    current_page: number;
+    per_page: number;
+    total_page: number;
+    total_data: number;
+  };
+}
+
+export interface FetchEventsErrorResponse {
+  message: string;
+}
+
 export interface FetchClubEventsParams {
   club_guid: string;
   sort?: string;

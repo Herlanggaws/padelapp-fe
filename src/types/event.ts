@@ -33,8 +33,9 @@ export interface EventStandingRow {
   user: EventStandingUser;
   rank: number;
   wins: number;
-  games_played: number;
+  matches_played: number;
   score_diff: number;
+  total_points: number;
 }
 
 export interface EventStandingsData {

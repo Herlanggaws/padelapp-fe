@@ -31,6 +31,9 @@ import type {
   AddOutsiderParticipantErrorResponse,
   FinishEventSuccessResponse,
   FinishEventErrorResponse,
+  UpdateEventPayload,
+  UpdateEventSuccessResponse,
+  UpdateEventErrorResponse,
 } from "@/types/event";
 import { fetchWithAuth } from "@/services/authService";
 
@@ -67,6 +70,9 @@ export type {
   AddOutsiderParticipantErrorResponse,
   FinishEventSuccessResponse,
   FinishEventErrorResponse,
+  UpdateEventPayload,
+  UpdateEventSuccessResponse,
+  UpdateEventErrorResponse,
 };
 
 const BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
@@ -291,6 +297,25 @@ export async function createEvent(
   }
 
   return data as CreateEventSuccessResponse;
+}
+
+export async function updateEvent(
+  guid: string,
+  payload: UpdateEventPayload,
+): Promise<UpdateEventSuccessResponse> {
+  const response = await fetchWithAuth(`${BASE_URL}/padel/event/${guid}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw data as UpdateEventErrorResponse;
+  }
+
+  return data as UpdateEventSuccessResponse;
 }
 
 export async function addOutsiderParticipant(

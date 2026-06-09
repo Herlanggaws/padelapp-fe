@@ -76,6 +76,25 @@ export interface CreateEventErrorResponse {
   message: string;
 }
 
+export interface UpdateEventPayload {
+  club_guid: string;
+  name: string;
+  description: string;
+  date_time: string;
+  number_of_players: number;
+  min_level: number;
+  max_level: number;
+}
+
+export interface UpdateEventSuccessResponse {
+  data: null;
+  message: string;
+}
+
+export interface UpdateEventErrorResponse {
+  message: string;
+}
+
 export interface Event {
   guid: string;
   club_guid: string;

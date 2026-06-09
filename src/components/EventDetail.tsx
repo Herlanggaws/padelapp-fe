@@ -38,14 +38,16 @@ function formatTime(dateTime: string) {
 
 const MAX_VISIBLE_SLOTS = 4;
 
+type ParticipantAvatar = { name: string; profile_photo: string | null };
+
 function PlayerSlots({
   participants,
   total,
-  participantPhotos,
+  participantAvatars,
 }: {
   participants: number;
   total: number;
-  participantPhotos: (string | null)[];
+  participantAvatars: ParticipantAvatar[];
 }) {
   const filled = Math.min(participants, total);
   const empty = total - filled;
@@ -62,7 +64,8 @@ function PlayerSlots({
     <div className="pt-2 flex items-center gap-3">
       <div className="flex items-center">
         {avatars.map((i) => {
-          const photo = participantPhotos[i];
+          const avatar = participantAvatars[i];
+          const photo = avatar?.profile_photo?.trim();
           return (
             <div
               key={`avatar-${i}`}
@@ -76,26 +79,16 @@ function PlayerSlots({
               {photo ? (
                 <Image
                   src={photo}
-                  alt={`Player ${i + 1}`}
+                  alt={avatar.name}
                   width={48}
                   height={48}
                   className="w-full h-full rounded-full border-2 border-white object-cover"
                 />
               ) : (
                 <div className="w-12 h-12 rounded-full border-2 border-white bg-gray-200 flex items-center justify-center">
-                  <svg
-                    width="20"
-                    height="20"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="#71717A"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  >
-                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-                    <circle cx="12" cy="7" r="4" />
-                  </svg>
+                  <span className="text-sm font-semibold text-gray-600">
+                    {(avatar?.name ?? "?").charAt(0).toUpperCase()}
+                  </span>
                 </div>
               )}
             </div>
@@ -230,7 +223,7 @@ function RequestCard({
 
 function EventDetailContent({
   event,
-  participantPhotos,
+  participantAvatars,
   onJoin,
   isJoining,
   isLeaving,
@@ -240,7 +233,7 @@ function EventDetailContent({
   onAddOutsider,
 }: {
   event: Event;
-  participantPhotos: (string | null)[];
+  participantAvatars: ParticipantAvatar[];
   onJoin: () => void;
   isJoining: boolean;
   isLeaving: boolean;
@@ -442,7 +435,7 @@ function EventDetailContent({
             <PlayerSlots
               participants={event.number_of_participants}
               total={event.number_of_players}
-              participantPhotos={participantPhotos}
+              participantAvatars={participantAvatars}
             />
           </div>
         </div>
@@ -585,9 +578,9 @@ function EventDetailContent({
 export default function EventDetail({ id }: { id: string }) {
   const router = useRouter();
   const [event, setEvent] = useState<Event | null>(null);
-  const [participantPhotos, setParticipantPhotos] = useState<(string | null)[]>(
-    [],
-  );
+  const [participantAvatars, setParticipantAvatars] = useState<
+    ParticipantAvatar[]
+  >([]);
   const [isJoining, setIsJoining] = useState(false);
   const [isLeaving, setIsLeaving] = useState(false);
   const [actingGuid, setActingGuid] = useState<string | null>(null);
@@ -600,10 +593,15 @@ export default function EventDetail({ id }: { id: string }) {
       event_guid: id,
       limit: MAX_VISIBLE_SLOTS,
     });
-    setParticipantPhotos(participantsRes.data.map((p) => p.user.profile_photo));
+    setParticipantAvatars(
+      participantsRes.data.map((p) => ({
+        name: p.user.name,
+        profile_photo: p.user.profile_photo,
+      })),
+    );
     return eventRes.data;
   }, [id]);
-  console.log("participantPhotos", participantPhotos);
+
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     loadEvent().catch(() => router.replace("/not-found"));
@@ -674,13 +672,14 @@ export default function EventDetail({ id }: { id: string }) {
       event_guid: event!.guid,
       outsider_name: name,
     });
+    await loadEvent();
     showSnackbar(res.message);
   };
 
   return (
     <EventDetailContent
       event={event}
-      participantPhotos={participantPhotos}
+      participantAvatars={participantAvatars}
       onJoin={handleJoin}
       isJoining={isJoining}
       isLeaving={isLeaving}

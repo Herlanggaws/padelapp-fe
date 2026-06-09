@@ -101,6 +101,7 @@ interface StandingRow {
   scoreDiff: number;
   winPct: string;
   isPlaceholder?: boolean;
+  total_points: number;
 }
 
 function avatarSeedFromGuid(guid: string) {
@@ -356,10 +357,11 @@ function mapEventStandingsToRows(rows: EventStandingRow[]): StandingRow[] {
     name: row.user.name.trim() || row.user.email,
     avatarSeed: avatarSeedFromGuid(row.user.guid),
     avatarUrl: row.user.profile_photo?.trim() || undefined,
-    mp: row.games_played,
+    mp: row.matches_played,
     wins: row.wins,
     scoreDiff: row.score_diff,
-    winPct: formatWinRate(row.wins, row.games_played),
+    winPct: formatWinRate(row.wins, row.matches_played),
+    total_points: row.total_points
   }));
 }
 
@@ -929,30 +931,43 @@ function StandingsTab({
                 MP
               </span>
             </div>
-            <div className="px-2 py-4 text-center" style={{ width: "57px" }}>
-              <span
-                className="text-xs uppercase text-[#A1A1AA]"
-                style={{ lineHeight: "12px" }}
-              >
-                W
-              </span>
-            </div>
-            <div className="px-2 py-4 text-center" style={{ width: "94px" }}>
-              <span
-                className="text-xs uppercase text-[#A1A1AA]"
-                style={{ lineHeight: "12px" }}
-              >
-                +/-
-              </span>
-            </div>
-            <div className="px-2 py-4 text-center" style={{ width: "80px" }}>
-              <span
-                className="text-xs uppercase text-[#A1A1AA]"
-                style={{ lineHeight: "12px" }}
-              >
-                W%
-              </span>
-            </div>
+            {standingsType === "wins" ? (
+              <>
+                <div className="px-2 py-4 text-center" style={{ width: "57px" }}>
+                  <span
+                    className="text-xs uppercase text-[#A1A1AA]"
+                    style={{ lineHeight: "12px" }}
+                  >
+                    W
+                  </span>
+                </div>
+                <div className="px-2 py-4 text-center" style={{ width: "94px" }}>
+                  <span
+                    className="text-xs uppercase text-[#A1A1AA]"
+                    style={{ lineHeight: "12px" }}
+                  >
+                    +/-
+                  </span>
+                </div>
+                <div className="px-2 py-4 text-center" style={{ width: "80px" }}>
+                  <span
+                    className="text-xs uppercase text-[#A1A1AA]"
+                    style={{ lineHeight: "12px" }}
+                  >
+                    W%
+                  </span>
+                </div>
+              </>
+            ) : (
+              <div className="px-2 py-4 text-center" style={{ width: "80px" }}>
+                <span
+                  className="text-xs uppercase text-[#A1A1AA]"
+                  style={{ lineHeight: "12px" }}
+                >
+                  P
+                </span>
+              </div>
+            )}
           </div>
 
           {/* Table body */}
@@ -1064,44 +1079,61 @@ function StandingsTab({
                     </span>
                   </div>
 
-                  {/* W */}
-                  <div
-                    className="px-2 py-5 text-center"
-                    style={{ width: "57px" }}
-                  >
-                    <span
-                      className="text-sm font-normal text-[#52525B]"
-                      style={{ lineHeight: "21px" }}
-                    >
-                      {row.wins}
-                    </span>
-                  </div>
+                  {standingsType === "wins" ? (
+                    <>
+                      {/* W */}
+                      <div
+                        className="px-2 py-5 text-center"
+                        style={{ width: "57px" }}
+                      >
+                        <span
+                          className="text-sm font-normal text-[#52525B]"
+                          style={{ lineHeight: "21px" }}
+                        >
+                          {row.wins}
+                        </span>
+                      </div>
 
-                  {/* Score difference */}
-                  <div
-                    className="px-2 py-5 text-center"
-                    style={{ width: "94px" }}
-                  >
-                    <span
-                      className="text-sm font-normal text-[#2F6C00]"
-                      style={{ lineHeight: "21px" }}
-                    >
-                      {formatScoreDiff(row.scoreDiff)}
-                    </span>
-                  </div>
+                      {/* Score difference */}
+                      <div
+                        className="px-2 py-5 text-center"
+                        style={{ width: "94px" }}
+                      >
+                        <span
+                          className="text-sm font-normal text-[#2F6C00]"
+                          style={{ lineHeight: "21px" }}
+                        >
+                          {formatScoreDiff(row.scoreDiff)}
+                        </span>
+                      </div>
 
-                  {/* W% */}
-                  <div
-                    className="px-2 py-5 text-center"
-                    style={{ width: "80px" }}
-                  >
-                    <span
-                      className="text-sm font-normal text-[#52525B]"
-                      style={{ lineHeight: "21px" }}
+                      {/* W% */}
+                      <div
+                        className="px-2 py-5 text-center"
+                        style={{ width: "80px" }}
+                      >
+                        <span
+                          className="text-sm font-normal text-[#52525B]"
+                          style={{ lineHeight: "21px" }}
+                        >
+                          {row.winPct}
+                        </span>
+                      </div>
+                    </>
+                  ) : (
+                    /* P */
+                    <div
+                      className="px-2 py-5 text-center"
+                      style={{ width: "80px" }}
                     >
-                      {row.winPct}
-                    </span>
-                  </div>
+                      <span
+                        className="text-sm font-normal text-[#2F6C00]"
+                        style={{ lineHeight: "21px" }}
+                      >
+                        {row.total_points}
+                      </span>
+                    </div>
+                  )}
 
                 </div>
               );

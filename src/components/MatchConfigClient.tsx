@@ -1,11 +1,16 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Modal from "@/components/Modal";
+import {
+  clearMatchConfigPlayers,
+  getMatchConfigPlayers,
+} from "@/lib/matchConfigPlayersStorage";
 import { createMatchmakingSession } from "@/services/matchmakingService";
 import type {
   CreateMatchmakingSessionErrorResponse,
+  MatchConfigSelectedPlayer,
   MatchmakingSessionFormatApi,
   MatchmakingTeamAssignmentApi,
 } from "@/types/matchmaking";
@@ -46,6 +51,19 @@ export default function MatchConfigClient({
   const [modalOpen, setModalOpen] = useState(false);
   const [modalTitle, setModalTitle] = useState("Error");
   const [modalMessage, setModalMessage] = useState("");
+  const [selectedPlayers, setSelectedPlayers] = useState<
+    MatchConfigSelectedPlayer[]
+  >([]);
+  const [showGenerateConfirm, setShowGenerateConfirm] = useState(false);
+
+  useEffect(() => {
+    if (!eventGuid.trim()) return;
+    const players = getMatchConfigPlayers(eventGuid);
+    if (players) {
+      setSelectedPlayers(players);
+      clearMatchConfigPlayers();
+    }
+  }, [eventGuid]);
 
   const showModal = (title: string, message: string) => {
     setModalTitle(title);
@@ -73,7 +91,7 @@ export default function MatchConfigClient({
 
   const pointOptions: SetPoints[] = [16, 21, 24, 32];
 
-  const handleGenerateMatch = async () => {
+  const handleGenerateMatchClick = () => {
     if (!eventGuid.trim()) {
       showModal(
         "Missing event",
@@ -81,7 +99,10 @@ export default function MatchConfigClient({
       );
       return;
     }
+    setShowGenerateConfirm(true);
+  };
 
+  const handleGenerateMatch = async () => {
     setIsSubmitting(true);
     try {
       const result = await createMatchmakingSession({
@@ -111,6 +132,55 @@ export default function MatchConfigClient({
         title={modalTitle}
         message={modalMessage}
       />
+
+      {showGenerateConfirm && (
+        <div className="fixed inset-0 z-60 flex items-center justify-center bg-black/40 px-6">
+          <div className="w-full max-w-sm bg-white rounded-2xl p-6 flex flex-col gap-4">
+            <h3 className="text-lg font-semibold text-[#151C27]">
+              Generate Match
+            </h3>
+            <p className="text-sm text-[#41493A]">
+              Are you sure you want to generate a match with{" "}
+              <span className="font-semibold">{selectedFormat}</span> format,{" "}
+              <span className="font-semibold">{courts}</span> court
+              {courts !== 1 ? "s" : ""}, and{" "}
+              <span className="font-semibold">{selectedPoints}</span> set points
+              {selectedPlayers.length > 0 && (
+                <>
+                  {" "}
+                  for{" "}
+                  <span className="font-semibold">
+                    {selectedPlayers.length}
+                  </span>{" "}
+                  player{selectedPlayers.length !== 1 ? "s" : ""}
+                </>
+              )}
+              ?
+            </p>
+            <div className="flex gap-3 mt-2">
+              <button
+                type="button"
+                onClick={() => setShowGenerateConfirm(false)}
+                disabled={isSubmitting}
+                className="flex-1 py-3 rounded-full text-base text-[#18181B] bg-[#F4F4F5] disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={async () => {
+                  await handleGenerateMatch();
+                  setShowGenerateConfirm(false);
+                }}
+                disabled={isSubmitting}
+                className="flex-1 py-3 rounded-full text-base font-semibold text-[#121212] bg-[#9FE870] disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isSubmitting ? "Generating..." : "Generate"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       {/* Game Format Section */}
       <section className="flex flex-col gap-2">
         <h2
@@ -322,7 +392,7 @@ export default function MatchConfigClient({
       <div className="pt-4">
         <button
           type="button"
-          onClick={handleGenerateMatch}
+          onClick={handleGenerateMatchClick}
           disabled={isSubmitting}
           className="w-full relative overflow-hidden text-xl font-semibold text-[#9FE870] py-5 rounded-full disabled:opacity-50 disabled:cursor-not-allowed"
           style={{

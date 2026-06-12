@@ -7,6 +7,9 @@ import Link from "next/link";
 import TopAppBar from "@/components/TopAppBar";
 import BottomSheetAddOutsider from "@/components/BottomSheetAddOutsider";
 import BottomSheetSeeAllPlayers from "@/components/BottomSheetSeeAllPlayers";
+import BottomSheetSelectPlayers from "@/components/BottomSheetSelectPlayers";
+import { setMatchConfigPlayers } from "@/lib/matchConfigPlayersStorage";
+import type { MatchConfigSelectedPlayer } from "@/types/matchmaking";
 import {
   fetchEventDetail,
   fetchEventParticipants,
@@ -225,6 +228,7 @@ function EventDetailContent({
   event,
   participantAvatars,
   onJoin,
+  onLeave,
   isJoining,
   isLeaving,
   onApprove,
@@ -235,6 +239,7 @@ function EventDetailContent({
   event: Event;
   participantAvatars: ParticipantAvatar[];
   onJoin: () => void;
+  onLeave: () => void | Promise<void>;
   isJoining: boolean;
   isLeaving: boolean;
   onApprove: (guid: string) => void;
@@ -242,9 +247,36 @@ function EventDetailContent({
   actingGuid: string | null;
   onAddOutsider: (name: string) => Promise<void>;
 }) {
+  const router = useRouter();
   const [showAddOutsider, setShowAddOutsider] = useState(false);
   const [showSeeAllPlayers, setShowSeeAllPlayers] = useState(false);
+  const [showSelectPlayers, setShowSelectPlayers] = useState(false);
+  const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
   const pendingRequests = event.pending_requests ?? [];
+
+  const handleSelectPlayersNext = (players: MatchConfigSelectedPlayer[]) => {
+    setMatchConfigPlayers({ event_guid: event.guid, players });
+    setShowSelectPlayers(false);
+    router.push(
+      `/matches/configure?event_guid=${encodeURIComponent(event.guid)}`,
+    );
+  };
+
+  const handleJoinLeaveClick = () => {
+    if (event.is_joined) {
+      setShowLeaveConfirm(true);
+    } else {
+      onJoin();
+    }
+  };
+
+  const handleConfirmLeave = async () => {
+    try {
+      await onLeave();
+    } finally {
+      setShowLeaveConfirm(false);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-white max-w-[448px] mx-auto relative flex flex-col">
@@ -516,8 +548,9 @@ function EventDetailContent({
                 Match Detail
               </Link>
             ) : (
-              <Link
-                href={`/matches/configure?event_guid=${encodeURIComponent(event.guid)}`}
+              <button
+                type="button"
+                onClick={() => setShowSelectPlayers(true)}
                 className="flex-1 flex items-center justify-center gap-2 text-base font-semibold text-[#121212] rounded-full"
                 style={{ background: "#9FE870", height: "56px" }}
               >
@@ -536,10 +569,10 @@ function EventDetailContent({
                   <path d="M11 8v6M8 11h6" />
                 </svg>
                 Generate Match
-              </Link>
+              </button>
             )}
             <button
-              onClick={onJoin}
+              onClick={handleJoinLeaveClick}
               disabled={isJoining || isLeaving || event.is_locked}
               className="flex-1 text-base font-normal rounded-full disabled:opacity-50 disabled:cursor-not-allowed"
               style={{
@@ -559,7 +592,7 @@ function EventDetailContent({
           </div>
         ) : (
           <button
-            onClick={onJoin}
+            onClick={handleJoinLeaveClick}
             disabled={isJoining || isLeaving || event.is_locked}
             className="w-full text-base font-normal rounded-full disabled:opacity-50 disabled:cursor-not-allowed"
             style={{
@@ -594,6 +627,45 @@ function EventDetailContent({
           isHost={event.is_host}
           onClose={() => setShowSeeAllPlayers(false)}
         />
+      )}
+
+      {/* Bottom Sheet: Select Players for Match */}
+      {showSelectPlayers && (
+        <BottomSheetSelectPlayers
+          eventGuid={event.guid}
+          onClose={() => setShowSelectPlayers(false)}
+          onNext={handleSelectPlayersNext}
+        />
+      )}
+
+      {/* Leave Confirmation Dialog */}
+      {showLeaveConfirm && (
+        <div className="fixed inset-0 z-60 flex items-center justify-center bg-black/40 px-6">
+          <div className="w-full max-w-sm bg-white rounded-2xl p-6 flex flex-col gap-4">
+            <h3 className="text-lg font-semibold text-[#151C27]">Leave Event</h3>
+            <p className="text-sm text-[#41493A]">
+              Are you sure you want to leave{" "}
+              <span className="font-semibold">{event.name}</span>? You can rejoin
+              later if spots are available.
+            </p>
+            <div className="flex gap-3 mt-2">
+              <button
+                onClick={() => setShowLeaveConfirm(false)}
+                disabled={isLeaving}
+                className="flex-1 py-3 rounded-full text-base text-[#18181B] bg-[#F4F4F5] disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleConfirmLeave}
+                disabled={isLeaving}
+                className="flex-1 py-3 rounded-full text-base text-white bg-[#BA1A1A] disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isLeaving ? "Leaving..." : "Leave"}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
@@ -632,25 +704,26 @@ export default function EventDetail({ id }: { id: string }) {
   }, [loadEvent, router]);
 
   const handleJoin = async () => {
-    if (!event || event.is_locked) return;
-    if (event.is_joined) {
-      setIsLeaving(true);
-      try {
-        await leaveEvent(event.guid);
-        await loadEvent();
-        showSnackbar("You have left the event");
-      } finally {
-        setIsLeaving(false);
-      }
-    } else {
-      setIsJoining(true);
-      try {
-        await joinEvent({ event_guid: event.guid });
-        await loadEvent();
-        showSnackbar("Successfully joined the event");
-      } finally {
-        setIsJoining(false);
-      }
+    if (!event || event.is_locked || event.is_joined) return;
+    setIsJoining(true);
+    try {
+      await joinEvent({ event_guid: event.guid });
+      await loadEvent();
+      showSnackbar("Successfully joined the event");
+    } finally {
+      setIsJoining(false);
+    }
+  };
+
+  const handleLeave = async () => {
+    if (!event || event.is_locked || !event.is_joined) return;
+    setIsLeaving(true);
+    try {
+      await leaveEvent(event.guid);
+      await loadEvent();
+      showSnackbar("You have left the event");
+    } finally {
+      setIsLeaving(false);
     }
   };
 
@@ -705,6 +778,7 @@ export default function EventDetail({ id }: { id: string }) {
       event={event}
       participantAvatars={participantAvatars}
       onJoin={handleJoin}
+      onLeave={handleLeave}
       isJoining={isJoining}
       isLeaving={isLeaving}
       onApprove={handleApprove}

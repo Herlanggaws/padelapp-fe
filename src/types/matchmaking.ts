@@ -1,3 +1,16 @@
+export interface MatchConfigSelectedPlayer {
+  participant_guid: string;
+  user_guid: string;
+  name: string;
+  email: string;
+  profile_photo: string | null;
+}
+
+export interface MatchConfigPlayersPayload {
+  event_guid: string;
+  players: MatchConfigSelectedPlayer[];
+}
+
 /** Values sent to POST /padel/matchmaking/session */
 export type MatchmakingSessionFormatApi =
   | "mexicano"

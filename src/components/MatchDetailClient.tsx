@@ -38,12 +38,18 @@ import type {
   FetchEventStandingsErrorResponse,
   FinishEventErrorResponse,
 } from "@/types/event";
+import {
+  downloadPng,
+  generateTop3StandingsPng,
+  generateYourResultPng,
+} from "@/utils/shareStandingsImage";
 
 type TabType = "Matches" | "Standings";
 
 interface MatchPlayer {
   name: string;
   avatarSeed: string;
+  avatarUrl?: string;
   side: "left" | "right";
 }
 
@@ -94,8 +100,6 @@ function shouldShowCancelRound(
 interface StandingRow {
   rank: number;
   name: string;
-  avatarSeed: string;
-  avatarUrl?: string;
   mp: number;
   wins: number;
   scoreDiff: number;
@@ -274,6 +278,7 @@ function playersToMatchPlayers(
     return {
       name: label || "TBD",
       avatarSeed: avatarSeedFromGuid(playerGuid(player) ?? `tbd-${side}-${i}`),
+      avatarUrl: player?.profile_photo?.trim() || undefined,
       side,
     };
   };
@@ -355,8 +360,6 @@ function mapEventStandingsToRows(rows: EventStandingRow[]): StandingRow[] {
   return rows.map((row) => ({
     rank: row.rank,
     name: row.user.name.trim() || row.user.email,
-    avatarSeed: avatarSeedFromGuid(row.user.guid),
-    avatarUrl: row.user.profile_photo?.trim() || undefined,
     mp: row.matches_played,
     wins: row.wins,
     scoreDiff: row.score_diff,
@@ -383,13 +386,27 @@ function PlayerRow({
           border: `2px solid ${isFeatured ? "#18181B" : "#9FE870"}`,
         }}
       >
-        <Image
-          src={`https://picsum.photos/seed/${player.avatarSeed}/32/32`}
-          alt={player.name}
-          width={32}
-          height={32}
-          className="w-full h-full object-cover"
-        />
+        {player.avatarUrl ? (
+          <Image
+            src={player.avatarUrl}
+            alt={player.name}
+            width={32}
+            height={32}
+            className="w-full h-full object-cover"
+          />
+        ) : (
+          <div
+            className="w-full h-full flex items-center justify-center"
+            style={{ background: "#E4E4E7" }}
+          >
+            <span
+              className="text-xs font-semibold"
+              style={{ color: "#52525B" }}
+            >
+              {(player.name ?? "?").charAt(0).toUpperCase()}
+            </span>
+          </div>
+        )}
       </div>
       <span
         className={`text-xs font-semibold ${isFeatured ? "text-[#18181B]" : "text-[#151C27]"}`}
@@ -754,15 +771,16 @@ function MatchesTab({
 function StandingsTab({
   standings,
   standingsType,
+  yourRank,
   onStandingsTypeChange,
   isLoading,
 }: {
   standings: StandingRow[];
   standingsType: EventStandingsType;
+  yourRank: string | null;
   onStandingsTypeChange: (type: EventStandingsType) => void;
   isLoading: boolean;
 }) {
-  const topRow = standings[0];
   const standingsTypeLabel =
     standingsType === "wins" ? "Most Wins" : "Point Difference";
   const typeControl = (
@@ -814,9 +832,8 @@ function StandingsTab({
 
   return (
     <div className="flex flex-col gap-4 pb-8">
-      {typeControl}
       {/* Leaderboard Summary Card (Bento Style) */}
-      <div className="px-4">
+      <div className="px-4 pt-4">
         <div
           className="flex items-center justify-between px-4 py-4"
           style={{
@@ -834,7 +851,7 @@ function StandingsTab({
                 letterSpacing: "5%",
               }}
             >
-              TOP PLAYER
+              YOUR RANK
             </span>
             <span
               className="font-semibold text-[#2E6900]"
@@ -844,7 +861,7 @@ function StandingsTab({
                 letterSpacing: "-0.01em",
               }}
             >
-              #{topRow?.rank ?? "—"}
+              #{yourRank ?? "—"}
             </span>
           </div>
 
@@ -877,6 +894,9 @@ function StandingsTab({
         </div>
       </div>
 
+      {typeControl}
+
+
       {/* Section - Detailed Leaderboard Table */}
       <div className="px-4">
         <div
@@ -907,7 +927,7 @@ function StandingsTab({
             className="flex items-center"
             style={{ background: "rgba(250,250,250,0.5)" }}
           >
-            <div className="px-4 py-4" style={{ width: "79px" }}>
+            <div className="pl-3 pr-0.5 py-3" style={{ width: "52px" }}>
               <span
                 className="text-xs uppercase text-[#A1A1AA]"
                 style={{ lineHeight: "12px" }}
@@ -915,7 +935,7 @@ function StandingsTab({
                 RK
               </span>
             </div>
-            <div className="flex-1 px-2 py-4">
+            <div className="flex-1 pl-1 pr-0 py-3 min-w-0">
               <span
                 className="text-xs uppercase text-[#A1A1AA]"
                 style={{ lineHeight: "12px" }}
@@ -923,7 +943,7 @@ function StandingsTab({
                 PLAYER
               </span>
             </div>
-            <div className="px-2 py-4 text-center" style={{ width: "61px" }}>
+            <div className="px-0.5 py-3 text-center" style={{ width: "36px" }}>
               <span
                 className="text-xs uppercase text-[#A1A1AA]"
                 style={{ lineHeight: "12px" }}
@@ -933,7 +953,7 @@ function StandingsTab({
             </div>
             {standingsType === "wins" ? (
               <>
-                <div className="px-2 py-4 text-center" style={{ width: "57px" }}>
+                <div className="px-0.5 py-3 text-center" style={{ width: "28px" }}>
                   <span
                     className="text-xs uppercase text-[#A1A1AA]"
                     style={{ lineHeight: "12px" }}
@@ -941,7 +961,7 @@ function StandingsTab({
                     W
                   </span>
                 </div>
-                <div className="px-2 py-4 text-center" style={{ width: "94px" }}>
+                <div className="px-0.5 py-3 text-center" style={{ width: "40px" }}>
                   <span
                     className="text-xs uppercase text-[#A1A1AA]"
                     style={{ lineHeight: "12px" }}
@@ -949,7 +969,7 @@ function StandingsTab({
                     +/-
                   </span>
                 </div>
-                <div className="px-2 py-4 text-center" style={{ width: "80px" }}>
+                <div className="px-0.5 py-3 text-center" style={{ width: "40px" }}>
                   <span
                     className="text-xs uppercase text-[#A1A1AA]"
                     style={{ lineHeight: "12px" }}
@@ -959,7 +979,7 @@ function StandingsTab({
                 </div>
               </>
             ) : (
-              <div className="px-2 py-4 text-center" style={{ width: "80px" }}>
+              <div className="px-0.5 py-3 text-center" style={{ width: "40px" }}>
                 <span
                   className="text-xs uppercase text-[#A1A1AA]"
                   style={{ lineHeight: "12px" }}
@@ -976,7 +996,7 @@ function StandingsTab({
               const isPlaceholder = row.isPlaceholder;
               return (
                 <div
-                  key={`${row.rank}-${row.avatarSeed}`}
+                  key={`${row.rank}-${row.name}`}
                   className="flex items-center"
                   style={{
                     background: "transparent",
@@ -986,12 +1006,8 @@ function StandingsTab({
                 >
                   {/* Rank cell */}
                   <div
-                    className="flex items-center gap-1 py-5"
-                    style={{
-                      width: "79px",
-                      paddingLeft: "16px",
-                      paddingRight: "4px",
-                    }}
+                    className="flex items-center gap-0.5 py-4 pl-3 pr-0.5 shrink-0"
+                    style={{ width: "52px" }}
                   >
                     <span
                       className="text-xs font-semibold"
@@ -1024,43 +1040,10 @@ function StandingsTab({
                   </div>
 
                   {/* Player cell */}
-                  <div
-                    className="flex items-center gap-3 py-3 min-w-0"
-                    style={{
-                      flex: 1,
-                      paddingLeft: "9px",
-                    }}
-                  >
-                    <div
-                      className="w-8 h-8 rounded-full overflow-hidden shrink-0"
-                      style={{
-                        border: "1px solid #F4F4F5",
-                      }}
-                    >
-                      {isPlaceholder ? (
-                        <div
-                          className="w-full h-full rounded-full"
-                          style={{ background: "#E4E4E7" }}
-                        />
-                      ) : (
-                        <Image
-                          src={
-                            row.avatarUrl ??
-                            `https://picsum.photos/seed/${row.avatarSeed}/32/32`
-                          }
-                          alt={row.name}
-                          width={32}
-                          height={32}
-                          className="w-full h-full object-cover"
-                        />
-                      )}
-                    </div>
+                  <div className="flex items-center py-3 min-w-0 flex-1 pl-1 pr-0">
                     <span
-                      className="text-sm font-normal truncate"
-                      style={{
-                        lineHeight: "21px",
-                        color: "#18181B",
-                      }}
+                      className="text-xs font-normal wrap-break-word leading-snug"
+                      style={{ color: "#18181B" }}
                     >
                       {row.name}
                     </span>
@@ -1068,13 +1051,10 @@ function StandingsTab({
 
                   {/* MP */}
                   <div
-                    className="px-2 py-5 text-center"
-                    style={{ width: "61px" }}
+                    className="px-0.5 py-4 text-center shrink-0"
+                    style={{ width: "36px" }}
                   >
-                    <span
-                      className="text-sm font-normal text-[#52525B]"
-                      style={{ lineHeight: "21px" }}
-                    >
+                    <span className="text-xs font-normal text-[#52525B] leading-snug">
                       {row.mp}
                     </span>
                   </div>
@@ -1083,39 +1063,30 @@ function StandingsTab({
                     <>
                       {/* W */}
                       <div
-                        className="px-2 py-5 text-center"
-                        style={{ width: "57px" }}
+                        className="px-0.5 py-4 text-center shrink-0"
+                        style={{ width: "28px" }}
                       >
-                        <span
-                          className="text-sm font-normal text-[#52525B]"
-                          style={{ lineHeight: "21px" }}
-                        >
+                        <span className="text-xs font-normal text-[#52525B] leading-snug">
                           {row.wins}
                         </span>
                       </div>
 
                       {/* Score difference */}
                       <div
-                        className="px-2 py-5 text-center"
-                        style={{ width: "94px" }}
+                        className="px-0.5 py-4 text-center shrink-0"
+                        style={{ width: "40px" }}
                       >
-                        <span
-                          className="text-sm font-normal text-[#2F6C00]"
-                          style={{ lineHeight: "21px" }}
-                        >
+                        <span className="text-xs font-normal text-[#2F6C00] leading-snug">
                           {formatScoreDiff(row.scoreDiff)}
                         </span>
                       </div>
 
                       {/* W% */}
                       <div
-                        className="px-2 py-5 text-center"
-                        style={{ width: "80px" }}
+                        className="px-0.5 py-4 text-center shrink-0"
+                        style={{ width: "40px" }}
                       >
-                        <span
-                          className="text-sm font-normal text-[#52525B]"
-                          style={{ lineHeight: "21px" }}
-                        >
+                        <span className="text-xs font-normal text-[#52525B] leading-snug">
                           {row.winPct}
                         </span>
                       </div>
@@ -1123,13 +1094,10 @@ function StandingsTab({
                   ) : (
                     /* P */
                     <div
-                      className="px-2 py-5 text-center"
-                      style={{ width: "80px" }}
+                      className="px-0.5 py-4 text-center shrink-0"
+                      style={{ width: "40px" }}
                     >
-                      <span
-                        className="text-sm font-normal text-[#2F6C00]"
-                        style={{ lineHeight: "21px" }}
-                      >
+                      <span className="text-xs font-normal text-[#2F6C00] leading-snug">
                         {row.total_points}
                       </span>
                     </div>
@@ -1174,6 +1142,7 @@ export default function MatchDetailClient({
   const [standingsType, setStandingsType] =
     useState<EventStandingsType>("wins");
   const [standings, setStandings] = useState<StandingRow[]>([]);
+  const [yourRank, setYourRank] = useState<string | null>(null);
   const [isStandingsLoading, setIsStandingsLoading] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
   const [modalMessage, setModalMessage] = useState("");
@@ -1193,6 +1162,9 @@ export default function MatchDetailClient({
     null,
   );
   const [isFinishing, setIsFinishing] = useState(false);
+  const [isSharingMatchResult, setIsSharingMatchResult] = useState(false);
+  const [isSharingYourResult, setIsSharingYourResult] = useState(false);
+  const [showFinishConfirm, setShowFinishConfirm] = useState(false);
   const [eventDetail, setEventDetail] = useState<Event | null>(null);
 
   useEffect(() => {
@@ -1204,6 +1176,7 @@ export default function MatchDetailClient({
         if (!cancelled) {
           setDetail(res.data);
           setStandings([]);
+          setYourRank(null);
           setPendingSaveMatchIds(new Set());
         }
       } catch (e) {
@@ -1245,20 +1218,27 @@ export default function MatchDetailClient({
     };
   }, [eventGuid]);
 
+  const isEventFinished = eventDetail?.is_finished === true;
+
   useEffect(() => {
-    if (activeTab !== "Standings" || !eventGuid) return;
+    const shouldLoadStandings =
+      Boolean(eventGuid) &&
+      (activeTab === "Standings" || isEventFinished);
+    if (!shouldLoadStandings) return;
 
     let cancelled = false;
     (async () => {
       setIsStandingsLoading(true);
       setStandings([]);
+      setYourRank(null);
       try {
         const res = await fetchEventStandings({
-          event_guid: eventGuid,
+          event_guid: eventGuid!,
           type: standingsType,
         });
         if (!cancelled) {
           setStandings(mapEventStandingsToRows(res.data.standings));
+          setYourRank(res.data.your_rank || null);
         }
       } catch (e) {
         const err = e as FetchEventStandingsErrorResponse;
@@ -1274,7 +1254,7 @@ export default function MatchDetailClient({
     return () => {
       cancelled = true;
     };
-  }, [activeTab, eventGuid, standingsType]);
+  }, [activeTab, eventGuid, standingsType, isEventFinished]);
 
   const headerTitle = detail?.event.name ?? (isLoading ? "Loading…" : "Match");
   const rounds = detail ? mapDetailToRounds(detail) : [];
@@ -1397,6 +1377,7 @@ export default function MatchDetailClient({
       showSnackbar(res.message);
       const refreshed = await fetchEventDetail(eventGuid);
       setEventDetail(refreshed.data);
+      setShowFinishConfirm(false);
     } catch (e) {
       const err = e as FinishEventErrorResponse;
       showSnackbar(err?.message ?? "Could not finish event.");
@@ -1405,9 +1386,102 @@ export default function MatchDetailClient({
     }
   };
 
-  const isEventFinished = eventDetail?.is_finished === true;
+  const ensureStandingsForShare = async () => {
+    if (!eventGuid) {
+      throw new Error("Event not found for this session.");
+    }
+    if (standings.length > 0) {
+      return { rows: standings, rank: yourRank };
+    }
+
+    const res = await fetchEventStandings({
+      event_guid: eventGuid,
+      type: standingsType,
+    });
+    const rows = mapEventStandingsToRows(res.data.standings);
+    const rank = res.data.your_rank || null;
+    setStandings(rows);
+    setYourRank(rank);
+    return { rows, rank };
+  };
+
+  const handleShareMatchResult = async () => {
+    if (!eventGuid || isSharingMatchResult || isSharingYourResult) return;
+
+    setIsSharingMatchResult(true);
+    try {
+      const { rows } = await ensureStandingsForShare();
+      const top3 = rows.filter((row) => !row.isPlaceholder).slice(0, 3);
+      if (top3.length === 0) {
+        showSnackbar("No standings available to share yet.");
+        return;
+      }
+
+      const blob = await generateTop3StandingsPng({
+        eventName: headerTitle,
+        standingsType,
+        top3,
+      });
+      downloadPng(
+        blob,
+        `${headerTitle.replace(/\s+/g, "-").toLowerCase()}-top-3.png`,
+      );
+      showSnackbar("Match result image downloaded.");
+    } catch (e) {
+      const err = e as FetchEventStandingsErrorResponse | Error;
+      showSnackbar(
+        "message" in err && typeof err.message === "string"
+          ? err.message
+          : "Could not share match result.",
+      );
+    } finally {
+      setIsSharingMatchResult(false);
+    }
+  };
+
+  const handleShareYourResult = async () => {
+    if (!eventGuid || isSharingMatchResult || isSharingYourResult) return;
+
+    setIsSharingYourResult(true);
+    try {
+      const { rows, rank } = await ensureStandingsForShare();
+      if (!rank) {
+        showSnackbar("Your standing is not available yet.");
+        return;
+      }
+
+      const yourRow = rows.find((row) => String(row.rank) === rank);
+      if (!yourRow) {
+        showSnackbar("Could not find your standing.");
+        return;
+      }
+
+      const blob = await generateYourResultPng({
+        eventName: headerTitle,
+        yourRank: rank,
+        row: yourRow,
+      });
+      downloadPng(
+        blob,
+        `${headerTitle.replace(/\s+/g, "-").toLowerCase()}-my-result.png`,
+      );
+      showSnackbar("Your result image downloaded.");
+    } catch (e) {
+      const err = e as FetchEventStandingsErrorResponse | Error;
+      showSnackbar(
+        "message" in err && typeof err.message === "string"
+          ? err.message
+          : "Could not share your result.",
+      );
+    } finally {
+      setIsSharingYourResult(false);
+    }
+  };
+
   const showFinishFooter = Boolean(
-    detail && eventGuid && eventDetail?.is_host === true,
+    detail &&
+      eventGuid &&
+      (isEventFinished || eventDetail?.is_host === true),
   );
 
   return (
@@ -1528,6 +1602,7 @@ export default function MatchDetailClient({
               <StandingsTab
                 standings={standings}
                 standingsType={standingsType}
+                yourRank={yourRank}
                 onStandingsTypeChange={setStandingsType}
                 isLoading={isStandingsLoading}
               />
@@ -1549,24 +1624,84 @@ export default function MatchDetailClient({
         initialValue={scoreSheet?.initial ?? null}
       />
 
+      {showFinishConfirm && (
+        <div className="fixed inset-0 z-60 flex items-center justify-center bg-black/40 px-6">
+          <div className="w-full max-w-sm bg-white rounded-2xl p-6 flex flex-col gap-4">
+            <h3 className="text-lg font-semibold text-[#151C27]">
+              Finish Event
+            </h3>
+            <p className="text-sm text-[#41493A]">
+              Are you sure you want to finish{" "}
+              <span className="font-semibold">{headerTitle}</span>? This action
+              cannot be undone.
+            </p>
+            <div className="flex gap-3 mt-2">
+              <button
+                type="button"
+                onClick={() => setShowFinishConfirm(false)}
+                disabled={isFinishing}
+                className="flex-1 py-3 rounded-full text-base text-[#18181B] bg-[#F4F4F5] disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleFinishEvent}
+                disabled={isFinishing}
+                className="flex-1 py-3 rounded-full text-base font-semibold text-[#121212] bg-[#9FE870] disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isFinishing ? "Finishing…" : "Finish"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {showFinishFooter ? (
         <div
           className="fixed bottom-0 left-0 right-0 z-50 max-w-[448px] mx-auto px-6 py-4 pb-8"
           style={{ background: "#FFFFFF", borderTop: "1px solid #F4F4F5" }}
         >
-          <button
-            type="button"
-            onClick={handleFinishEvent}
-            disabled={isFinishing || isEventFinished || !canManageEvent}
-            className="w-full text-base font-semibold text-[#121212] rounded-full disabled:opacity-50 disabled:cursor-not-allowed"
-            style={{ background: "#9FE870", height: "56px" }}
-          >
-            {isFinishing
-              ? "Finishing…"
-              : isEventFinished
-                ? "Event finished"
-                : "Finish"}
-          </button>
+          {isEventFinished ? (
+            <div className="flex gap-3">
+              <button
+                type="button"
+                onClick={handleShareMatchResult}
+                disabled={
+                  isSharingMatchResult ||
+                  isSharingYourResult ||
+                  isStandingsLoading
+                }
+                className="flex-1 text-sm font-semibold text-[#121212] rounded-full disabled:opacity-50 disabled:cursor-not-allowed"
+                style={{ background: "#9FE870", height: "56px" }}
+              >
+                {isSharingMatchResult ? "Generating…" : "Share Match Result"}
+              </button>
+              <button
+                type="button"
+                onClick={handleShareYourResult}
+                disabled={
+                  isSharingMatchResult ||
+                  isSharingYourResult ||
+                  isStandingsLoading
+                }
+                className="flex-1 text-sm font-semibold text-[#121212] rounded-full disabled:opacity-50 disabled:cursor-not-allowed"
+                style={{ background: "#F4F4F5", height: "56px" }}
+              >
+                {isSharingYourResult ? "Generating…" : "Share your Result"}
+              </button>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setShowFinishConfirm(true)}
+              disabled={isFinishing || !canManageEvent}
+              className="w-full text-base font-semibold text-[#121212] rounded-full disabled:opacity-50 disabled:cursor-not-allowed"
+              style={{ background: "#9FE870", height: "56px" }}
+            >
+              {isFinishing ? "Finishing…" : "Finish"}
+            </button>
+          )}
         </div>
       ) : null}
     </div>

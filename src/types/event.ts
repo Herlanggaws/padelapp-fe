@@ -41,6 +41,7 @@ export interface EventStandingRow {
 export interface EventStandingsData {
   event_guid: string;
   type: EventStandingsType;
+  your_rank: string;
   standings: EventStandingRow[];
 }
 

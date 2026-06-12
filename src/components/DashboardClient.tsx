@@ -158,18 +158,26 @@ export default function DashboardClient() {
   const [isLoading, setIsLoading] = useState(true);
   const [isLoadingUpcoming, setIsLoadingUpcoming] = useState(true);
   const [rankPoints, setRankPoints] = useState<number | null>(null);
+  const [userName, setUserName] = useState<string | null>(null);
 
   useEffect(() => {
     const cached = getUserProfileCache();
-    if (cached) setRankPoints(cached.rank_points);
+    if (cached) {
+      setRankPoints(cached.rank_points);
+      setUserName(cached.name);
+    }
 
     fetchUserProfile()
       .then((res) => {
         setUserProfileCache(res.data);
         setRankPoints(res.data.rank_points);
+        setUserName(res.data.name);
       })
       .catch(() => {
-        if (!cached) setRankPoints(null);
+        if (!cached) {
+          setRankPoints(null);
+          setUserName(null);
+        }
       });
   }, []);
 
@@ -201,7 +209,7 @@ export default function DashboardClient() {
               className="font-semibold text-[28px] text-[#151C27]"
               style={{ lineHeight: "33.6px", letterSpacing: "-1%" }}
             >
-              Hello, Alex!
+              {userName ? `Hello, ${userName}!` : "Hello!"}
             </h1>
             <p
               className="text-sm text-[#41493A]"

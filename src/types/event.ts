@@ -41,6 +41,7 @@ export interface EventStandingRow {
 export interface EventStandingsData {
   event_guid: string;
   type: EventStandingsType;
+  your_rank: string;
   standings: EventStandingRow[];
 }
 
@@ -55,6 +56,24 @@ export interface FetchEventStandingsSuccessResponse {
 }
 
 export interface FetchEventStandingsErrorResponse {
+  message: string;
+}
+
+export interface PlayerEventSummary {
+  win_percentage: number;
+  matches_played: number;
+  wins: number;
+  loss: number;
+  total_points: number;
+  rank: number;
+}
+
+export interface FetchPlayerEventSummarySuccessResponse {
+  data: PlayerEventSummary;
+  message: string;
+}
+
+export interface FetchPlayerEventSummaryErrorResponse {
   message: string;
 }
 

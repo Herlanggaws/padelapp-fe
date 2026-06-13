@@ -16,6 +16,8 @@ import type {
   FetchEventStandingsParams,
   FetchEventStandingsSuccessResponse,
   FetchEventStandingsErrorResponse,
+  FetchPlayerEventSummarySuccessResponse,
+  FetchPlayerEventSummaryErrorResponse,
   JoinEventPayload,
   JoinEventSuccessResponse,
   JoinEventErrorResponse,
@@ -55,6 +57,8 @@ export type {
   FetchEventStandingsParams,
   FetchEventStandingsSuccessResponse,
   FetchEventStandingsErrorResponse,
+  FetchPlayerEventSummarySuccessResponse,
+  FetchPlayerEventSummaryErrorResponse,
   JoinEventPayload,
   JoinEventSuccessResponse,
   JoinEventErrorResponse,
@@ -210,6 +214,21 @@ export async function fetchEventStandings(
   }
 
   return data as FetchEventStandingsSuccessResponse;
+}
+
+export async function fetchPlayerEventSummary(
+  eventGuid: string,
+): Promise<FetchPlayerEventSummarySuccessResponse> {
+  const response = await fetchWithAuth(
+    `${BASE_URL}/padel/event/${eventGuid}/standings/me`,
+  );
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw data as FetchPlayerEventSummaryErrorResponse;
+  }
+
+  return data as FetchPlayerEventSummarySuccessResponse;
 }
 
 export async function joinEvent(

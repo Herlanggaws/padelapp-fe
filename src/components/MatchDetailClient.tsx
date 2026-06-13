@@ -15,6 +15,7 @@ import {
 import {
   fetchEventDetail,
   fetchEventStandings,
+  fetchPlayerEventSummary,
   finishEvent,
 } from "@/services/eventService";
 import type {
@@ -36,7 +37,9 @@ import type {
   EventStandingRow,
   EventStandingsType,
   FetchEventStandingsErrorResponse,
+  FetchPlayerEventSummaryErrorResponse,
   FinishEventErrorResponse,
+  PlayerEventSummary,
 } from "@/types/event";
 import {
   downloadPng,
@@ -44,7 +47,7 @@ import {
   generateYourResultPng,
 } from "@/utils/shareStandingsImage";
 
-type TabType = "Matches" | "Standings";
+type TabType = "Matches" | "Standings" | "My Report";
 
 interface MatchPlayer {
   name: string;
@@ -349,6 +352,10 @@ function mapDetailToRounds(detail: MatchmakingSessionDetail): Round[] {
 function formatWinRate(wins: number, gamesPlayed: number) {
   if (gamesPlayed <= 0) return "—";
   return `${Math.round((wins / gamesPlayed) * 100)}%`;
+}
+
+function formatWinPercentageDisplay(value: number) {
+  return `${Math.round(value * 10) / 10}%`;
 }
 
 function formatScoreDiff(value: number) {
@@ -1128,6 +1135,141 @@ function StandingsTab({
   );
 }
 
+function MyReportTab({
+  report,
+  isLoading,
+  hasReport,
+}: {
+  report: PlayerEventSummary | null;
+  isLoading: boolean;
+  hasReport: boolean | null;
+}) {
+  if (isLoading) {
+    return (
+      <div className="px-4 py-8 text-center text-sm text-[#71717A]">
+        Loading your report…
+      </div>
+    );
+  }
+
+  if (!hasReport || !report) {
+    return (
+      <div className="px-4 py-8 text-center text-sm text-[#71717A]">
+        You haven&apos;t played in this event yet.
+      </div>
+    );
+  }
+
+  const stats = [
+    {
+      label: "Win Rate",
+      value: formatWinPercentageDisplay(report.win_percentage),
+    },
+    { label: "Matches Played", value: String(report.matches_played) },
+    { label: "Wins", value: String(report.wins) },
+    { label: "Loss", value: String(report.loss) },
+    { label: "Total Points", value: String(report.total_points) },
+  ];
+
+  return (
+    <div className="flex flex-col gap-4 pb-8">
+      <div className="px-4 pt-4">
+        <div
+          className="flex items-center justify-between px-4 py-4"
+          style={{
+            background: "#9FE870",
+            borderRadius: "32px",
+          }}
+        >
+          <div className="flex flex-col gap-1">
+            <span
+              className="text-xs uppercase tracking-widest"
+              style={{
+                color: "rgba(46,105,0,0.7)",
+                lineHeight: "12px",
+                letterSpacing: "5%",
+              }}
+            >
+              YOUR RANK
+            </span>
+            <span
+              className="font-semibold text-[#2E6900]"
+              style={{
+                fontSize: "28px",
+                lineHeight: "33.6px",
+                letterSpacing: "-0.01em",
+              }}
+            >
+              #{report.rank}
+            </span>
+          </div>
+          <div
+            className="flex items-center gap-2 px-3 py-2"
+            style={{
+              background: "rgba(255,255,255,0.3)",
+              backdropFilter: "blur(12px)",
+              borderRadius: "32px",
+            }}
+          >
+            <span
+              className="text-xs font-semibold text-[#2E6900]"
+              style={{ lineHeight: "12px" }}
+            >
+              My Report
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <div className="px-4">
+        <div
+          className="border border-[#F4F4F5] overflow-hidden"
+          style={{ borderRadius: "32px" }}
+        >
+          <div
+            className="flex items-center justify-between px-4 py-4"
+            style={{ borderBottom: "1px solid #FAFAFA" }}
+          >
+            <span
+              className="text-xs font-semibold uppercase text-[#18181B]"
+              style={{ lineHeight: "12px" }}
+            >
+              Performance
+            </span>
+          </div>
+
+          <div className="grid grid-cols-2">
+            {stats.map((stat, index) => (
+              <div
+                key={stat.label}
+                className="flex flex-col gap-1 px-4 py-5"
+                style={{
+                  borderTop: index >= 2 ? "1px solid #FAFAFA" : "none",
+                  borderRight: index % 2 === 0 ? "1px solid #FAFAFA" : "none",
+                  background: index % 2 === 0 ? "#FAFAFA" : "#FFFFFF",
+                }}
+              >
+                <span
+                  className="text-xs font-semibold uppercase text-[#A1A1AA]"
+                  style={{ lineHeight: "12px" }}
+                >
+                  {stat.label}
+                </span>
+                <span
+                  className="font-semibold text-[#18181B]"
+                  style={{ fontSize: "24px", lineHeight: "28px" }}
+                >
+                  {stat.value}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function MatchDetailClient({
   sessionGuid,
   eventGuid: eventGuidProp,
@@ -1144,6 +1286,9 @@ export default function MatchDetailClient({
   const [standings, setStandings] = useState<StandingRow[]>([]);
   const [yourRank, setYourRank] = useState<string | null>(null);
   const [isStandingsLoading, setIsStandingsLoading] = useState(false);
+  const [myReport, setMyReport] = useState<PlayerEventSummary | null>(null);
+  const [hasMyReport, setHasMyReport] = useState<boolean | null>(null);
+  const [isMyReportLoading, setIsMyReportLoading] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
   const [modalMessage, setModalMessage] = useState("");
   const [scoreSheet, setScoreSheet] = useState<{
@@ -1177,6 +1322,8 @@ export default function MatchDetailClient({
           setDetail(res.data);
           setStandings([]);
           setYourRank(null);
+          setMyReport(null);
+          setHasMyReport(null);
           setPendingSaveMatchIds(new Set());
         }
       } catch (e) {
@@ -1255,6 +1402,36 @@ export default function MatchDetailClient({
       cancelled = true;
     };
   }, [activeTab, eventGuid, standingsType, isEventFinished]);
+
+  useEffect(() => {
+    const shouldLoadMyReport =
+      Boolean(eventGuid) &&
+      (activeTab === "My Report" || isEventFinished);
+    if (!shouldLoadMyReport) return;
+
+    let cancelled = false;
+    (async () => {
+      setIsMyReportLoading(true);
+      try {
+        const res = await fetchPlayerEventSummary(eventGuid!);
+        if (!cancelled) {
+          setMyReport(res.data);
+          setHasMyReport(true);
+        }
+      } catch {
+        if (!cancelled) {
+          setMyReport(null);
+          setHasMyReport(false);
+        }
+      } finally {
+        if (!cancelled) setIsMyReportLoading(false);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [activeTab, eventGuid, isEventFinished]);
 
   const headerTitle = detail?.event.name ?? (isLoading ? "Loading…" : "Match");
   const rounds = detail ? mapDetailToRounds(detail) : [];
@@ -1405,6 +1582,18 @@ export default function MatchDetailClient({
     return { rows, rank };
   };
 
+  const ensureMyReportForShare = async (): Promise<PlayerEventSummary> => {
+    if (!eventGuid) {
+      throw new Error("Event not found for this session.");
+    }
+    if (myReport) return myReport;
+
+    const res = await fetchPlayerEventSummary(eventGuid);
+    setMyReport(res.data);
+    setHasMyReport(true);
+    return res.data;
+  };
+
   const handleShareMatchResult = async () => {
     if (!eventGuid || isSharingMatchResult || isSharingYourResult) return;
 
@@ -1444,22 +1633,22 @@ export default function MatchDetailClient({
 
     setIsSharingYourResult(true);
     try {
-      const { rows, rank } = await ensureStandingsForShare();
-      if (!rank) {
+      const report = await ensureMyReportForShare();
+      if (report.matches_played <= 0) {
         showSnackbar("Your standing is not available yet.");
-        return;
-      }
-
-      const yourRow = rows.find((row) => String(row.rank) === rank);
-      if (!yourRow) {
-        showSnackbar("Could not find your standing.");
         return;
       }
 
       const blob = await generateYourResultPng({
         eventName: headerTitle,
-        yourRank: rank,
-        row: yourRow,
+        summary: {
+          winPercentage: report.win_percentage,
+          rank: report.rank,
+          matchesPlayed: report.matches_played,
+          wins: report.wins,
+          loss: report.loss,
+          totalPoints: report.total_points,
+        },
       });
       downloadPng(
         blob,
@@ -1467,7 +1656,7 @@ export default function MatchDetailClient({
       );
       showSnackbar("Your result image downloaded.");
     } catch (e) {
-      const err = e as FetchEventStandingsErrorResponse | Error;
+      const err = e as FetchPlayerEventSummaryErrorResponse | Error;
       showSnackbar(
         "message" in err && typeof err.message === "string"
           ? err.message
@@ -1484,12 +1673,10 @@ export default function MatchDetailClient({
       (isEventFinished || eventDetail?.is_host === true),
   );
 
-  const yourStandingRow = yourRank
-    ? standings.find((row) => String(row.rank) === yourRank)
-    : null;
   const canShareYourResult =
-    !isStandingsLoading &&
-    Boolean(yourStandingRow && yourStandingRow.mp > 0);
+    !isMyReportLoading &&
+    hasMyReport === true &&
+    Boolean(myReport && myReport.matches_played > 0);
 
   return (
     <div className="min-h-screen bg-white max-w-[448px] mx-auto relative flex flex-col">
@@ -1563,7 +1750,8 @@ export default function MatchDetailClient({
                   borderRadius: "9999px",
                 }}
               >
-                {(["Matches", "Standings"] as TabType[]).map((tab) => {
+                {(["Matches", "Standings", "My Report"] as TabType[]).map(
+                  (tab) => {
                   const isActive = activeTab === tab;
                   return (
                     <button
@@ -1575,7 +1763,7 @@ export default function MatchDetailClient({
                         borderRadius: "9999px",
                         background: isActive ? "#121212" : "transparent",
                         color: isActive ? "#9FE870" : "#71717A",
-                        fontSize: "12px",
+                        fontSize: "11px",
                         fontWeight: 600,
                         lineHeight: "12px",
                         boxShadow: isActive
@@ -1588,7 +1776,8 @@ export default function MatchDetailClient({
                       {tab}
                     </button>
                   );
-                })}
+                },
+                )}
               </div>
             </div>
 
@@ -1605,13 +1794,19 @@ export default function MatchDetailClient({
                 cancellingRoundGuid={cancellingRoundGuid}
                 onCancelRound={handleCancelRound}
               />
-            ) : (
+            ) : activeTab === "Standings" ? (
               <StandingsTab
                 standings={standings}
                 standingsType={standingsType}
                 yourRank={yourRank}
                 onStandingsTypeChange={setStandingsType}
                 isLoading={isStandingsLoading}
+              />
+            ) : (
+              <MyReportTab
+                report={myReport}
+                isLoading={isMyReportLoading}
+                hasReport={hasMyReport}
               />
             )}
           </>
@@ -1678,7 +1873,8 @@ export default function MatchDetailClient({
                   disabled={
                     isSharingMatchResult ||
                     isSharingYourResult ||
-                    isStandingsLoading
+                    isStandingsLoading ||
+                    isMyReportLoading
                   }
                   className="flex-1 text-sm font-semibold text-[#121212] rounded-full disabled:opacity-50 disabled:cursor-not-allowed"
                   style={{ background: "#9FE870", height: "56px" }}
@@ -1691,7 +1887,8 @@ export default function MatchDetailClient({
                   disabled={
                     isSharingMatchResult ||
                     isSharingYourResult ||
-                    isStandingsLoading
+                    isStandingsLoading ||
+                    isMyReportLoading
                   }
                   className="flex-1 text-sm font-semibold text-[#121212] rounded-full disabled:opacity-50 disabled:cursor-not-allowed"
                   style={{ background: "#F4F4F5", height: "56px" }}
@@ -1706,7 +1903,8 @@ export default function MatchDetailClient({
                 disabled={
                   isSharingMatchResult ||
                   isSharingYourResult ||
-                  isStandingsLoading
+                  isStandingsLoading ||
+                  isMyReportLoading
                 }
                 className="w-full text-base font-semibold text-[#121212] rounded-full disabled:opacity-50 disabled:cursor-not-allowed"
                 style={{ background: "#9FE870", height: "56px" }}

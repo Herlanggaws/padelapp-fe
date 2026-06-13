@@ -59,6 +59,24 @@ export interface FetchEventStandingsErrorResponse {
   message: string;
 }
 
+export interface PlayerEventSummary {
+  win_percentage: number;
+  matches_played: number;
+  wins: number;
+  loss: number;
+  total_points: number;
+  rank: number;
+}
+
+export interface FetchPlayerEventSummarySuccessResponse {
+  data: PlayerEventSummary;
+  message: string;
+}
+
+export interface FetchPlayerEventSummaryErrorResponse {
+  message: string;
+}
+
 export interface CreateEventPayload {
   club_guid: string;
   name: string;

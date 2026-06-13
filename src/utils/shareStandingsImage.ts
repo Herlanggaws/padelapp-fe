@@ -21,8 +21,18 @@ interface Top3ShareImageOptions extends ShareImageBaseOptions {
 
 interface YourResultShareImageOptions {
   eventName: string;
-  yourRank: string;
-  row: ShareStandingRow;
+  summary: {
+    winPercentage: number;
+    rank: number;
+    matchesPlayed: number;
+    wins: number;
+    loss: number;
+    totalPoints: number;
+  };
+}
+
+function formatWinPercentage(value: number) {
+  return `${Math.round(value * 10) / 10}%`;
 }
 
 const WIDTH = 1080;
@@ -245,11 +255,6 @@ export async function generateYourResultPng(
 
   ctx.clearRect(0, 0, YOUR_RESULT_WIDTH, YOUR_RESULT_HEIGHT);
 
-  const totalLoss = Math.max(0, options.row.mp - options.row.wins);
-  const playerName =
-    options.row.name.length > 28
-      ? `${options.row.name.slice(0, 27)}…`
-      : options.row.name;
   const eventName =
     options.eventName.length > 34
       ? `${options.eventName.slice(0, 33)}…`
@@ -258,8 +263,7 @@ export async function generateYourResultPng(
   ctx.textAlign = "center";
   ctx.fillStyle = "rgba(255,255,255,0.8)";
   ctx.font = '600 26px "Lexend", sans-serif';
-  ctx.fillText(eventName, YOUR_RESULT_WIDTH / 2, 300);
-  ctx.fillText(playerName, YOUR_RESULT_WIDTH / 2, 344);
+  ctx.fillText(eventName, YOUR_RESULT_WIDTH / 2, 320);
 
   ctx.fillStyle = "#FFFFFF";
   ctx.font = '900 72px "Lexend", sans-serif';
@@ -268,12 +272,21 @@ export async function generateYourResultPng(
   drawPerformanceStatsGrid(
     ctx,
     [
-      { label: "Win Rate", value: options.row.winPct },
-      { label: "Position", value: `#${options.yourRank}` },
-      { label: "Matches Played", value: String(options.row.mp) },
-      { label: "Total Win", value: String(options.row.wins) },
-      { label: "Total Loss", value: String(totalLoss) },
-      { label: "Total Points", value: String(options.row.total_points) },
+      {
+        label: "Win Rate",
+        value: formatWinPercentage(options.summary.winPercentage),
+      },
+      { label: "Position", value: `#${options.summary.rank}` },
+      {
+        label: "Matches Played",
+        value: String(options.summary.matchesPlayed),
+      },
+      { label: "Total Win", value: String(options.summary.wins) },
+      { label: "Total Loss", value: String(options.summary.loss) },
+      {
+        label: "Total Points",
+        value: String(options.summary.totalPoints),
+      },
     ],
     488,
   );

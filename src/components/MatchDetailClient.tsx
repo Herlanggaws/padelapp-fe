@@ -1484,6 +1484,13 @@ export default function MatchDetailClient({
       (isEventFinished || eventDetail?.is_host === true),
   );
 
+  const yourStandingRow = yourRank
+    ? standings.find((row) => String(row.rank) === yourRank)
+    : null;
+  const canShareYourResult =
+    !isStandingsLoading &&
+    Boolean(yourStandingRow && yourStandingRow.mp > 0);
+
   return (
     <div className="min-h-screen bg-white max-w-[448px] mx-auto relative flex flex-col">
       <header
@@ -1663,7 +1670,36 @@ export default function MatchDetailClient({
           style={{ background: "#FFFFFF", borderTop: "1px solid #F4F4F5" }}
         >
           {isEventFinished ? (
-            <div className="flex gap-3">
+            canShareYourResult ? (
+              <div className="flex gap-3">
+                <button
+                  type="button"
+                  onClick={handleShareMatchResult}
+                  disabled={
+                    isSharingMatchResult ||
+                    isSharingYourResult ||
+                    isStandingsLoading
+                  }
+                  className="flex-1 text-sm font-semibold text-[#121212] rounded-full disabled:opacity-50 disabled:cursor-not-allowed"
+                  style={{ background: "#9FE870", height: "56px" }}
+                >
+                  {isSharingMatchResult ? "Generating…" : "Share Match Result"}
+                </button>
+                <button
+                  type="button"
+                  onClick={handleShareYourResult}
+                  disabled={
+                    isSharingMatchResult ||
+                    isSharingYourResult ||
+                    isStandingsLoading
+                  }
+                  className="flex-1 text-sm font-semibold text-[#121212] rounded-full disabled:opacity-50 disabled:cursor-not-allowed"
+                  style={{ background: "#F4F4F5", height: "56px" }}
+                >
+                  {isSharingYourResult ? "Generating…" : "Share your Result"}
+                </button>
+              </div>
+            ) : (
               <button
                 type="button"
                 onClick={handleShareMatchResult}
@@ -1672,25 +1708,12 @@ export default function MatchDetailClient({
                   isSharingYourResult ||
                   isStandingsLoading
                 }
-                className="flex-1 text-sm font-semibold text-[#121212] rounded-full disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full text-base font-semibold text-[#121212] rounded-full disabled:opacity-50 disabled:cursor-not-allowed"
                 style={{ background: "#9FE870", height: "56px" }}
               >
                 {isSharingMatchResult ? "Generating…" : "Share Match Result"}
               </button>
-              <button
-                type="button"
-                onClick={handleShareYourResult}
-                disabled={
-                  isSharingMatchResult ||
-                  isSharingYourResult ||
-                  isStandingsLoading
-                }
-                className="flex-1 text-sm font-semibold text-[#121212] rounded-full disabled:opacity-50 disabled:cursor-not-allowed"
-                style={{ background: "#F4F4F5", height: "56px" }}
-              >
-                {isSharingYourResult ? "Generating…" : "Share your Result"}
-              </button>
-            </div>
+            )
           ) : (
             <button
               type="button"

@@ -28,7 +28,7 @@ interface YourResultShareImageOptions {
 const WIDTH = 1080;
 const HEIGHT = 1080;
 const YOUR_RESULT_WIDTH = 1080;
-const YOUR_RESULT_HEIGHT = 1350;
+const YOUR_RESULT_HEIGHT = 1000;
 const GREEN = "#9FE870";
 const GREEN_DARK = "#2E6900";
 const TEXT_PRIMARY = "#18181B";
@@ -190,52 +190,6 @@ export async function generateTop3StandingsPng(
   return canvasToPngBlob(canvas);
 }
 
-function drawPadelCourtGraphic(ctx: CanvasRenderingContext2D) {
-  const cx = YOUR_RESULT_WIDTH / 2;
-  const cy = 420;
-  const courtW = 520;
-  const courtH = 780;
-
-  ctx.strokeStyle = GREEN;
-  ctx.lineWidth = 14;
-  ctx.lineCap = "round";
-  ctx.lineJoin = "round";
-
-  roundRect(
-    ctx,
-    cx - courtW / 2,
-    cy - courtH / 2,
-    courtW,
-    courtH,
-    28,
-  );
-  ctx.stroke();
-
-  ctx.lineWidth = 8;
-  ctx.beginPath();
-  ctx.moveTo(cx - courtW / 2, cy);
-  ctx.lineTo(cx + courtW / 2, cy);
-  ctx.stroke();
-
-  ctx.beginPath();
-  ctx.moveTo(cx, cy - courtH / 2);
-  ctx.lineTo(cx, cy + courtH / 2);
-  ctx.stroke();
-
-  const serviceH = courtH * 0.18;
-  ctx.beginPath();
-  ctx.moveTo(cx - courtW / 2, cy - serviceH);
-  ctx.lineTo(cx + courtW / 2, cy - serviceH);
-  ctx.moveTo(cx - courtW / 2, cy + serviceH);
-  ctx.lineTo(cx + courtW / 2, cy + serviceH);
-  ctx.stroke();
-
-  ctx.lineWidth = 10;
-  ctx.beginPath();
-  ctx.arc(cx, cy - courtH / 2 - 36, 28, 0, Math.PI * 2);
-  ctx.stroke();
-}
-
 function drawPerformanceStat(
   ctx: CanvasRenderingContext2D,
   x: number,
@@ -291,8 +245,6 @@ export async function generateYourResultPng(
 
   ctx.clearRect(0, 0, YOUR_RESULT_WIDTH, YOUR_RESULT_HEIGHT);
 
-  drawPadelCourtGraphic(ctx);
-
   const totalLoss = Math.max(0, options.row.mp - options.row.wins);
   const playerName =
     options.row.name.length > 28
@@ -306,12 +258,12 @@ export async function generateYourResultPng(
   ctx.textAlign = "center";
   ctx.fillStyle = "rgba(255,255,255,0.8)";
   ctx.font = '600 26px "Lexend", sans-serif';
-  ctx.fillText(eventName, YOUR_RESULT_WIDTH / 2, 900);
-  ctx.fillText(playerName, YOUR_RESULT_WIDTH / 2, 944);
+  ctx.fillText(eventName, YOUR_RESULT_WIDTH / 2, 300);
+  ctx.fillText(playerName, YOUR_RESULT_WIDTH / 2, 344);
 
   ctx.fillStyle = "#FFFFFF";
   ctx.font = '900 72px "Lexend", sans-serif';
-  ctx.fillText("RALLYRANK", YOUR_RESULT_WIDTH / 2, 1040);
+  ctx.fillText("RALLYRANK", YOUR_RESULT_WIDTH / 2, 440);
 
   drawPerformanceStatsGrid(
     ctx,
@@ -323,7 +275,7 @@ export async function generateYourResultPng(
       { label: "Total Loss", value: String(totalLoss) },
       { label: "Total Points", value: String(options.row.total_points) },
     ],
-    1088,
+    488,
   );
 
   ctx.strokeStyle = "#FFFFFF";

@@ -11,6 +11,9 @@ import type {
   StartMatchmakingRoundErrorResponse,
   CancelMatchmakingRoundSuccessResponse,
   CancelMatchmakingRoundErrorResponse,
+  GenerateMatchmakingRoundPayload,
+  GenerateMatchmakingRoundSuccessResponse,
+  GenerateMatchmakingRoundErrorResponse,
 } from "@/types/matchmaking";
 import { fetchWithAuth } from "@/services/authService";
 
@@ -27,6 +30,9 @@ export type {
   StartMatchmakingRoundErrorResponse,
   CancelMatchmakingRoundSuccessResponse,
   CancelMatchmakingRoundErrorResponse,
+  GenerateMatchmakingRoundPayload,
+  GenerateMatchmakingRoundSuccessResponse,
+  GenerateMatchmakingRoundErrorResponse,
 };
 
 const BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
@@ -130,4 +136,26 @@ export async function cancelMatchmakingRound(
   }
 
   return data as CancelMatchmakingRoundSuccessResponse;
+}
+
+export async function generateMatchmakingRound(
+  sessionGuid: string,
+  payload: GenerateMatchmakingRoundPayload,
+): Promise<GenerateMatchmakingRoundSuccessResponse> {
+  const response = await fetchWithAuth(
+    `${BASE_URL}/padel/matchmaking/session/${sessionGuid}/generate-round`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    },
+  );
+
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw data as GenerateMatchmakingRoundErrorResponse;
+  }
+
+  return data as GenerateMatchmakingRoundSuccessResponse;
 }

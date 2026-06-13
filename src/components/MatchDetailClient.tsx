@@ -5,10 +5,12 @@ import Image from "next/image";
 import Link from "next/link";
 import Modal from "@/components/Modal";
 import ScoreKeyboardSheet from "@/components/ScoreKeyboardSheet";
+import BottomSheetSelectPlayers from "@/components/BottomSheetSelectPlayers";
 import { useSnackbar } from "@/context/SnackbarContext";
 import {
   cancelMatchmakingRound,
   fetchMatchmakingSession,
+  generateMatchmakingRound,
   startMatchmakingRound,
   submitMatchmakingMatchScore,
 } from "@/services/matchmakingService";
@@ -20,6 +22,7 @@ import {
 } from "@/services/eventService";
 import type {
   CancelMatchmakingRoundErrorResponse,
+  GenerateMatchmakingRoundErrorResponse,
   GetMatchmakingSessionErrorResponse,
   MatchmakingMatchParticipant,
   MatchmakingSessionDetail,
@@ -98,6 +101,16 @@ function shouldShowCancelRound(
   status: MatchmakingSessionRoundStatus | string | undefined,
 ): boolean {
   return normalizeRoundStatusKey(status) === "in_progress";
+}
+
+function isMexicanoSession(detail: MatchmakingSessionDetail): boolean {
+  return detail.format === "mexicano";
+}
+
+function canGenerateMexicanoRound(rounds: Round[]): boolean {
+  if (rounds.length === 0) return true;
+  const latest = rounds[rounds.length - 1];
+  return normalizeRoundStatusKey(latest?.status) === "completed";
 }
 
 interface StandingRow {
@@ -669,9 +682,35 @@ function MatchCardComponent({
   );
 }
 
+function GenerateRoundButton({
+  label,
+  onClick,
+  disabled,
+}: {
+  label: string;
+  onClick: () => void;
+  disabled?: boolean;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      className="w-full text-base font-semibold text-[#121212] rounded-full disabled:opacity-50 disabled:cursor-not-allowed"
+      style={{ background: "#9FE870", height: "56px" }}
+    >
+      {label}
+    </button>
+  );
+}
+
 function MatchesTab({
   rounds,
   canManageEvent,
+  isMexicano,
+  canGenerateRound,
+  onGenerateRoundClick,
+  isGeneratingRound,
   onScoreSidePress,
   pendingSaveMatchIds,
   savingMatchId,
@@ -684,6 +723,10 @@ function MatchesTab({
   rounds: Round[];
   /** Host-only edits while the event is not finished. */
   canManageEvent: boolean;
+  isMexicano: boolean;
+  canGenerateRound: boolean;
+  onGenerateRoundClick: () => void;
+  isGeneratingRound: boolean;
   onScoreSidePress?: (matchGuid: string, side: "a" | "b") => void;
   pendingSaveMatchIds: ReadonlySet<string>;
   savingMatchId: string | null;
@@ -693,10 +736,24 @@ function MatchesTab({
   cancellingRoundGuid: string | null;
   onCancelRound: (roundGuid: string) => void;
 }) {
+  const showGenerateRound =
+    isMexicano && canManageEvent && canGenerateRound;
+  const generateLabel =
+    rounds.length === 0 ? "Generate Round" : "Generate Next Round";
+
   if (rounds.length === 0) {
     return (
-      <div className="px-4 py-8 text-center text-sm text-[#71717A]">
-        No rounds scheduled yet.
+      <div className="px-4 py-8 flex flex-col items-center gap-4">
+        <p className="text-center text-sm text-[#71717A]">
+          No rounds scheduled yet.
+        </p>
+        {showGenerateRound && (
+          <GenerateRoundButton
+            label={isGeneratingRound ? "Generating…" : generateLabel}
+            onClick={onGenerateRoundClick}
+            disabled={isGeneratingRound}
+          />
+        )}
       </div>
     );
   }
@@ -771,6 +828,13 @@ function MatchesTab({
           </div>
         </div>
       ))}
+      {showGenerateRound && (
+        <GenerateRoundButton
+          label={isGeneratingRound ? "Generating…" : generateLabel}
+          onClick={onGenerateRoundClick}
+          disabled={isGeneratingRound}
+        />
+      )}
     </div>
   );
 }
@@ -1311,6 +1375,8 @@ export default function MatchDetailClient({
   const [isSharingYourResult, setIsSharingYourResult] = useState(false);
   const [showFinishConfirm, setShowFinishConfirm] = useState(false);
   const [eventDetail, setEventDetail] = useState<Event | null>(null);
+  const [showSelectPlayers, setShowSelectPlayers] = useState(false);
+  const [isGeneratingRound, setIsGeneratingRound] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -1435,6 +1501,15 @@ export default function MatchDetailClient({
 
   const headerTitle = detail?.event.name ?? (isLoading ? "Loading…" : "Match");
   const rounds = detail ? mapDetailToRounds(detail) : [];
+  const isMexicano = detail ? isMexicanoSession(detail) : false;
+  const canGenerateNextRound =
+    isMexicano && canGenerateMexicanoRound(rounds);
+  const generateRoundLabel =
+    rounds.length === 0 ? "Generate Round" : "Generate Next Round";
+  const minParticipantsForRound = Math.max(
+    4,
+    (detail?.number_of_courts ?? 1) * 4,
+  );
 
   const canManageEvent =
     eventDetail?.is_host === true && eventDetail?.is_finished !== true;
@@ -1538,6 +1613,27 @@ export default function MatchDetailClient({
       showSnackbar(err?.message ?? "Could not cancel round.");
     } finally {
       setCancellingRoundGuid(null);
+    }
+  };
+
+  const handleGenerateRound = async (participantGuids: string[]) => {
+    if (!canManageEvent || !canGenerateNextRound) return;
+    setIsGeneratingRound(true);
+    try {
+      const res = await generateMatchmakingRound(sessionGuid, {
+        participant_guids: participantGuids,
+      });
+      showSnackbar(res.message);
+      const refreshed = await fetchMatchmakingSession(sessionGuid);
+      setDetail(refreshed.data);
+      setShowSelectPlayers(false);
+    } catch (e) {
+      const err = e as
+        | GenerateMatchmakingRoundErrorResponse
+        | GetMatchmakingSessionErrorResponse;
+      showSnackbar(err?.message ?? "Could not generate round.");
+    } finally {
+      setIsGeneratingRound(false);
     }
   };
 
@@ -1785,6 +1881,10 @@ export default function MatchDetailClient({
               <MatchesTab
                 rounds={rounds}
                 canManageEvent={canManageEvent}
+                isMexicano={isMexicano}
+                canGenerateRound={canGenerateNextRound}
+                onGenerateRoundClick={() => setShowSelectPlayers(true)}
+                isGeneratingRound={isGeneratingRound}
                 onScoreSidePress={openScoreEditor}
                 pendingSaveMatchIds={pendingSaveMatchIds}
                 savingMatchId={savingMatchId}
@@ -1913,18 +2013,44 @@ export default function MatchDetailClient({
               </button>
             )
           ) : (
-            <button
-              type="button"
-              onClick={() => setShowFinishConfirm(true)}
-              disabled={isFinishing || !canManageEvent}
-              className="w-full text-base font-semibold text-[#121212] rounded-full disabled:opacity-50 disabled:cursor-not-allowed"
-              style={{ background: "#9FE870", height: "56px" }}
-            >
-              {isFinishing ? "Finishing…" : "Finish"}
-            </button>
+            <div className="flex flex-col gap-3">
+              {canManageEvent &&
+                canGenerateNextRound &&
+                !isEventFinished && (
+                  <GenerateRoundButton
+                    label={
+                      isGeneratingRound ? "Generating…" : generateRoundLabel
+                    }
+                    onClick={() => setShowSelectPlayers(true)}
+                    disabled={isGeneratingRound}
+                  />
+                )}
+              <button
+                type="button"
+                onClick={() => setShowFinishConfirm(true)}
+                disabled={isFinishing || !canManageEvent}
+                className="w-full text-base font-semibold text-[#121212] rounded-full disabled:opacity-50 disabled:cursor-not-allowed"
+                style={{ background: "#9FE870", height: "56px" }}
+              >
+                {isFinishing ? "Finishing…" : "Finish"}
+              </button>
+            </div>
           )}
         </div>
       ) : null}
+
+      {showSelectPlayers && eventGuid && (
+        <BottomSheetSelectPlayers
+          eventGuid={eventGuid}
+          confirmLabel="Generate"
+          minSelection={minParticipantsForRound}
+          isSubmitting={isGeneratingRound}
+          onClose={() => setShowSelectPlayers(false)}
+          onNext={(players) => {
+            handleGenerateRound(players.map((p) => p.participant_guid));
+          }}
+        />
+      )}
     </div>
   );
 }

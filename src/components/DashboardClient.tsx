@@ -219,7 +219,7 @@ export default function DashboardClient() {
             </p>
           </div>
           {/* User Avatar */}
-          <div className="w-14 h-14 rounded-full border-2 border-[#9FE870] overflow-hidden bg-[#E4E4E7]">
+          {/* <div className="w-14 h-14 rounded-full border-2 border-[#9FE870] overflow-hidden bg-[#E4E4E7]">
             <Image
               src="https://i.pravatar.cc/56?img=3"
               alt="User Avatar"
@@ -227,7 +227,7 @@ export default function DashboardClient() {
               height={56}
               className="w-full h-full object-cover"
             />
-          </div>
+          </div> */}
         </section>
 
         {/* Stats Grid (Bento Style) */}

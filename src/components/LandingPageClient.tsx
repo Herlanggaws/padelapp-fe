@@ -101,24 +101,10 @@ export default function LandingPageClient() {
                 margin: 0,
               }}
             >
-              FOR THE LOVE
+              EVERY MATCH
               <br />
-              OF THE GAME
+              MOVES YOU UP
             </h1>
-            <a
-              href="#"
-              style={{
-                fontFamily: "Lexend, sans-serif",
-                fontWeight: 400,
-                fontSize: "16px",
-                lineHeight: "24px",
-                textAlign: "center",
-                color: "#2F6C00",
-                textDecoration: "none",
-              }}
-            >
-              Read our charter
-            </a>
           </div>
 
           {/* Content card */}
@@ -328,7 +314,7 @@ export default function LandingPageClient() {
                 color: "#A1A1AA",
               }}
             >
-              © 2024 Rallyrank. PRECISION IN EVERY POINT.
+              © {new Date().getFullYear()} Rallyrank. PRECISION IN EVERY POINT.
             </span>
           </div>
 
@@ -337,8 +323,8 @@ export default function LandingPageClient() {
             {[
               { label: "PRIVACY", href: "/privacy-policy" },
               { label: "TERMS", href: "/terms-of-service" },
-              { label: "CONTACT", href: "#" },
-              { label: "INSTAGRAM", href: "#" },
+              // { label: "CONTACT", href: "#" },
+              { label: "INSTAGRAM", href: "https://www.instagram.com/rallyrank.id" },
             ].map((link) => (
               <a
                 key={link.label}

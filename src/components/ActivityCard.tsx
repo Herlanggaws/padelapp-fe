@@ -6,7 +6,7 @@ interface ActivityCardProps {
   day: string;
   month: string;
   title: string;
-  subtitle: string;
+  subtitle?: string;
   link?: string;
   onJoin?: () => void;
 }
@@ -46,12 +46,14 @@ export default function ActivityCard({
           >
             {title}
           </span>
-          <span
-            className="text-xs text-[#41493A]"
-            style={{ lineHeight: "12px" }}
-          >
-            {subtitle}
-          </span>
+          {subtitle && (
+            <span
+              className="text-xs text-[#41493A]"
+              style={{ lineHeight: "12px" }}
+            >
+              {subtitle}
+            </span>
+          )}
         </div>
       </div>
       {/* Conditionally render the Join button */}

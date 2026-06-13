@@ -176,3 +176,16 @@ export interface CancelMatchmakingRoundSuccessResponse {
 export interface CancelMatchmakingRoundErrorResponse {
   message: string;
 }
+
+export interface GenerateMatchmakingRoundPayload {
+  participant_guids: string[];
+}
+
+export interface GenerateMatchmakingRoundSuccessResponse {
+  data: null;
+  message: string;
+}
+
+export interface GenerateMatchmakingRoundErrorResponse {
+  message: string;
+}

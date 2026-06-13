@@ -10,6 +10,10 @@ interface BottomSheetSelectPlayersProps {
   eventGuid: string;
   onClose: () => void;
   onNext: (players: MatchConfigSelectedPlayer[]) => void;
+  title?: string;
+  confirmLabel?: string;
+  minSelection?: number;
+  isSubmitting?: boolean;
 }
 
 const PAGE_SIZE = 10;
@@ -28,6 +32,10 @@ export default function BottomSheetSelectPlayers({
   eventGuid,
   onClose,
   onNext,
+  title = "Select Players",
+  confirmLabel = "Next",
+  minSelection = 1,
+  isSubmitting = false,
 }: BottomSheetSelectPlayersProps) {
   const [isVisible, setIsVisible] = useState(false);
   const [participants, setParticipants] = useState<EventParticipant[]>([]);
@@ -127,11 +135,12 @@ export default function BottomSheetSelectPlayers({
     const selected = participants
       .filter((p) => selectedGuids.has(p.guid))
       .map(toSelectedPlayer);
-    if (selected.length === 0) return;
+    if (selected.length < minSelection) return;
     onNext(selected);
   };
 
   const selectedCount = selectedGuids.size;
+  const canConfirm = selectedCount >= minSelection && !isSubmitting;
 
   return (
     <div className="fixed inset-0 z-50 flex flex-col justify-end max-w-[448px] mx-auto">
@@ -165,7 +174,7 @@ export default function BottomSheetSelectPlayers({
             className="font-semibold text-[28px] text-[#151C27]"
             style={{ lineHeight: "33.6px", letterSpacing: "-0.01em" }}
           >
-            Select Players
+            {title}
           </h2>
           <button
             onClick={handleClose}
@@ -305,13 +314,21 @@ export default function BottomSheetSelectPlayers({
         </div>
 
         <div
-          className="flex gap-3 px-6 py-4 pb-8"
+          className="flex flex-col gap-3 px-6 py-4 pb-8"
           style={{ borderTop: "1px solid #F4F4F5" }}
         >
+          {selectedCount < minSelection && (
+            <p className="text-center text-xs text-[#71717A]">
+              Select at least {minSelection} player
+              {minSelection !== 1 ? "s" : ""} to continue
+            </p>
+          )}
+          <div className="flex gap-3">
           <button
             type="button"
             onClick={handleClose}
-            className="flex-1 text-base font-semibold rounded-full"
+            disabled={isSubmitting}
+            className="flex-1 text-base font-semibold rounded-full disabled:opacity-50 disabled:cursor-not-allowed"
             style={{
               background: "#F4F4F5",
               color: "#121212",
@@ -323,7 +340,7 @@ export default function BottomSheetSelectPlayers({
           <button
             type="button"
             onClick={handleNext}
-            disabled={selectedCount === 0}
+            disabled={!canConfirm}
             className="flex-1 text-base font-semibold rounded-full disabled:opacity-50 disabled:cursor-not-allowed"
             style={{
               background: "#9FE870",
@@ -331,8 +348,9 @@ export default function BottomSheetSelectPlayers({
               height: "56px",
             }}
           >
-            Next
+            {isSubmitting ? "Generating…" : confirmLabel}
           </button>
+          </div>
         </div>
       </div>
     </div>

@@ -79,7 +79,6 @@ export default function MatchConfigClient({
     {
       value: "Mexicano",
       description: "Individual performance focus",
-      disabled: true,
     },
     { value: "Americano", description: "Round robin system" },
     {
@@ -309,6 +308,7 @@ export default function MatchConfigClient({
       </section>
 
       {/* Team Assignment Section */}
+      {selectedFormat !== "Mexicano" && (
       <section className="flex flex-col gap-2">
         <h2
           className="text-xl font-normal text-[#151C27]"
@@ -352,6 +352,7 @@ export default function MatchConfigClient({
           })}
         </div>
       </section>
+      )}
 
       {/* Total Set Points Section */}
       <section className="flex flex-col gap-2">

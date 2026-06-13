@@ -377,7 +377,6 @@ export default function ClubDetailUser() {
                           })
                           .toUpperCase()}
                         title={event.name}
-                        subtitle={event.description}
                         link={`/events/${event.guid}`}
                       />
                     );

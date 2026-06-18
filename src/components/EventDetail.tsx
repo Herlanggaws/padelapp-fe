@@ -239,6 +239,7 @@ function EventDetailContent({
   onAddOutsider,
   onDelete,
   isDeleting,
+  onParticipantRemoved,
 }: {
   event: Event;
   participantAvatars: ParticipantAvatar[];
@@ -252,6 +253,7 @@ function EventDetailContent({
   onAddOutsider: (name: string) => Promise<void>;
   onDelete: () => void | Promise<void>;
   isDeleting: boolean;
+  onParticipantRemoved: () => void | Promise<void>;
 }) {
   const router = useRouter();
   const [showAddOutsider, setShowAddOutsider] = useState(false);
@@ -652,6 +654,7 @@ function EventDetailContent({
           eventGuid={event.guid}
           isHost={event.is_host}
           onClose={() => setShowSeeAllPlayers(false)}
+          onRemoved={onParticipantRemoved}
         />
       )}
 
@@ -856,6 +859,9 @@ export default function EventDetail({ id }: { id: string }) {
       onAddOutsider={handleAddOutsider}
       onDelete={handleDelete}
       isDeleting={isDeleting}
+      onParticipantRemoved={async () => {
+        await loadEvent();
+      }}
     />
   );
 }

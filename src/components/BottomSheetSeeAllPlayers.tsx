@@ -2,14 +2,18 @@
 
 import { useState, useEffect, useRef } from "react";
 import Image from "next/image";
-import { fetchEventParticipants } from "@/services/eventService";
+import {
+  fetchEventParticipants,
+  removeOutsiderParticipant,
+} from "@/services/eventService";
 import type { EventParticipant } from "@/types/event";
+import { useSnackbar } from "@/context/SnackbarContext";
 
 interface BottomSheetSeeAllPlayersProps {
   eventGuid: string;
   isHost: boolean;
   onClose: () => void;
-  onRemove?: (participantGuid: string) => Promise<void>;
+  onRemoved?: () => void;
 }
 
 const PAGE_SIZE = 10;
@@ -18,13 +22,16 @@ export default function BottomSheetSeeAllPlayers({
   eventGuid,
   isHost,
   onClose,
-  onRemove,
+  onRemoved,
 }: BottomSheetSeeAllPlayersProps) {
+  const { showSnackbar } = useSnackbar();
   const [isVisible, setIsVisible] = useState(false);
   const [participants, setParticipants] = useState<EventParticipant[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [hasMore, setHasMore] = useState(true);
-  const [removingGuid, setRemovingGuid] = useState<string | null>(null);
+  const [participantToRemove, setParticipantToRemove] =
+    useState<EventParticipant | null>(null);
+  const [isRemoving, setIsRemoving] = useState(false);
   const sentinelRef = useRef<HTMLDivElement | null>(null);
   const pageRef = useRef(1);
   const isFetchingRef = useRef(false);
@@ -95,16 +102,25 @@ export default function BottomSheetSeeAllPlayers({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [hasMore]);
 
-  const handleRemove = async (participant: EventParticipant) => {
-    if (!onRemove || removingGuid) return;
-    setRemovingGuid(participant.guid);
+  const handleConfirmRemove = async () => {
+    if (!participantToRemove || isRemoving) return;
+    setIsRemoving(true);
     try {
-      await onRemove(participant.guid);
+      const res = await removeOutsiderParticipant(participantToRemove.guid);
       setParticipants((prev) =>
-        prev.filter((p) => p.guid !== participant.guid),
+        prev.filter((p) => p.guid !== participantToRemove.guid),
       );
+      setParticipantToRemove(null);
+      showSnackbar(res.message);
+      onRemoved?.();
+    } catch (err: unknown) {
+      const msg =
+        err && typeof err === "object" && "message" in err
+          ? String((err as { message: string }).message)
+          : "Failed to remove player";
+      showSnackbar(msg);
     } finally {
-      setRemovingGuid(null);
+      setIsRemoving(false);
     }
   };
 
@@ -226,8 +242,8 @@ export default function BottomSheetSeeAllPlayers({
               {isHost && (
                 <div className="flex items-center gap-2 flex-shrink-0">
                   <button
-                    onClick={() => handleRemove(participant)}
-                    disabled={removingGuid === participant.guid}
+                    onClick={() => setParticipantToRemove(participant)}
+                    disabled={isRemoving}
                     className="flex items-center justify-center rounded-full text-xs font-normal disabled:opacity-50 disabled:cursor-not-allowed"
                     style={{
                       background: "#BA1A1A",
@@ -237,7 +253,7 @@ export default function BottomSheetSeeAllPlayers({
                       lineHeight: "12px",
                     }}
                   >
-                    {removingGuid === participant.guid ? "..." : "Remove"}
+                    Remove
                   </button>
                 </div>
               )}
@@ -273,6 +289,40 @@ export default function BottomSheetSeeAllPlayers({
           <div className="h-6" />
         </div>
       </div>
+
+      {/* Remove Confirmation Dialog */}
+      {participantToRemove && (
+        <div className="fixed inset-0 z-60 flex items-center justify-center bg-black/40 px-6">
+          <div className="w-full max-w-sm bg-white rounded-2xl p-6 flex flex-col gap-4">
+            <h3 className="text-lg font-semibold text-[#151C27]">
+              Remove Player
+            </h3>
+            <p className="text-sm text-[#41493A]">
+              Are you sure you want to remove{" "}
+              <span className="font-semibold">
+                {participantToRemove.user.name}
+              </span>{" "}
+              from this event?
+            </p>
+            <div className="flex gap-3 mt-2">
+              <button
+                onClick={() => setParticipantToRemove(null)}
+                disabled={isRemoving}
+                className="flex-1 py-3 rounded-full text-base text-[#18181B] bg-[#F4F4F5] disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleConfirmRemove}
+                disabled={isRemoving}
+                className="flex-1 py-3 rounded-full text-base text-white bg-[#BA1A1A] disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isRemoving ? "Removing..." : "Remove"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

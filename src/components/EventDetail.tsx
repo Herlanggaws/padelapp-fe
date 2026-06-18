@@ -6,6 +6,7 @@ import Image from "next/image";
 import Link from "next/link";
 import TopAppBar from "@/components/TopAppBar";
 import BottomSheetAddOutsider from "@/components/BottomSheetAddOutsider";
+import BottomSheetEventSettings from "@/components/BottomSheetEventSettings";
 import BottomSheetSeeAllPlayers from "@/components/BottomSheetSeeAllPlayers";
 import BottomSheetSelectPlayers from "@/components/BottomSheetSelectPlayers";
 import { setMatchConfigPlayers } from "@/lib/matchConfigPlayersStorage";
@@ -18,6 +19,7 @@ import {
   approveParticipant,
   rejectParticipant,
   addOutsiderParticipant,
+  deleteEvent,
 } from "@/services/eventService";
 import type { Event, PendingRequest } from "@/types/event";
 import { useSnackbar } from "@/context/SnackbarContext";
@@ -235,6 +237,8 @@ function EventDetailContent({
   onReject,
   actingGuid,
   onAddOutsider,
+  onDelete,
+  isDeleting,
 }: {
   event: Event;
   participantAvatars: ParticipantAvatar[];
@@ -246,12 +250,16 @@ function EventDetailContent({
   onReject: (guid: string) => void;
   actingGuid: string | null;
   onAddOutsider: (name: string) => Promise<void>;
+  onDelete: () => void | Promise<void>;
+  isDeleting: boolean;
 }) {
   const router = useRouter();
   const [showAddOutsider, setShowAddOutsider] = useState(false);
   const [showSeeAllPlayers, setShowSeeAllPlayers] = useState(false);
   const [showSelectPlayers, setShowSelectPlayers] = useState(false);
   const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
+  const [showHostSettings, setShowHostSettings] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const pendingRequests = event.pending_requests ?? [];
 
   const handleSelectPlayersNext = (players: MatchConfigSelectedPlayer[]) => {
@@ -278,6 +286,14 @@ function EventDetailContent({
     }
   };
 
+  const handleConfirmDelete = async () => {
+    try {
+      await onDelete();
+    } finally {
+      setShowDeleteConfirm(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-white max-w-[448px] mx-auto relative flex flex-col">
       <TopAppBar
@@ -287,11 +303,12 @@ function EventDetailContent({
         showSettings={false}
         rightAction={
           event.is_host && !event.is_finished ? (
-            <Link
-              href={`/events/${event.guid}/edit`}
+            <button
+              type="button"
+              onClick={() => setShowHostSettings(true)}
               className="flex items-center justify-center w-9 h-9 rounded-full"
               style={{ background: "#F4F4F5" }}
-              aria-label="Edit event"
+              aria-label="Event settings"
             >
               <svg
                 width="16"
@@ -303,10 +320,10 @@ function EventDetailContent({
                 strokeLinecap="round"
                 strokeLinejoin="round"
               >
-                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
-                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                <circle cx="12" cy="12" r="3" />
+                <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
               </svg>
-            </Link>
+            </button>
           ) : undefined
         }
       />
@@ -612,6 +629,15 @@ function EventDetailContent({
         )}
       </div>
 
+      {/* Bottom Sheet: Host Settings */}
+      {showHostSettings && (
+        <BottomSheetEventSettings
+          onClose={() => setShowHostSettings(false)}
+          onEdit={() => router.push(`/events/${event.guid}/edit`)}
+          onDelete={() => setShowDeleteConfirm(true)}
+        />
+      )}
+
       {/* Bottom Sheet: Add Outsider */}
       {showAddOutsider && (
         <BottomSheetAddOutsider
@@ -636,6 +662,36 @@ function EventDetailContent({
           onClose={() => setShowSelectPlayers(false)}
           onNext={handleSelectPlayersNext}
         />
+      )}
+
+      {/* Delete Confirmation Dialog */}
+      {showDeleteConfirm && (
+        <div className="fixed inset-0 z-60 flex items-center justify-center bg-black/40 px-6">
+          <div className="w-full max-w-sm bg-white rounded-2xl p-6 flex flex-col gap-4">
+            <h3 className="text-lg font-semibold text-[#151C27]">Delete Event</h3>
+            <p className="text-sm text-[#41493A]">
+              Are you sure you want to delete{" "}
+              <span className="font-semibold">{event.name}</span>? This action
+              cannot be undone.
+            </p>
+            <div className="flex gap-3 mt-2">
+              <button
+                onClick={() => setShowDeleteConfirm(false)}
+                disabled={isDeleting}
+                className="flex-1 py-3 rounded-full text-base text-[#18181B] bg-[#F4F4F5] disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleConfirmDelete}
+                disabled={isDeleting}
+                className="flex-1 py-3 rounded-full text-base text-white bg-[#BA1A1A] disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isDeleting ? "Deleting..." : "Delete"}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Leave Confirmation Dialog */}
@@ -679,6 +735,7 @@ export default function EventDetail({ id }: { id: string }) {
   >([]);
   const [isJoining, setIsJoining] = useState(false);
   const [isLeaving, setIsLeaving] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [actingGuid, setActingGuid] = useState<string | null>(null);
   const { showSnackbar } = useSnackbar();
 
@@ -756,6 +813,18 @@ export default function EventDetail({ id }: { id: string }) {
     }
   };
 
+  const handleDelete = async () => {
+    if (!event) return;
+    setIsDeleting(true);
+    try {
+      const res = await deleteEvent(event.guid);
+      showSnackbar(res.message);
+      router.push(`/clubs/${event.club_guid}`);
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
   if (!event) {
     return (
       <div className="min-h-screen bg-white max-w-[448px] mx-auto flex items-center justify-center">
@@ -785,6 +854,8 @@ export default function EventDetail({ id }: { id: string }) {
       onReject={handleReject}
       actingGuid={actingGuid}
       onAddOutsider={handleAddOutsider}
+      onDelete={handleDelete}
+      isDeleting={isDeleting}
     />
   );
 }

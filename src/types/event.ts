@@ -314,3 +314,12 @@ export interface FinishEventSuccessResponse {
 export interface FinishEventErrorResponse {
   message: string;
 }
+
+export interface DeleteEventSuccessResponse {
+  data: null;
+  message: string;
+}
+
+export interface DeleteEventErrorResponse {
+  message: string;
+}

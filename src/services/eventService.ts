@@ -36,6 +36,8 @@ import type {
   UpdateEventPayload,
   UpdateEventSuccessResponse,
   UpdateEventErrorResponse,
+  DeleteEventSuccessResponse,
+  DeleteEventErrorResponse,
 } from "@/types/event";
 import { fetchWithAuth } from "@/services/authService";
 
@@ -77,6 +79,8 @@ export type {
   UpdateEventPayload,
   UpdateEventSuccessResponse,
   UpdateEventErrorResponse,
+  DeleteEventSuccessResponse,
+  DeleteEventErrorResponse,
 };
 
 const BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
@@ -356,6 +360,22 @@ export async function addOutsiderParticipant(
   }
 
   return data as AddOutsiderParticipantSuccessResponse;
+}
+
+export async function deleteEvent(
+  guid: string,
+): Promise<DeleteEventSuccessResponse> {
+  const response = await fetchWithAuth(`${BASE_URL}/padel/event/${guid}`, {
+    method: "DELETE",
+  });
+
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw data as DeleteEventErrorResponse;
+  }
+
+  return data as DeleteEventSuccessResponse;
 }
 
 export async function finishEvent(

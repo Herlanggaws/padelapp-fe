@@ -306,6 +306,15 @@ export interface AddOutsiderParticipantErrorResponse {
   message: string;
 }
 
+export interface RemoveOutsiderParticipantSuccessResponse {
+  data: null;
+  message: string;
+}
+
+export interface RemoveOutsiderParticipantErrorResponse {
+  message: string;
+}
+
 export interface FinishEventSuccessResponse {
   data: null;
   message: string;

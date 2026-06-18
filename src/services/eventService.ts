@@ -31,6 +31,8 @@ import type {
   AddOutsiderParticipantPayload,
   AddOutsiderParticipantSuccessResponse,
   AddOutsiderParticipantErrorResponse,
+  RemoveOutsiderParticipantSuccessResponse,
+  RemoveOutsiderParticipantErrorResponse,
   FinishEventSuccessResponse,
   FinishEventErrorResponse,
   UpdateEventPayload,
@@ -74,6 +76,8 @@ export type {
   AddOutsiderParticipantPayload,
   AddOutsiderParticipantSuccessResponse,
   AddOutsiderParticipantErrorResponse,
+  RemoveOutsiderParticipantSuccessResponse,
+  RemoveOutsiderParticipantErrorResponse,
   FinishEventSuccessResponse,
   FinishEventErrorResponse,
   UpdateEventPayload,
@@ -360,6 +364,23 @@ export async function addOutsiderParticipant(
   }
 
   return data as AddOutsiderParticipantSuccessResponse;
+}
+
+export async function removeOutsiderParticipant(
+  participantGuid: string,
+): Promise<RemoveOutsiderParticipantSuccessResponse> {
+  const response = await fetchWithAuth(
+    `${BASE_URL}/padel/event-participant/outsider/${participantGuid}`,
+    { method: "DELETE" },
+  );
+
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw data as RemoveOutsiderParticipantErrorResponse;
+  }
+
+  return data as RemoveOutsiderParticipantSuccessResponse;
 }
 
 export async function deleteEvent(

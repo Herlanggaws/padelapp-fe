@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
 import Modal from "@/components/Modal";
@@ -222,8 +223,7 @@ function resolveMatchSidePlayers(
   if (isParticipantArray(raw)) return raw as MatchmakingSessionPlayer[];
 
   const info = side === "a" ? m.team_a_info : m.team_b_info;
-  const teamRaw =
-    info ?? (raw && !Array.isArray(raw) ? raw : null);
+  const teamRaw = info ?? (raw && !Array.isArray(raw) ? raw : null);
   const guidOnly = (side === "a" ? m.team_a_guid : m.team_b_guid)?.trim();
 
   let team: MatchmakingSessionTeam | null = null;
@@ -384,7 +384,7 @@ function mapEventStandingsToRows(rows: EventStandingRow[]): StandingRow[] {
     wins: row.wins,
     scoreDiff: row.score_diff,
     winPct: formatWinRate(row.wins, row.matches_played),
-    total_points: row.total_points
+    total_points: row.total_points,
   }));
 }
 
@@ -736,8 +736,7 @@ function MatchesTab({
   cancellingRoundGuid: string | null;
   onCancelRound: (roundGuid: string) => void;
 }) {
-  const showGenerateRound =
-    isMexicano && canManageEvent && canGenerateRound;
+  const showGenerateRound = isMexicano && canManageEvent && canGenerateRound;
   const generateLabel =
     rounds.length === 0 ? "Generate Round" : "Generate Next Round";
 
@@ -747,13 +746,6 @@ function MatchesTab({
         <p className="text-center text-sm text-[#71717A]">
           No rounds scheduled yet.
         </p>
-        {showGenerateRound && (
-          <GenerateRoundButton
-            label={isGeneratingRound ? "Generating…" : generateLabel}
-            onClick={onGenerateRoundClick}
-            disabled={isGeneratingRound}
-          />
-        )}
       </div>
     );
   }
@@ -802,9 +794,7 @@ function MatchesTab({
                       ? (side) => onScoreSidePress?.(match.id, side)
                       : undefined
                   }
-                  showSave={
-                    canManageEvent && pendingSaveMatchIds.has(match.id)
-                  }
+                  showSave={canManageEvent && pendingSaveMatchIds.has(match.id)}
                   isSaving={savingMatchId === match.id}
                   onSave={() => onSaveMatch(match.id)}
                   showStartRound={canManageEvent && showStart}
@@ -828,13 +818,6 @@ function MatchesTab({
           </div>
         </div>
       ))}
-      {showGenerateRound && (
-        <GenerateRoundButton
-          label={isGeneratingRound ? "Generating…" : generateLabel}
-          onClick={onGenerateRoundClick}
-          disabled={isGeneratingRound}
-        />
-      )}
     </div>
   );
 }
@@ -967,7 +950,6 @@ function StandingsTab({
 
       {typeControl}
 
-
       {/* Section - Detailed Leaderboard Table */}
       <div className="px-4">
         <div
@@ -1024,7 +1006,10 @@ function StandingsTab({
             </div>
             {standingsType === "wins" ? (
               <>
-                <div className="px-0.5 py-3 text-center" style={{ width: "28px" }}>
+                <div
+                  className="px-0.5 py-3 text-center"
+                  style={{ width: "28px" }}
+                >
                   <span
                     className="text-xs uppercase text-[#A1A1AA]"
                     style={{ lineHeight: "12px" }}
@@ -1032,7 +1017,10 @@ function StandingsTab({
                     W
                   </span>
                 </div>
-                <div className="px-0.5 py-3 text-center" style={{ width: "40px" }}>
+                <div
+                  className="px-0.5 py-3 text-center"
+                  style={{ width: "40px" }}
+                >
                   <span
                     className="text-xs uppercase text-[#A1A1AA]"
                     style={{ lineHeight: "12px" }}
@@ -1040,7 +1028,10 @@ function StandingsTab({
                     +/-
                   </span>
                 </div>
-                <div className="px-0.5 py-3 text-center" style={{ width: "40px" }}>
+                <div
+                  className="px-0.5 py-3 text-center"
+                  style={{ width: "40px" }}
+                >
                   <span
                     className="text-xs uppercase text-[#A1A1AA]"
                     style={{ lineHeight: "12px" }}
@@ -1050,7 +1041,10 @@ function StandingsTab({
                 </div>
               </>
             ) : (
-              <div className="px-0.5 py-3 text-center" style={{ width: "40px" }}>
+              <div
+                className="px-0.5 py-3 text-center"
+                style={{ width: "40px" }}
+              >
                 <span
                   className="text-xs uppercase text-[#A1A1AA]"
                   style={{ lineHeight: "12px" }}
@@ -1173,7 +1167,6 @@ function StandingsTab({
                       </span>
                     </div>
                   )}
-
                 </div>
               );
             })}
@@ -1194,7 +1187,6 @@ function StandingsTab({
           </div>
         </div>
       </div>
-
     </div>
   );
 }
@@ -1341,6 +1333,7 @@ export default function MatchDetailClient({
   sessionGuid: string;
   eventGuid?: string;
 }) {
+  const router = useRouter();
   const { showSnackbar } = useSnackbar();
   const [activeTab, setActiveTab] = useState<TabType>("Matches");
   const [detail, setDetail] = useState<MatchmakingSessionDetail | null>(null);
@@ -1411,13 +1404,12 @@ export default function MatchDetailClient({
     eventGuidProp?.trim() || detail?.event_guid || detail?.event.guid;
 
   useEffect(() => {
-    if (!eventGuid) {
-      setEventDetail(null);
-      return;
-    }
-
     let cancelled = false;
     (async () => {
+      if (!eventGuid) {
+        if (!cancelled) setEventDetail(null);
+        return;
+      }
       try {
         const res = await fetchEventDetail(eventGuid);
         if (!cancelled) setEventDetail(res.data);
@@ -1435,8 +1427,7 @@ export default function MatchDetailClient({
 
   useEffect(() => {
     const shouldLoadStandings =
-      Boolean(eventGuid) &&
-      (activeTab === "Standings" || isEventFinished);
+      Boolean(eventGuid) && (activeTab === "Standings" || isEventFinished);
     if (!shouldLoadStandings) return;
 
     let cancelled = false;
@@ -1471,8 +1462,7 @@ export default function MatchDetailClient({
 
   useEffect(() => {
     const shouldLoadMyReport =
-      Boolean(eventGuid) &&
-      (activeTab === "My Report" || isEventFinished);
+      Boolean(eventGuid) && (activeTab === "My Report" || isEventFinished);
     if (!shouldLoadMyReport) return;
 
     let cancelled = false;
@@ -1502,8 +1492,7 @@ export default function MatchDetailClient({
   const headerTitle = detail?.event.name ?? (isLoading ? "Loading…" : "Match");
   const rounds = detail ? mapDetailToRounds(detail) : [];
   const isMexicano = detail ? isMexicanoSession(detail) : false;
-  const canGenerateNextRound =
-    isMexicano && canGenerateMexicanoRound(rounds);
+  const canGenerateNextRound = isMexicano && canGenerateMexicanoRound(rounds);
   const generateRoundLabel =
     rounds.length === 0 ? "Generate Round" : "Generate Next Round";
   const minParticipantsForRound = Math.max(
@@ -1764,9 +1753,7 @@ export default function MatchDetailClient({
   };
 
   const showFinishFooter = Boolean(
-    detail &&
-      eventGuid &&
-      (isEventFinished || eventDetail?.is_host === true),
+    detail && eventGuid && (isEventFinished || eventDetail?.is_host === true),
   );
 
   const canShareYourResult =
@@ -1774,10 +1761,20 @@ export default function MatchDetailClient({
     hasMyReport === true &&
     Boolean(myReport && myReport.matches_played > 0);
 
+  const footerHeight = (() => {
+    if (!showFinishFooter) return 0;
+    // py-4 (16px top) + pb-8 (32px bottom) + 56px button = 104px base
+    // two-button cases add gap-3 (12px) + another 56px button = +68px
+    // two stacked buttons only when not finished and both generate + finish are shown
+    const hasStackedTwoButtons =
+      !isEventFinished && canManageEvent && canGenerateNextRound;
+    return hasStackedTwoButtons ? 172 : 104;
+  })();
+
   return (
     <div className="min-h-screen bg-white max-w-[448px] mx-auto relative flex flex-col">
       <header
-        className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-6 max-w-[448px] mx-auto w-full"
+        className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between gap-2 px-6 max-w-[448px] mx-auto w-full"
         style={{
           background: "#FFFFFF",
           borderBottom: "1px solid #F4F4F5",
@@ -1785,7 +1782,16 @@ export default function MatchDetailClient({
         }}
       >
         <div className="flex items-center gap-3 min-w-0">
-          <Link href="/matches" className="p-1 shrink-0">
+          <button
+            className="p-1 shrink-0"
+            onClick={() => {
+              if (window.history.length > 1) {
+                router.back();
+              } else {
+                router.push("/matches");
+              }
+            }}
+          >
             <svg
               width="20"
               height="20"
@@ -1798,7 +1804,7 @@ export default function MatchDetailClient({
             >
               <path d="M19 12H5M12 19l-7-7 7-7" />
             </svg>
-          </Link>
+          </button>
           <span
             className="font-black text-xl text-[#18181B] truncate"
             style={{ lineHeight: "28px" }}
@@ -1825,7 +1831,7 @@ export default function MatchDetailClient({
         className="flex flex-col"
         style={{
           paddingTop: "64px",
-          paddingBottom: showFinishFooter ? "96px" : undefined,
+          paddingBottom: footerHeight > 0 ? `${footerHeight}px` : undefined,
         }}
       >
         {isLoading ? (
@@ -1833,10 +1839,10 @@ export default function MatchDetailClient({
             Loading session…
           </div>
         ) : detail ? (
-          <>
+          <div className="flex flex-col">
             {/* Tab Switcher - pill style matching Figma */}
             <div
-              className="px-4 py-4"
+              className="px-4 py-4 sticky top-[64px] bg-white z-[1]"
               style={{ borderBottom: "1px solid #F4F4F5" }}
             >
               <div
@@ -1848,68 +1854,70 @@ export default function MatchDetailClient({
               >
                 {(["Matches", "Standings", "My Report"] as TabType[]).map(
                   (tab) => {
-                  const isActive = activeTab === tab;
-                  return (
-                    <button
-                      key={tab}
-                      type="button"
-                      onClick={() => setActiveTab(tab)}
-                      className="flex-1 py-3 text-center transition-all"
-                      style={{
-                        borderRadius: "9999px",
-                        background: isActive ? "#121212" : "transparent",
-                        color: isActive ? "#9FE870" : "#71717A",
-                        fontSize: "11px",
-                        fontWeight: 600,
-                        lineHeight: "12px",
-                        boxShadow: isActive
-                          ? "0px 1px 2px 0px rgba(0,0,0,0.05)"
-                          : "none",
-                        border: "none",
-                        cursor: "pointer",
-                      }}
-                    >
-                      {tab}
-                    </button>
-                  );
-                },
+                    const isActive = activeTab === tab;
+                    return (
+                      <button
+                        key={tab}
+                        type="button"
+                        onClick={() => setActiveTab(tab)}
+                        className="flex-1 py-3 text-center transition-all"
+                        style={{
+                          borderRadius: "9999px",
+                          background: isActive ? "#121212" : "transparent",
+                          color: isActive ? "#9FE870" : "#71717A",
+                          fontSize: "11px",
+                          fontWeight: 600,
+                          lineHeight: "12px",
+                          boxShadow: isActive
+                            ? "0px 1px 2px 0px rgba(0,0,0,0.05)"
+                            : "none",
+                          border: "none",
+                          cursor: "pointer",
+                        }}
+                      >
+                        {tab}
+                      </button>
+                    );
+                  },
                 )}
               </div>
             </div>
 
-            {activeTab === "Matches" ? (
-              <MatchesTab
-                rounds={rounds}
-                canManageEvent={canManageEvent}
-                isMexicano={isMexicano}
-                canGenerateRound={canGenerateNextRound}
-                onGenerateRoundClick={() => setShowSelectPlayers(true)}
-                isGeneratingRound={isGeneratingRound}
-                onScoreSidePress={openScoreEditor}
-                pendingSaveMatchIds={pendingSaveMatchIds}
-                savingMatchId={savingMatchId}
-                onSaveMatch={handleSaveMatch}
-                startRoundLoadingGuid={startRoundLoadingGuid}
-                onStartRound={handleStartRound}
-                cancellingRoundGuid={cancellingRoundGuid}
-                onCancelRound={handleCancelRound}
-              />
-            ) : activeTab === "Standings" ? (
-              <StandingsTab
-                standings={standings}
-                standingsType={standingsType}
-                yourRank={yourRank}
-                onStandingsTypeChange={setStandingsType}
-                isLoading={isStandingsLoading}
-              />
-            ) : (
-              <MyReportTab
-                report={myReport}
-                isLoading={isMyReportLoading}
-                hasReport={hasMyReport}
-              />
-            )}
-          </>
+            <div className="container-tab-content">
+              {activeTab === "Matches" ? (
+                <MatchesTab
+                  rounds={rounds}
+                  canManageEvent={canManageEvent}
+                  isMexicano={isMexicano}
+                  canGenerateRound={canGenerateNextRound}
+                  onGenerateRoundClick={() => setShowSelectPlayers(true)}
+                  isGeneratingRound={isGeneratingRound}
+                  onScoreSidePress={openScoreEditor}
+                  pendingSaveMatchIds={pendingSaveMatchIds}
+                  savingMatchId={savingMatchId}
+                  onSaveMatch={handleSaveMatch}
+                  startRoundLoadingGuid={startRoundLoadingGuid}
+                  onStartRound={handleStartRound}
+                  cancellingRoundGuid={cancellingRoundGuid}
+                  onCancelRound={handleCancelRound}
+                />
+              ) : activeTab === "Standings" ? (
+                <StandingsTab
+                  standings={standings}
+                  standingsType={standingsType}
+                  yourRank={yourRank}
+                  onStandingsTypeChange={setStandingsType}
+                  isLoading={isStandingsLoading}
+                />
+              ) : (
+                <MyReportTab
+                  report={myReport}
+                  isLoading={isMyReportLoading}
+                  hasReport={hasMyReport}
+                />
+              )}
+            </div>
+          </div>
         ) : null}
       </div>
 
@@ -2014,17 +2022,13 @@ export default function MatchDetailClient({
             )
           ) : (
             <div className="flex flex-col gap-3">
-              {canManageEvent &&
-                canGenerateNextRound &&
-                !isEventFinished && (
-                  <GenerateRoundButton
-                    label={
-                      isGeneratingRound ? "Generating…" : generateRoundLabel
-                    }
-                    onClick={() => setShowSelectPlayers(true)}
-                    disabled={isGeneratingRound}
-                  />
-                )}
+              {canManageEvent && canGenerateNextRound && !isEventFinished && (
+                <GenerateRoundButton
+                  label={isGeneratingRound ? "Generating…" : generateRoundLabel}
+                  onClick={() => setShowSelectPlayers(true)}
+                  disabled={isGeneratingRound}
+                />
+              )}
               <button
                 type="button"
                 onClick={() => setShowFinishConfirm(true)}

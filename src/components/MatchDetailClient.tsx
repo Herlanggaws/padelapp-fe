@@ -45,11 +45,6 @@ import type {
   FinishEventErrorResponse,
   PlayerEventSummary,
 } from "@/types/event";
-import {
-  downloadPng,
-  generateTop3StandingsPng,
-  generateYourResultPng,
-} from "@/utils/shareStandingsImage";
 
 type TabType = "Matches" | "Standings" | "My Report";
 
@@ -746,6 +741,15 @@ function MatchesTab({
         <p className="text-center text-sm text-[#71717A]">
           No rounds scheduled yet.
         </p>
+        {showGenerateRound ? (
+          <div className="w-full">
+            <GenerateRoundButton
+              label={isGeneratingRound ? "Generating…" : generateLabel}
+              onClick={onGenerateRoundClick}
+              disabled={isGeneratingRound}
+            />
+          </div>
+        ) : null}
       </div>
     );
   }
@@ -1365,7 +1369,6 @@ export default function MatchDetailClient({
   );
   const [isFinishing, setIsFinishing] = useState(false);
   const [isSharingMatchResult, setIsSharingMatchResult] = useState(false);
-  const [isSharingYourResult, setIsSharingYourResult] = useState(false);
   const [showFinishConfirm, setShowFinishConfirm] = useState(false);
   const [eventDetail, setEventDetail] = useState<Event | null>(null);
   const [showSelectPlayers, setShowSelectPlayers] = useState(false);
@@ -1680,7 +1683,7 @@ export default function MatchDetailClient({
   };
 
   const handleShareMatchResult = async () => {
-    if (!eventGuid || isSharingMatchResult || isSharingYourResult) return;
+    if (!eventGuid || !sessionGuid || isSharingMatchResult) return;
 
     setIsSharingMatchResult(true);
     try {
@@ -1691,16 +1694,9 @@ export default function MatchDetailClient({
         return;
       }
 
-      const blob = await generateTop3StandingsPng({
-        eventName: headerTitle,
-        standingsType,
-        top3,
-      });
-      downloadPng(
-        blob,
-        `${headerTitle.replace(/\s+/g, "-").toLowerCase()}-top-3.png`,
+      router.push(
+        `/matches/${sessionGuid}/share-match-result?event_guid=${encodeURIComponent(eventGuid)}&standings_type=${standingsType}`,
       );
-      showSnackbar("Match result image downloaded.");
     } catch (e) {
       const err = e as FetchEventStandingsErrorResponse | Error;
       showSnackbar(
@@ -1714,9 +1710,8 @@ export default function MatchDetailClient({
   };
 
   const handleShareYourResult = async () => {
-    if (!eventGuid || isSharingMatchResult || isSharingYourResult) return;
+    if (!eventGuid || !sessionGuid || isSharingMatchResult) return;
 
-    setIsSharingYourResult(true);
     try {
       const report = await ensureMyReportForShare();
       if (report.matches_played <= 0) {
@@ -1724,22 +1719,9 @@ export default function MatchDetailClient({
         return;
       }
 
-      const blob = await generateYourResultPng({
-        eventName: headerTitle,
-        summary: {
-          winPercentage: report.win_percentage,
-          rank: report.rank,
-          matchesPlayed: report.matches_played,
-          wins: report.wins,
-          loss: report.loss,
-          totalPoints: report.total_points,
-        },
-      });
-      downloadPng(
-        blob,
-        `${headerTitle.replace(/\s+/g, "-").toLowerCase()}-my-result.png`,
+      router.push(
+        `/matches/${sessionGuid}/share-result?event_guid=${encodeURIComponent(eventGuid)}`,
       );
-      showSnackbar("Your result image downloaded.");
     } catch (e) {
       const err = e as FetchPlayerEventSummaryErrorResponse | Error;
       showSnackbar(
@@ -1747,8 +1729,6 @@ export default function MatchDetailClient({
           ? err.message
           : "Could not share your result.",
       );
-    } finally {
-      setIsSharingYourResult(false);
     }
   };
 
@@ -1980,28 +1960,26 @@ export default function MatchDetailClient({
                   onClick={handleShareMatchResult}
                   disabled={
                     isSharingMatchResult ||
-                    isSharingYourResult ||
                     isStandingsLoading ||
                     isMyReportLoading
                   }
                   className="flex-1 text-sm font-semibold text-[#121212] rounded-full disabled:opacity-50 disabled:cursor-not-allowed"
                   style={{ background: "#9FE870", height: "56px" }}
                 >
-                  {isSharingMatchResult ? "Generating…" : "Share Match Result"}
+                  {isSharingMatchResult ? "Loading…" : "Share Match Result"}
                 </button>
                 <button
                   type="button"
                   onClick={handleShareYourResult}
                   disabled={
                     isSharingMatchResult ||
-                    isSharingYourResult ||
                     isStandingsLoading ||
                     isMyReportLoading
                   }
                   className="flex-1 text-sm font-semibold text-[#121212] rounded-full disabled:opacity-50 disabled:cursor-not-allowed"
                   style={{ background: "#F4F4F5", height: "56px" }}
                 >
-                  {isSharingYourResult ? "Generating…" : "Share your Result"}
+                  Share your Result
                 </button>
               </div>
             ) : (
@@ -2010,14 +1988,13 @@ export default function MatchDetailClient({
                 onClick={handleShareMatchResult}
                 disabled={
                   isSharingMatchResult ||
-                  isSharingYourResult ||
                   isStandingsLoading ||
                   isMyReportLoading
                 }
                 className="w-full text-base font-semibold text-[#121212] rounded-full disabled:opacity-50 disabled:cursor-not-allowed"
                 style={{ background: "#9FE870", height: "56px" }}
               >
-                {isSharingMatchResult ? "Generating…" : "Share Match Result"}
+                {isSharingMatchResult ? "Loading…" : "Share Match Result"}
               </button>
             )
           ) : (

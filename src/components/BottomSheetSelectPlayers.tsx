@@ -41,9 +41,6 @@ export default function BottomSheetSelectPlayers({
   const [participants, setParticipants] = useState<EventParticipant[]>([]);
   const [selectedGuids, setSelectedGuids] = useState<Set<string>>(new Set());
   const [isLoading, setIsLoading] = useState(false);
-  const [hasMore, setHasMore] = useState(true);
-  const sentinelRef = useRef<HTMLDivElement | null>(null);
-  const pageRef = useRef(1);
   const isFetchingRef = useRef(false);
   const eventGuidRef = useRef(eventGuid);
 
@@ -57,36 +54,39 @@ export default function BottomSheetSelectPlayers({
     setTimeout(onClose, 300);
   };
 
-  const loadNextPage = async (reset = false) => {
+  const loadAllParticipants = async () => {
     if (isFetchingRef.current) return;
-    const currentPage = reset ? 1 : pageRef.current;
     isFetchingRef.current = true;
     setIsLoading(true);
     try {
-      const res = await fetchEventParticipants({
+      const first = await fetchEventParticipants({
         event_guid: eventGuidRef.current,
-        page: currentPage,
+        page: 1,
         limit: PAGE_SIZE,
       });
-      const newParticipants = res.data;
-      if (reset) {
-        setParticipants(newParticipants);
-        setSelectedGuids(new Set(newParticipants.map((p) => p.guid)));
-        pageRef.current = 2;
-      } else {
-        setParticipants((prev) => [...prev, ...newParticipants]);
-        setSelectedGuids((prev) => {
-          const next = new Set(prev);
-          for (const p of newParticipants) {
-            next.add(p.guid);
-          }
-          return next;
-        });
-        pageRef.current = currentPage + 1;
+      const { total_page } = first.paginate;
+      let all = [...first.data];
+
+      if (total_page > 1) {
+        const rest = await Promise.all(
+          Array.from({ length: total_page - 1 }, (_, i) =>
+            fetchEventParticipants({
+              event_guid: eventGuidRef.current,
+              page: i + 2,
+              limit: PAGE_SIZE,
+            }),
+          ),
+        );
+        for (const res of rest) {
+          all.push(...res.data);
+        }
       }
-      setHasMore(newParticipants.length >= PAGE_SIZE);
+
+      setParticipants(all);
+      setSelectedGuids(new Set(all.map((p) => p.guid)));
     } catch {
-      setHasMore(false);
+      setParticipants([]);
+      setSelectedGuids(new Set());
     } finally {
       setIsLoading(false);
       isFetchingRef.current = false;
@@ -95,29 +95,10 @@ export default function BottomSheetSelectPlayers({
 
   useEffect(() => {
     eventGuidRef.current = eventGuid;
-    pageRef.current = 1;
     isFetchingRef.current = false;
-    loadNextPage(true);
+    loadAllParticipants();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [eventGuid]);
-
-  useEffect(() => {
-    const sentinel = sentinelRef.current;
-    if (!sentinel) return;
-
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (entries[0].isIntersecting && !isFetchingRef.current && hasMore) {
-          loadNextPage(false);
-        }
-      },
-      { threshold: 0.1 },
-    );
-
-    observer.observe(sentinel);
-    return () => observer.disconnect();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [hasMore]);
 
   const toggleSelection = (guid: string) => {
     setSelectedGuids((prev) => {
@@ -198,113 +179,99 @@ export default function BottomSheetSelectPlayers({
           </button>
         </div>
 
-        <div className="flex flex-col overflow-y-auto px-6 py-4 gap-6 flex-1 min-h-0">
-          {participants.map((participant) => {
-            const isSelected = selectedGuids.has(participant.guid);
-            return (
-              <button
-                key={participant.guid}
-                type="button"
-                onClick={() => toggleSelection(participant.guid)}
-                className="flex items-center justify-between w-full text-left"
-              >
-                <div className="flex items-center gap-4">
-                  <div
-                    className="w-14 h-14 rounded-full flex items-center justify-center overflow-hidden flex-shrink-0"
-                    style={{
-                      border: isSelected
-                        ? "2px solid #2F6C00"
-                        : "2px solid #E4E4E7",
-                    }}
-                  >
-                    {participant.user.profile_photo ? (
-                      <Image
-                        src={participant.user.profile_photo}
-                        alt={participant.user.name}
-                        width={56}
-                        height={56}
-                        className="w-full h-full object-cover rounded-full"
-                      />
-                    ) : (
-                      <div className="w-full h-full bg-[#F0F3FF] flex items-center justify-center">
+        <div className="overflow-y-auto px-6 py-4 flex-1 min-h-0">
+          <div className="grid grid-cols-3 gap-x-3 gap-y-5">
+            {participants.map((participant) => {
+              const isSelected = selectedGuids.has(participant.guid);
+              return (
+                <button
+                  key={participant.guid}
+                  type="button"
+                  onClick={() => toggleSelection(participant.guid)}
+                  className="flex flex-col items-center gap-2 text-center w-full"
+                >
+                  <div className="relative">
+                    <div
+                      className="w-14 h-14 rounded-full flex items-center justify-center overflow-hidden"
+                      style={{
+                        border: isSelected
+                          ? "2px solid #2F6C00"
+                          : "2px solid #E4E4E7",
+                      }}
+                    >
+                      {participant.user.profile_photo ? (
+                        <Image
+                          src={participant.user.profile_photo}
+                          alt={participant.user.name}
+                          width={56}
+                          height={56}
+                          className="w-full h-full object-cover rounded-full"
+                        />
+                      ) : (
+                        <div className="w-full h-full bg-[#F0F3FF] flex items-center justify-center">
+                          <svg
+                            width="28"
+                            height="28"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="#A1A1AA"
+                            strokeWidth="1.5"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                          >
+                            <circle cx="12" cy="8" r="4" />
+                            <path d="M4 20c0-4 3.6-7 8-7s8 3 8 7" />
+                          </svg>
+                        </div>
+                      )}
+                    </div>
+                    {isSelected && (
+                      <div
+                        className="absolute -bottom-0.5 -right-0.5 w-5 h-5 rounded-full flex items-center justify-center"
+                        style={{
+                          border: "2px solid #9FE870",
+                          background: "#9FE870",
+                        }}
+                      >
                         <svg
-                          width="28"
-                          height="28"
-                          viewBox="0 0 24 24"
+                          width="10"
+                          height="8"
+                          viewBox="0 0 12 10"
                           fill="none"
-                          stroke="#A1A1AA"
-                          strokeWidth="1.5"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
+                          xmlns="http://www.w3.org/2000/svg"
                         >
-                          <circle cx="12" cy="8" r="4" />
-                          <path d="M4 20c0-4 3.6-7 8-7s8 3 8 7" />
+                          <path
+                            d="M1 5L4.5 8.5L11 1.5"
+                            stroke="#121212"
+                            strokeWidth="2"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                          />
                         </svg>
                       </div>
                     )}
                   </div>
-                  <div className="flex flex-col gap-1">
-                    <span
-                      className="font-bold text-base text-[#151C27]"
-                      style={{ lineHeight: "24px" }}
-                    >
-                      {participant.user.name}
-                    </span>
-                    <span
-                      className="text-xs text-[#41493A]"
-                      style={{ lineHeight: "12px" }}
-                    >
-                      {participant.user.email}
-                    </span>
-                  </div>
-                </div>
+                  <span
+                    className="font-semibold text-xs text-[#151C27] truncate max-w-full w-full"
+                    style={{ lineHeight: "16px" }}
+                  >
+                    {participant.user.name}
+                  </span>
+                </button>
+              );
+            })}
 
+            {isLoading &&
+              Array.from({ length: 9 }).map((_, i) => (
                 <div
-                  className="w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0"
-                  style={{
-                    border: isSelected
-                      ? "2px solid #9FE870"
-                      : "2px solid #C1CAB5",
-                    background: isSelected ? "#9FE870" : "transparent",
-                  }}
+                  key={`skeleton-${i}`}
+                  className="flex flex-col items-center gap-2 animate-pulse"
                 >
-                  {isSelected && (
-                    <svg
-                      width="12"
-                      height="10"
-                      viewBox="0 0 12 10"
-                      fill="none"
-                      xmlns="http://www.w3.org/2000/svg"
-                    >
-                      <path
-                        d="M1 5L4.5 8.5L11 1.5"
-                        stroke="#121212"
-                        strokeWidth="2"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      />
-                    </svg>
-                  )}
+                  <div className="w-14 h-14 rounded-full bg-[#F4F4F5]" />
+                  <div className="h-3 w-16 rounded bg-[#F4F4F5]" />
                 </div>
-              </button>
-            );
-          })}
-
-          {isLoading &&
-            Array.from({ length: 3 }).map((_, i) => (
-              <div
-                key={`skeleton-${i}`}
-                className="flex items-center gap-4 animate-pulse"
-              >
-                <div className="w-14 h-14 rounded-full bg-[#F4F4F5] flex-shrink-0" />
-                <div className="flex flex-col gap-2 flex-1">
-                  <div className="h-4 w-32 rounded bg-[#F4F4F5]" />
-                  <div className="h-3 w-24 rounded bg-[#F4F4F5]" />
-                </div>
-              </div>
-            ))}
-
-          {hasMore && <div ref={sentinelRef} className="h-1" />}
+              ))}
+          </div>
 
           {!isLoading && participants.length === 0 && (
             <p className="text-center text-sm text-[#A1A1AA] py-8">
@@ -324,32 +291,32 @@ export default function BottomSheetSelectPlayers({
             </p>
           )}
           <div className="flex gap-3">
-          <button
-            type="button"
-            onClick={handleClose}
-            disabled={isSubmitting}
-            className="flex-1 text-base font-semibold rounded-full disabled:opacity-50 disabled:cursor-not-allowed"
-            style={{
-              background: "#F4F4F5",
-              color: "#121212",
-              height: "56px",
-            }}
-          >
-            Cancel
-          </button>
-          <button
-            type="button"
-            onClick={handleNext}
-            disabled={!canConfirm}
-            className="flex-1 text-base font-semibold rounded-full disabled:opacity-50 disabled:cursor-not-allowed"
-            style={{
-              background: "#9FE870",
-              color: "#121212",
-              height: "56px",
-            }}
-          >
-            {isSubmitting ? "Generating…" : confirmLabel}
-          </button>
+            <button
+              type="button"
+              onClick={handleClose}
+              disabled={isSubmitting}
+              className="flex-1 text-base font-semibold rounded-full disabled:opacity-50 disabled:cursor-not-allowed"
+              style={{
+                background: "#F4F4F5",
+                color: "#121212",
+                height: "56px",
+              }}
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={handleNext}
+              disabled={!canConfirm}
+              className="flex-1 text-base font-semibold rounded-full disabled:opacity-50 disabled:cursor-not-allowed"
+              style={{
+                background: "#9FE870",
+                color: "#121212",
+                height: "56px",
+              }}
+            >
+              {isSubmitting ? "Generating…" : confirmLabel}
+            </button>
           </div>
         </div>
       </div>

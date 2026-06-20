@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
 import { joinNewsletter } from "@/services/newsletterService";
 
@@ -73,6 +74,23 @@ export default function LandingPageClient() {
           >
             RallyRank
           </span>
+
+          <Link
+            href="/login"
+            style={{
+              fontFamily: "Lexend, sans-serif",
+              fontWeight: 400,
+              fontSize: "14px",
+              lineHeight: "20px",
+              color: "#9FE870",
+              backgroundColor: "#18181B",
+              borderRadius: "9999px",
+              padding: "10px 20px",
+              textDecoration: "none",
+            }}
+          >
+            Log in
+          </Link>
         </div>
       </header>
 

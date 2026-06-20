@@ -270,6 +270,39 @@ function getMatchRawScores(
   return null;
 }
 
+function getMatchCourtLabel(
+  d: MatchmakingSessionDetail,
+  matchGuid: string,
+): string | null {
+  for (const r of asRoundList(d.rounds)) {
+    const ms = Array.isArray(r.matches) ? r.matches : [];
+    const m = ms.find((x) => x.guid === matchGuid);
+    if (m) return m.court_number ? `Court ${m.court_number}` : "Court";
+  }
+  return null;
+}
+
+function collectSavedMatchGuids(d: MatchmakingSessionDetail): Set<string> {
+  const ids = new Set<string>();
+  for (const r of asRoundList(d.rounds)) {
+    for (const m of Array.isArray(r.matches) ? r.matches : []) {
+      if (m.team_a_score != null && m.team_b_score != null) {
+        ids.add(m.guid);
+      }
+    }
+  }
+  return ids;
+}
+
+function mergeSavedMatchGuids(
+  prev: Set<string>,
+  d: MatchmakingSessionDetail,
+): Set<string> {
+  const next = new Set(prev);
+  for (const id of collectSavedMatchGuids(d)) next.add(id);
+  return next;
+}
+
 function parseScoreDisplay(display: string): number | null {
   if (display === "—" || display.trim() === "") return null;
   const n = parseInt(display, 10);
@@ -341,13 +374,13 @@ function mapDetailToRounds(detail: MatchmakingSessionDetail): Round[] {
       status: round.status,
       label: `Round ${round.round_number}`,
       badge: humanizeRoundStatus(String(round.status)),
-      matches: matches.map((m, idx) =>
+      matches: matches.map((m) =>
         mapMatchToCard(
           m,
           {
             timeLabel,
             isLive: isRoundLive,
-            isFeatured: isRoundLive && idx === 0,
+            isFeatured: false,
           },
           teamsByGuid,
         ),
@@ -432,20 +465,72 @@ function PlayerRow({
   );
 }
 
+function RoundActionButtons({
+  showStart,
+  showCancel,
+  onStart,
+  onCancel,
+  isStartLoading,
+  isCancelLoading,
+  isRoundMutationBusy,
+  isRoundActive,
+}: {
+  showStart?: boolean;
+  showCancel?: boolean;
+  onStart?: () => void;
+  onCancel?: () => void;
+  isStartLoading?: boolean;
+  isCancelLoading?: boolean;
+  isRoundMutationBusy?: boolean;
+  isRoundActive?: boolean;
+}) {
+  return (
+    <div className="flex flex-col gap-2">
+      {showStart && onStart ? (
+        <button
+          type="button"
+          disabled={isRoundMutationBusy}
+          onClick={onStart}
+          className="w-full py-2.5 text-center text-xs font-semibold rounded-xl border cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed transition-opacity"
+          style={{
+            borderColor: isRoundActive ? "#18181B" : "#D4D4D8",
+            color: "#18181B",
+            background: isRoundActive ? "rgba(255,255,255,0.35)" : "#FAFAFA",
+            lineHeight: "18px",
+          }}
+        >
+          {isStartLoading ? "Starting…" : "Start round"}
+        </button>
+      ) : null}
+
+      {showCancel && onCancel ? (
+        <button
+          type="button"
+          disabled={isRoundMutationBusy}
+          onClick={onCancel}
+          className="w-full py-2.5 text-center text-xs font-semibold rounded-xl border cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed transition-opacity"
+          style={{
+            borderColor: isRoundActive ? "#BA1A1A" : "#D4D4D8",
+            color: "#BA1A1A",
+            background: isRoundActive ? "rgba(255,255,255,0.5)" : "#FEF2F2",
+            lineHeight: "18px",
+          }}
+        >
+          {isCancelLoading ? "Cancelling…" : "Cancel round"}
+        </button>
+      ) : null}
+    </div>
+  );
+}
+
 function MatchCardComponent({
   match,
   onScoreSidePress,
   scoresEditable,
   showSave,
   isSaving,
+  saveDisabled,
   onSave,
-  showStartRound,
-  onStartRound,
-  isStartRoundLoading,
-  showCancelRound,
-  onCancelRound,
-  isCancelRoundLoading,
-  isRoundMutationBusy,
 }: {
   match: MatchCard;
   onScoreSidePress?: (side: "a" | "b") => void;
@@ -453,14 +538,8 @@ function MatchCardComponent({
   scoresEditable?: boolean;
   showSave?: boolean;
   isSaving?: boolean;
+  saveDisabled?: boolean;
   onSave?: () => void;
-  showStartRound?: boolean;
-  onStartRound?: () => void;
-  isStartRoundLoading?: boolean;
-  showCancelRound?: boolean;
-  onCancelRound?: () => void;
-  isCancelRoundLoading?: boolean;
-  isRoundMutationBusy?: boolean;
 }) {
   const isFeatured = match.isFeatured;
   const isTBD = match.round === "tbd";
@@ -518,40 +597,6 @@ function MatchCardComponent({
           {match.isLive ? "LIVE" : match.time}
         </span>
       </div>
-
-      {showStartRound && onStartRound ? (
-        <button
-          type="button"
-          disabled={isRoundMutationBusy}
-          onClick={onStartRound}
-          className="w-full py-2.5 text-center text-xs font-semibold rounded-xl border cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed transition-opacity"
-          style={{
-            borderColor: isFeatured ? "#18181B" : "#D4D4D8",
-            color: isFeatured ? "#18181B" : "#18181B",
-            background: isFeatured ? "rgba(255,255,255,0.35)" : "#FAFAFA",
-            lineHeight: "18px",
-          }}
-        >
-          {isStartRoundLoading ? "Starting…" : "Start round"}
-        </button>
-      ) : null}
-
-      {showCancelRound && onCancelRound ? (
-        <button
-          type="button"
-          disabled={isRoundMutationBusy}
-          onClick={onCancelRound}
-          className="w-full py-2.5 text-center text-xs font-semibold rounded-xl border cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed transition-opacity"
-          style={{
-            borderColor: isFeatured ? "#BA1A1A" : "#D4D4D8",
-            color: "#BA1A1A",
-            background: isFeatured ? "rgba(255,255,255,0.5)" : "#FEF2F2",
-            lineHeight: "18px",
-          }}
-        >
-          {isCancelRoundLoading ? "Cancelling…" : "Cancel round"}
-        </button>
-      ) : null}
 
       {isTBD ? (
         <div className="flex items-center gap-4">
@@ -659,7 +704,7 @@ function MatchCardComponent({
         >
           <button
             type="button"
-            disabled={isSaving}
+            disabled={isSaving || saveDisabled}
             onClick={onSave}
             className="w-full py-3 text-center text-sm font-semibold rounded-2xl border-0 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed transition-opacity"
             style={{
@@ -707,6 +752,7 @@ function MatchesTab({
   isGeneratingRound,
   onScoreSidePress,
   pendingSaveMatchIds,
+  savedMatchIds,
   savingMatchId,
   onSaveMatch,
   startRoundLoadingGuid,
@@ -723,6 +769,7 @@ function MatchesTab({
   isGeneratingRound: boolean;
   onScoreSidePress?: (matchGuid: string, side: "a" | "b") => void;
   pendingSaveMatchIds: ReadonlySet<string>;
+  savedMatchIds: ReadonlySet<string>;
   savingMatchId: string | null;
   onSaveMatch: (matchGuid: string) => void;
   startRoundLoadingGuid: string | null;
@@ -755,72 +802,108 @@ function MatchesTab({
 
   return (
     <div className="flex flex-col gap-6 px-4 py-4">
-      {rounds.map((round) => (
-        <div key={round.guid} className="flex flex-col gap-4">
-          <div className="flex items-center justify-between">
-            <span
-              className="text-xl font-semibold text-[#151C27]"
-              style={{ lineHeight: "26px" }}
-            >
-              {round.label}
-            </span>
-            <div
-              className="px-3 py-1"
-              style={{ background: "#E7EEFE", borderRadius: "9999px" }}
-            >
+      {rounds.map((round) => {
+        const isRoundActive =
+          normalizeRoundStatusKey(round.status) === "in_progress";
+        const showStart = shouldShowStartRound(round.status);
+        const showCancel = shouldShowCancelRound(round.status);
+        const isRoundMutationBusy =
+          startRoundLoadingGuid === round.guid ||
+          cancellingRoundGuid === round.guid;
+        const scoresEditable =
+          canManageEvent &&
+          normalizeRoundStatusKey(round.status) !== "pending";
+        const showRoundActions =
+          canManageEvent && (showStart || showCancel);
+
+        return (
+          <div
+            key={round.guid}
+            className={`flex flex-col gap-4${isRoundActive ? " p-5" : ""}`}
+            style={
+              isRoundActive
+                ? {
+                    background: "#9FE870",
+                    border: "1px solid #18181B",
+                    borderRadius: "32px",
+                  }
+                : undefined
+            }
+          >
+            <div className="flex items-center justify-between">
               <span
-                className="text-xs font-normal text-[#41493A]"
-                style={{ lineHeight: "12px" }}
+                className={`text-xl font-semibold ${isRoundActive ? "text-[#18181B]" : "text-[#151C27]"}`}
+                style={{ lineHeight: "26px" }}
               >
-                {round.badge}
+                {round.label}
               </span>
+              <div
+                className="px-3 py-1"
+                style={{
+                  background: isRoundActive
+                    ? "rgba(255,255,255,0.35)"
+                    : "#E7EEFE",
+                  borderRadius: "9999px",
+                }}
+              >
+                <span
+                  className={`text-xs font-normal ${isRoundActive ? "text-[#18181B]" : "text-[#41493A]"}`}
+                  style={{ lineHeight: "12px" }}
+                >
+                  {round.badge}
+                </span>
+              </div>
+            </div>
+
+            {showRoundActions ? (
+              <RoundActionButtons
+                showStart={showStart}
+                showCancel={showCancel}
+                onStart={
+                  showStart ? () => onStartRound(round.guid) : undefined
+                }
+                onCancel={
+                  showCancel ? () => onCancelRound(round.guid) : undefined
+                }
+                isStartLoading={startRoundLoadingGuid === round.guid}
+                isCancelLoading={cancellingRoundGuid === round.guid}
+                isRoundMutationBusy={isRoundMutationBusy}
+                isRoundActive={isRoundActive}
+              />
+            ) : null}
+
+            <div className="flex flex-col gap-4">
+              {round.matches.map((match) => {
+                const isMultiCourt = round.matches.length > 1;
+                const hasPendingSave = pendingSaveMatchIds.has(match.id);
+                const isScoreSaved = savedMatchIds.has(match.id);
+                const matchScoresEditable = scoresEditable && !isScoreSaved;
+
+                return (
+                  <MatchCardComponent
+                    key={match.id}
+                    match={match}
+                    scoresEditable={matchScoresEditable}
+                    onScoreSidePress={
+                      canManageEvent && matchScoresEditable
+                        ? (side) => onScoreSidePress?.(match.id, side)
+                        : undefined
+                    }
+                    showSave={
+                      canManageEvent &&
+                      isRoundActive &&
+                      (isMultiCourt || hasPendingSave)
+                    }
+                    saveDisabled={!hasPendingSave}
+                    isSaving={savingMatchId === match.id}
+                    onSave={() => onSaveMatch(match.id)}
+                  />
+                );
+              })}
             </div>
           </div>
-
-          <div className="flex flex-col gap-4">
-            {round.matches.map((match) => {
-              const showStart = shouldShowStartRound(round.status);
-              const showCancel = shouldShowCancelRound(round.status);
-              const isRoundMutationBusy =
-                startRoundLoadingGuid === round.guid ||
-                cancellingRoundGuid === round.guid;
-              const scoresEditable =
-                canManageEvent &&
-                normalizeRoundStatusKey(round.status) !== "pending";
-              return (
-                <MatchCardComponent
-                  key={match.id}
-                  match={match}
-                  scoresEditable={scoresEditable}
-                  onScoreSidePress={
-                    canManageEvent
-                      ? (side) => onScoreSidePress?.(match.id, side)
-                      : undefined
-                  }
-                  showSave={canManageEvent && pendingSaveMatchIds.has(match.id)}
-                  isSaving={savingMatchId === match.id}
-                  onSave={() => onSaveMatch(match.id)}
-                  showStartRound={canManageEvent && showStart}
-                  onStartRound={
-                    canManageEvent && showStart
-                      ? () => onStartRound(round.guid)
-                      : undefined
-                  }
-                  isStartRoundLoading={startRoundLoadingGuid === round.guid}
-                  showCancelRound={canManageEvent && showCancel}
-                  onCancelRound={
-                    canManageEvent && showCancel
-                      ? () => onCancelRound(round.guid)
-                      : undefined
-                  }
-                  isCancelRoundLoading={cancellingRoundGuid === round.guid}
-                  isRoundMutationBusy={isRoundMutationBusy}
-                />
-              );
-            })}
-          </div>
-        </div>
-      ))}
+        );
+      })}
     </div>
   );
 }
@@ -1359,6 +1442,9 @@ export default function MatchDetailClient({
   const [pendingSaveMatchIds, setPendingSaveMatchIds] = useState<Set<string>>(
     () => new Set(),
   );
+  const [savedMatchIds, setSavedMatchIds] = useState<Set<string>>(
+    () => new Set(),
+  );
   const [savingMatchId, setSavingMatchId] = useState<string | null>(null);
   const [startRoundLoadingGuid, setStartRoundLoadingGuid] = useState<
     string | null
@@ -1369,6 +1455,9 @@ export default function MatchDetailClient({
   const [isFinishing, setIsFinishing] = useState(false);
   const [isSharingMatchResult, setIsSharingMatchResult] = useState(false);
   const [showFinishConfirm, setShowFinishConfirm] = useState(false);
+  const [saveConfirmMatchGuid, setSaveConfirmMatchGuid] = useState<
+    string | null
+  >(null);
   const [eventDetail, setEventDetail] = useState<Event | null>(null);
   const [showSelectPlayers, setShowSelectPlayers] = useState(false);
   const [isGeneratingRound, setIsGeneratingRound] = useState(false);
@@ -1386,6 +1475,7 @@ export default function MatchDetailClient({
           setMyReport(null);
           setHasMyReport(null);
           setPendingSaveMatchIds(new Set());
+          setSavedMatchIds(collectSavedMatchGuids(res.data));
         }
       } catch (e) {
         const err = e as GetMatchmakingSessionErrorResponse;
@@ -1506,7 +1596,7 @@ export default function MatchDetailClient({
     eventDetail?.is_host === true && eventDetail?.is_finished !== true;
 
   const openScoreEditor = (matchGuid: string, side: "a" | "b") => {
-    if (!canManageEvent) return;
+    if (!canManageEvent || savedMatchIds.has(matchGuid)) return;
     const card = rounds
       .flatMap((r) => r.matches)
       .find((m) => m.id === matchGuid);
@@ -1521,6 +1611,7 @@ export default function MatchDetailClient({
   const applyScoreFromKeyboard = (value: number | null) => {
     if (!canManageEvent || !detail || !scoreSheet) return;
     const matchGuid = scoreSheet.matchGuid;
+    if (savedMatchIds.has(matchGuid)) return;
     const totalSetPoints = detail.total_set_points;
     const before = getMatchRawScores(detail, matchGuid);
 
@@ -1557,12 +1648,12 @@ export default function MatchDetailClient({
     setScoreSheet(null);
   };
 
-  const handleSaveMatch = async (matchGuid: string) => {
-    if (!canManageEvent || !detail) return;
+  const handleSaveMatch = async (matchGuid: string): Promise<boolean> => {
+    if (!canManageEvent || !detail) return false;
     const scores = getMatchRawScores(detail, matchGuid);
     if (!scores) {
       showSnackbar("Could not find this match.");
-      return;
+      return false;
     }
 
     setSavingMatchId(matchGuid);
@@ -1575,19 +1666,33 @@ export default function MatchDetailClient({
 
       const refreshed = await fetchMatchmakingSession(sessionGuid);
       setDetail(refreshed.data);
+      setSavedMatchIds((prev) => mergeSavedMatchGuids(prev, refreshed.data));
       setPendingSaveMatchIds((prev) => {
         const next = new Set(prev);
         next.delete(matchGuid);
         return next;
       });
+      return true;
     } catch (e) {
       const err = e as
         | SubmitMatchmakingMatchScoreErrorResponse
         | GetMatchmakingSessionErrorResponse;
       showSnackbar(err?.message ?? "Could not save or refresh score.");
+      return false;
     } finally {
       setSavingMatchId(null);
     }
+  };
+
+  const handleRequestSaveMatch = (matchGuid: string) => {
+    if (!canManageEvent) return;
+    setSaveConfirmMatchGuid(matchGuid);
+  };
+
+  const handleConfirmSaveMatch = async () => {
+    if (!saveConfirmMatchGuid) return;
+    const success = await handleSaveMatch(saveConfirmMatchGuid);
+    if (success) setSaveConfirmMatchGuid(null);
   };
 
   const handleStartRound = async (roundGuid: string) => {
@@ -1598,6 +1703,7 @@ export default function MatchDetailClient({
       showSnackbar(res.message);
       const refreshed = await fetchMatchmakingSession(sessionGuid);
       setDetail(refreshed.data);
+      setSavedMatchIds((prev) => mergeSavedMatchGuids(prev, refreshed.data));
     } catch (e) {
       const err = e as
         | StartMatchmakingRoundErrorResponse
@@ -1616,6 +1722,7 @@ export default function MatchDetailClient({
       showSnackbar(res.message);
       const refreshed = await fetchMatchmakingSession(sessionGuid);
       setDetail(refreshed.data);
+      setSavedMatchIds((prev) => mergeSavedMatchGuids(prev, refreshed.data));
     } catch (e) {
       const err = e as
         | CancelMatchmakingRoundErrorResponse
@@ -1636,6 +1743,7 @@ export default function MatchDetailClient({
       showSnackbar(res.message);
       const refreshed = await fetchMatchmakingSession(sessionGuid);
       setDetail(refreshed.data);
+      setSavedMatchIds((prev) => mergeSavedMatchGuids(prev, refreshed.data));
       setShowSelectPlayers(false);
     } catch (e) {
       const err = e as
@@ -1769,6 +1877,17 @@ export default function MatchDetailClient({
     return hasStackedTwoButtons ? 172 : 104;
   })();
 
+  const saveConfirmScores =
+    saveConfirmMatchGuid && detail
+      ? getMatchRawScores(detail, saveConfirmMatchGuid)
+      : null;
+  const saveConfirmCourt =
+    saveConfirmMatchGuid && detail
+      ? getMatchCourtLabel(detail, saveConfirmMatchGuid)
+      : null;
+  const isSaveConfirmSaving =
+    savingMatchId !== null && savingMatchId === saveConfirmMatchGuid;
+
   return (
     <div className="min-h-screen bg-white max-w-[448px] mx-auto relative flex flex-col">
       <header
@@ -1892,8 +2011,9 @@ export default function MatchDetailClient({
                   isGeneratingRound={isGeneratingRound}
                   onScoreSidePress={openScoreEditor}
                   pendingSaveMatchIds={pendingSaveMatchIds}
+                  savedMatchIds={savedMatchIds}
                   savingMatchId={savingMatchId}
-                  onSaveMatch={handleSaveMatch}
+                  onSaveMatch={handleRequestSaveMatch}
                   startRoundLoadingGuid={startRoundLoadingGuid}
                   onStartRound={handleStartRound}
                   cancellingRoundGuid={cancellingRoundGuid}
@@ -1960,6 +2080,51 @@ export default function MatchDetailClient({
                 className="flex-1 py-3 rounded-full text-base font-semibold text-[#121212] bg-[#9FE870] disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {isFinishing ? "Finishing…" : "Finish"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {saveConfirmMatchGuid && (
+        <div className="fixed inset-0 z-60 flex items-center justify-center bg-black/40 px-6">
+          <div className="w-full max-w-sm bg-white rounded-2xl p-6 flex flex-col gap-4">
+            <h3 className="text-lg font-semibold text-[#151C27]">Save Score</h3>
+            <p className="text-sm text-[#41493A]">
+              Are you sure you want to save the score
+              {saveConfirmCourt ? (
+                <>
+                  {" "}
+                  for <span className="font-semibold">{saveConfirmCourt}</span>
+                </>
+              ) : null}
+              {saveConfirmScores ? (
+                <>
+                  {" "}
+                  as{" "}
+                  <span className="font-semibold">
+                    {saveConfirmScores.a ?? "—"} - {saveConfirmScores.b ?? "—"}
+                  </span>
+                </>
+              ) : null}
+              ?
+            </p>
+            <div className="flex gap-3 mt-2">
+              <button
+                type="button"
+                onClick={() => setSaveConfirmMatchGuid(null)}
+                disabled={isSaveConfirmSaving}
+                className="flex-1 py-3 rounded-full text-base text-[#18181B] bg-[#F4F4F5] disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmSaveMatch}
+                disabled={isSaveConfirmSaving}
+                className="flex-1 py-3 rounded-full text-base font-semibold text-[#121212] bg-[#9FE870] disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isSaveConfirmSaving ? "Saving…" : "Save"}
               </button>
             </div>
           </div>

@@ -17,7 +17,7 @@ import type {
 
 type GameFormat = "Mexicano" | "Americano" | "Team Americano";
 type TeamAssignment = "Random" | "Organizer Set";
-type SetPoints = 16 | 21 | 24 | 32;
+type SetPoints = 4 | 8 | 12 | 16 | 21 | 24 | 32;
 
 function uiFormatToApi(value: GameFormat): MatchmakingSessionFormatApi {
   switch (value) {
@@ -88,7 +88,10 @@ export default function MatchConfigClient({
     },
   ];
 
-  const pointOptions: SetPoints[] = [16, 21, 24, 32];
+  const pointOptionRows: SetPoints[][] = [
+    [4, 8, 12, 16],
+    [21, 24, 32],
+  ];
 
   const handleGenerateMatchClick = () => {
     if (!eventGuid.trim()) {
@@ -362,30 +365,35 @@ export default function MatchConfigClient({
         >
           Total Set Points
         </h2>
-        <div className="flex gap-2">
-          {pointOptions.map((pts) => {
-            const isSelected = selectedPoints === pts;
-            return (
-              <button
-                key={pts}
-                onClick={() => setSelectedPoints(pts)}
-                className="flex-1 py-2 px-6 text-center transition-all"
-                style={{
-                  borderRadius: "9999px",
-                  background: isSelected ? "#18181B" : "#FFFFFF",
-                  border: isSelected
-                    ? "1px solid #18181B"
-                    : "1px solid #F4F4F5",
-                  color: isSelected ? "#9FE870" : "#151C27",
-                  fontSize: "12px",
-                  fontWeight: 600,
-                  lineHeight: "12px",
-                }}
-              >
-                {pts}
-              </button>
-            );
-          })}
+        <div className="flex flex-col gap-2">
+          {pointOptionRows.map((row) => (
+            <div key={row.join("-")} className="flex gap-2">
+              {row.map((pts) => {
+                const isSelected = selectedPoints === pts;
+                return (
+                  <button
+                    key={pts}
+                    type="button"
+                    onClick={() => setSelectedPoints(pts)}
+                    className="flex-1 py-2 px-6 text-center transition-all"
+                    style={{
+                      borderRadius: "9999px",
+                      background: isSelected ? "#18181B" : "#FFFFFF",
+                      border: isSelected
+                        ? "1px solid #18181B"
+                        : "1px solid #F4F4F5",
+                      color: isSelected ? "#9FE870" : "#151C27",
+                      fontSize: "12px",
+                      fontWeight: 600,
+                      lineHeight: "12px",
+                    }}
+                  >
+                    {pts}
+                  </button>
+                );
+              })}
+            </div>
+          ))}
         </div>
       </section>
 

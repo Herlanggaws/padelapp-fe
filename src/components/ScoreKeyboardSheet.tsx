@@ -8,13 +8,21 @@ const SPECIAL_BG = "#F5F0E1";
 const HEADER_BG = "#F4F4F5";
 const DONE_COLOR = "#2563EB";
 
-const ROWS: number[][] = [
-  [0, 1, 2, 3, 4, 5, 6, 7, 8],
-  [9, 10, 11, 12, 13, 14, 15, 16, 17],
-  [18, 19, 20, 21, 22, 23, 24, 25, 26],
-];
+const COLS = 9;
+const DEFAULT_MAX_VALUE = 32;
 
-const ROW4_NUMS = [27, 28, 29, 30, 31, 32];
+function buildLayout(maxValue: number): {
+  gridRows: number[][];
+  bottomRowNums: number[];
+} {
+  const nums = Array.from({ length: maxValue + 1 }, (_, i) => i);
+  const fullRowCount = Math.floor(nums.length / COLS);
+  const gridRows: number[][] = [];
+  for (let r = 0; r < fullRowCount; r++) {
+    gridRows.push(nums.slice(r * COLS, r * COLS + COLS));
+  }
+  return { gridRows, bottomRowNums: nums.slice(fullRowCount * COLS) };
+}
 
 function numKeyStyle(isActive: boolean) {
   return {
@@ -45,6 +53,8 @@ export interface ScoreKeyboardSheetProps {
   /** Done — apply score (null clears). */
   onConfirm: (value: number | null) => void;
   initialValue: number | null;
+  /** Highest selectable score (matches session `total_set_points`). */
+  maxValue?: number;
 }
 
 export default function ScoreKeyboardSheet({
@@ -52,8 +62,10 @@ export default function ScoreKeyboardSheet({
   onRequestClose,
   onConfirm,
   initialValue,
+  maxValue = DEFAULT_MAX_VALUE,
 }: ScoreKeyboardSheetProps) {
   const [draft, setDraft] = useState<number | null>(null);
+  const { gridRows, bottomRowNums } = buildLayout(maxValue);
 
   useEffect(() => {
     if (isOpen) setDraft(initialValue);
@@ -115,7 +127,7 @@ export default function ScoreKeyboardSheet({
               return;
             }
             const n = parseInt(raw, 10);
-            if (!Number.isNaN(n) && n >= 0 && n <= 32) setDraft(n);
+            if (!Number.isNaN(n) && n >= 0 && n <= maxValue) setDraft(n);
           }}
         />
 
@@ -134,7 +146,7 @@ export default function ScoreKeyboardSheet({
         </div>
 
         <div className="px-3 pt-2 pb-3 flex flex-col gap-1.5">
-          {ROWS.map((row) => (
+          {gridRows.map((row) => (
             <div key={row[0]} className="grid grid-cols-9 gap-1">
               {row.map((n) => (
                 <button
@@ -183,7 +195,7 @@ export default function ScoreKeyboardSheet({
               </svg>
             </button>
             <div className="flex-1 flex gap-1 min-w-0">
-              {ROW4_NUMS.map((n) => (
+              {bottomRowNums.map((n) => (
                 <button
                   key={n}
                   type="button"

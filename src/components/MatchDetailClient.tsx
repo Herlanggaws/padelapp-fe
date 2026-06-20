@@ -234,11 +234,10 @@ function resolveMatchSidePlayers(
   );
 }
 
-function patchMatchScore(
+function patchMatchScores(
   detail: MatchmakingSessionDetail,
   matchGuid: string,
-  side: "a" | "b",
-  value: number | null,
+  scores: { a: number | null; b: number | null },
 ): MatchmakingSessionDetail {
   const rounds = asRoundList(detail.rounds).map((r) => ({
     ...r,
@@ -246,8 +245,8 @@ function patchMatchScore(
       if (m.guid !== matchGuid) return m;
       return {
         ...m,
-        team_a_score: side === "a" ? value : m.team_a_score,
-        team_b_score: side === "b" ? value : m.team_b_score,
+        team_a_score: scores.a,
+        team_b_score: scores.b,
       };
     }),
   }));
@@ -1522,13 +1521,32 @@ export default function MatchDetailClient({
   const applyScoreFromKeyboard = (value: number | null) => {
     if (!canManageEvent || !detail || !scoreSheet) return;
     const matchGuid = scoreSheet.matchGuid;
+    const totalSetPoints = detail.total_set_points;
     const before = getMatchRawScores(detail, matchGuid);
-    const afterA = scoreSheet.side === "a" ? value : (before?.a ?? null);
-    const afterB = scoreSheet.side === "b" ? value : (before?.b ?? null);
+
+    let afterA: number | null;
+    let afterB: number | null;
+
+    if (value === null) {
+      afterA = null;
+      afterB = null;
+    } else {
+      const otherScore = totalSetPoints - value;
+      if (scoreSheet.side === "a") {
+        afterA = value;
+        afterB = otherScore;
+      } else {
+        afterA = otherScore;
+        afterB = value;
+      }
+    }
+
     const scoresUnchanged =
       before != null && before.a === afterA && before.b === afterB;
 
-    setDetail(patchMatchScore(detail, matchGuid, scoreSheet.side, value));
+    setDetail(
+      patchMatchScores(detail, matchGuid, { a: afterA, b: afterB }),
+    );
     if (!scoresUnchanged) {
       setPendingSaveMatchIds((prev) => {
         const next = new Set(prev);
@@ -1912,6 +1930,7 @@ export default function MatchDetailClient({
         onRequestClose={() => setScoreSheet(null)}
         onConfirm={applyScoreFromKeyboard}
         initialValue={scoreSheet?.initial ?? null}
+        maxValue={detail?.total_set_points ?? 32}
       />
 
       {showFinishConfirm && (

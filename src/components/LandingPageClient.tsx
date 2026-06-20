@@ -168,7 +168,7 @@ export default function LandingPageClient() {
                   color: "#2F6C00",
                 }}
               >
-                Coming Soon
+                Coming Soon for Mobile App
               </span>
             </div>
 

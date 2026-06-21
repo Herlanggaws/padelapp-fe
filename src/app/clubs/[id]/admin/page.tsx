@@ -1,6 +1,11 @@
+import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
 import TopAppBar from "@/components/TopAppBar";
+
+export const metadata: Metadata = {
+  title: "Club Admin",
+};
 
 // Club Detail as Admin
 export default function ClubDetailAdminPage() {

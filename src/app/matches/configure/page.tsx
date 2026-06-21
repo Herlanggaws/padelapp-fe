@@ -1,5 +1,10 @@
+import type { Metadata } from "next";
 import TopAppBar from "@/components/TopAppBar";
 import MatchConfigClient from "@/components/MatchConfigClient";
+
+export const metadata: Metadata = {
+  title: "Configure Match",
+};
 
 export default async function MatchConfigurePage({
   searchParams,

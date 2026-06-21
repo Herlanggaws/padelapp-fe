@@ -1,7 +1,12 @@
+import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
 import TopAppBar from "@/components/TopAppBar";
 import EventAdminRankPoint from "@/components/EventAdminRankPoint";
+
+export const metadata: Metadata = {
+  title: "Event Admin",
+};
 
 // Event Details as Admin
 export default function EventDetailAdminPage() {

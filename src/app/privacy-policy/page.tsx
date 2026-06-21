@@ -3,7 +3,7 @@ import LegalBackHeader from "@/components/LegalBackHeader";
 import PrivacyPolicyContent from "@/components/legal/PrivacyPolicyContent";
 
 export const metadata: Metadata = {
-  title: "Privacy Policy | Padel App",
+  title: "Privacy Policy",
   description: "Read the RallyRank Privacy Policy.",
 };
 

@@ -1,5 +1,10 @@
+import type { Metadata } from "next";
 import Image from "next/image";
 import TopAppBar from "@/components/TopAppBar";
+
+export const metadata: Metadata = {
+  title: "Event Request",
+};
 
 // Event Detail - Requested State (user already requested to join)
 export default function EventDetailRequestedPage() {

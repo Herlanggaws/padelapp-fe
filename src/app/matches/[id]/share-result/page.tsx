@@ -1,5 +1,10 @@
+import type { Metadata } from "next";
 import TopAppBar from "@/components/TopAppBar";
 import ShareYourResultClient from "@/components/ShareYourResultClient";
+
+export const metadata: Metadata = {
+  title: "Share Result",
+};
 
 export default async function ShareYourResultPage({
   params,

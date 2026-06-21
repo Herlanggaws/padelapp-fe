@@ -1,5 +1,10 @@
+import type { Metadata } from "next";
 import Image from "next/image";
 import TopAppBar from "@/components/TopAppBar";
+
+export const metadata: Metadata = {
+  title: "Event",
+};
 
 // Event Details as User (joined/confirmed)
 export default function EventDetailUserPage() {

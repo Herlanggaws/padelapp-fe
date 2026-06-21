@@ -1,5 +1,10 @@
+import type { Metadata } from "next";
 import TopAppBar from "@/components/TopAppBar";
 import MatchOrganizerSetClient from "@/components/MatchOrganizerSetClient";
+
+export const metadata: Metadata = {
+  title: "Organizer Set",
+};
 
 export default function MatchOrganizerSetPage() {
   return (

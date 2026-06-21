@@ -1,6 +1,11 @@
+import type { Metadata } from "next";
 import TopAppBar from "@/components/TopAppBar";
 import ShareMatchResultClient from "@/components/ShareMatchResultClient";
 import type { EventStandingsType } from "@/types/event";
+
+export const metadata: Metadata = {
+  title: "Share Match Result",
+};
 
 function parseStandingsType(value?: string): EventStandingsType {
   return value === "points" ? "points" : "wins";

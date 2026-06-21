@@ -1,4 +1,9 @@
+import type { Metadata } from "next";
 import MatchDetailClient from "@/components/MatchDetailClient";
+
+export const metadata: Metadata = {
+  title: "Match",
+};
 
 export default async function MatchDetailPage({
   params,

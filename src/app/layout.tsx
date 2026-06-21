@@ -6,7 +6,10 @@ import { SnackbarProvider } from "@/context/SnackbarContext";
 const gaMeasurementId = process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID;
 
 export const metadata: Metadata = {
-  title: "Padel App",
+  title: {
+    template: "Padel App | %s",
+    default: "Padel App",
+  },
   description: "Book courts and join padel matches",
 };
 

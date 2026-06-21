@@ -3,7 +3,7 @@ import LegalBackHeader from "@/components/LegalBackHeader";
 import TermsOfServiceContent from "@/components/legal/TermsOfServiceContent";
 
 export const metadata: Metadata = {
-  title: "Terms of Service | Padel App",
+  title: "Terms of Service",
   description: "Read the RallyRank Terms of Service.",
 };
 

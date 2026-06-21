@@ -1,5 +1,10 @@
+import type { Metadata } from "next";
 import TopAppBar from "@/components/TopAppBar";
 import ClubFormClient from "@/components/ClubFormClient";
+
+export const metadata: Metadata = {
+  title: "New Club",
+};
 
 export default function ClubFormPage() {
   return (

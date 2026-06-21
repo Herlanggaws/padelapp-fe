@@ -1,5 +1,10 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import LogoutButton from "@/components/LogoutButton";
+
+export const metadata: Metadata = {
+  title: "Settings",
+};
 
 export default function SettingsPage() {
   return (

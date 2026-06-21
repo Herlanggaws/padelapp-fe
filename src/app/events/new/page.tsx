@@ -1,5 +1,10 @@
+import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import CreateEventForm from "@/components/CreateEventForm";
+
+export const metadata: Metadata = {
+  title: "New Event",
+};
 
 interface EventNewPageProps {
   searchParams: Promise<{ club_guid?: string; club_id?: string }>;

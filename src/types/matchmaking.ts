@@ -159,6 +159,20 @@ export interface SubmitMatchmakingMatchScoreErrorResponse {
   message: string;
 }
 
+export interface EditMatchmakingMatchScorePayload {
+  team_a_score: number;
+  team_b_score: number;
+}
+
+export interface EditMatchmakingMatchScoreSuccessResponse {
+  data: null;
+  message: string;
+}
+
+export interface EditMatchmakingMatchScoreErrorResponse {
+  message: string;
+}
+
 export interface StartMatchmakingRoundSuccessResponse {
   data: null;
   message: string;

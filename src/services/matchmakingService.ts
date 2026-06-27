@@ -7,6 +7,9 @@ import type {
   SubmitMatchmakingMatchScorePayload,
   SubmitMatchmakingMatchScoreSuccessResponse,
   SubmitMatchmakingMatchScoreErrorResponse,
+  EditMatchmakingMatchScorePayload,
+  EditMatchmakingMatchScoreSuccessResponse,
+  EditMatchmakingMatchScoreErrorResponse,
   StartMatchmakingRoundSuccessResponse,
   StartMatchmakingRoundErrorResponse,
   CancelMatchmakingRoundSuccessResponse,
@@ -26,6 +29,9 @@ export type {
   SubmitMatchmakingMatchScorePayload,
   SubmitMatchmakingMatchScoreSuccessResponse,
   SubmitMatchmakingMatchScoreErrorResponse,
+  EditMatchmakingMatchScorePayload,
+  EditMatchmakingMatchScoreSuccessResponse,
+  EditMatchmakingMatchScoreErrorResponse,
   StartMatchmakingRoundSuccessResponse,
   StartMatchmakingRoundErrorResponse,
   CancelMatchmakingRoundSuccessResponse,
@@ -94,6 +100,28 @@ export async function submitMatchmakingMatchScore(
   }
 
   return data as SubmitMatchmakingMatchScoreSuccessResponse;
+}
+
+export async function editMatchmakingMatchScore(
+  matchGuid: string,
+  payload: EditMatchmakingMatchScorePayload,
+): Promise<EditMatchmakingMatchScoreSuccessResponse> {
+  const response = await fetchWithAuth(
+    `${BASE_URL}/padel/matchmaking/match/${matchGuid}/score/edit`,
+    {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    },
+  );
+
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw data as EditMatchmakingMatchScoreErrorResponse;
+  }
+
+  return data as EditMatchmakingMatchScoreSuccessResponse;
 }
 
 export async function startMatchmakingRound(

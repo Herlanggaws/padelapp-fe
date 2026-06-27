@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { ReactNode } from "react";
 import BackButtonClient from "@/components/BackButtonClient";
+import BetaBadge from "@/components/BetaBadge";
 
 interface TopAppBarProps {
   showBack?: boolean;
@@ -63,15 +64,18 @@ export default function TopAppBar({
             </Link>
           )
         )}
-        {title ? (
-          <span className="font-semibold text-lg tracking-tight text-[#18181B]">
-            {title}
-          </span>
-        ) : (
-          <span className="font-black text-2xl tracking-tight text-[#18181B]">
-            RALLYRANK
-          </span>
-        )}
+        <div className="flex min-w-0 items-center gap-2">
+          {title ? (
+            <span className="truncate font-semibold text-lg tracking-tight text-[#18181B]">
+              {title}
+            </span>
+          ) : (
+            <span className="font-black text-2xl tracking-tight text-[#18181B]">
+              RALLYRANK
+            </span>
+          )}
+          <BetaBadge />
+        </div>
       </div>
       <div className="flex items-center gap-4">
         {showNotification && (

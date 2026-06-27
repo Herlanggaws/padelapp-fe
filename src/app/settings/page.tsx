@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import BetaBadge from "@/components/BetaBadge";
 import LogoutButton from "@/components/LogoutButton";
 
 export const metadata: Metadata = {
@@ -26,12 +27,15 @@ export default function SettingsPage() {
               <path d="M19 12H5M12 19l-7-7 7-7" />
             </svg>
           </Link>
-          <span
-            className="font-semibold text-lg text-[#18181B]"
-            style={{ letterSpacing: "-2.5%" }}
-          >
-            Settings
-          </span>
+          <div className="flex min-w-0 items-center gap-2">
+            <span
+              className="truncate font-semibold text-lg text-[#18181B]"
+              style={{ letterSpacing: "-2.5%" }}
+            >
+              Settings
+            </span>
+            <BetaBadge />
+          </div>
         </div>
       </header>
 

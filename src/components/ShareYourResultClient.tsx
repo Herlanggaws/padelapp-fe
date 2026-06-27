@@ -157,12 +157,6 @@ export default function ShareYourResultClient({
     };
   }, [eventGuid, router, showSnackbar]);
 
-  useEffect(() => {
-    return () => {
-      if (photoPreview) URL.revokeObjectURL(photoPreview);
-    };
-  }, [photoPreview]);
-
   function resetPhotoTransform() {
     setPhotoTransform({ scale: 1, offsetX: 0, offsetY: 0 });
   }
@@ -181,10 +175,15 @@ export default function ShareYourResultClient({
     }
 
     setPhotoError(null);
-    if (photoPreview) URL.revokeObjectURL(photoPreview);
-    setPhotoPreview(URL.createObjectURL(file));
-    resetPhotoTransform();
-    setOverlayOpacity(DEFAULT_OVERLAY_OPACITY);
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      const dataUrl = evt.target?.result;
+      if (typeof dataUrl !== "string") return;
+      setPhotoPreview(dataUrl);
+      resetPhotoTransform();
+      setOverlayOpacity(DEFAULT_OVERLAY_OPACITY);
+    };
+    reader.readAsDataURL(file);
   }
 
   function handlePointerDown(e: React.PointerEvent<HTMLDivElement>) {

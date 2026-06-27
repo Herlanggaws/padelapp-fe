@@ -270,14 +270,19 @@ export default function ShareMatchResultClient({
     setIsSubmitting(true);
     try {
       const blob = await captureElementAsPng(previewRef.current);
+      const filename = `${eventName.replace(/\s+/g, "-").toLowerCase()}-top-3.png`;
+      const file = new File([blob], filename, { type: "image/png" });
 
-      downloadImage(
-        blob,
-        `${eventName.replace(/\s+/g, "-").toLowerCase()}-top-3.png`,
-      );
-      showSnackbar("Match result image downloaded.");
-    } catch {
-      showSnackbar("Could not share match result.");
+      if (navigator.canShare?.({ files: [file] })) {
+        await navigator.share({ files: [file], title: eventName });
+      } else {
+        downloadImage(blob, filename);
+        showSnackbar("Match result image downloaded.");
+      }
+    } catch (err) {
+      if (err instanceof Error && err.name !== "AbortError") {
+        showSnackbar("Could not share match result.");
+      }
     } finally {
       setIsSubmitting(false);
     }

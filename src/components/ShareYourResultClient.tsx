@@ -13,14 +13,13 @@ import type {
   PlayerEventSummary,
 } from "@/types/event";
 import {
+  captureElementAsPng,
   downloadImage,
   formatWinPercentage,
-  generateYourResultPng,
 } from "@/utils/shareStandingsImage";
 
 const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp"];
 const DEFAULT_OVERLAY_OPACITY = 0.45;
-const PREVIEW_WIDTH = 320;
 
 interface PhotoTransform {
   scale: number;
@@ -243,29 +242,7 @@ export default function ShareYourResultClient({
 
     setIsSubmitting(true);
     try {
-      const previewWidth = previewRef.current.clientWidth || PREVIEW_WIDTH;
-      const ratio = 1080 / previewWidth;
-
-      const blob = await generateYourResultPng({
-        eventName,
-        summary: {
-          winPercentage: summary.win_percentage,
-          rank: summary.rank,
-          matchesPlayed: summary.matches_played,
-          wins: summary.wins,
-          loss: summary.loss,
-          totalPoints: summary.total_points,
-        },
-        backgroundImageSrc: photoPreview ?? undefined,
-        overlayOpacity,
-        backgroundTransform: photoPreview
-          ? {
-              scale: photoTransform.scale,
-              offsetX: photoTransform.offsetX * ratio,
-              offsetY: photoTransform.offsetY * ratio,
-            }
-          : undefined,
-      });
+      const blob = await captureElementAsPng(previewRef.current);
 
       downloadImage(
         blob,
@@ -291,11 +268,10 @@ export default function ShareYourResultClient({
   }
 
   return (
-    <>
-      <main
-        className="flex flex-1 flex-col gap-4 px-6"
-        style={{ paddingTop: "80px", paddingBottom: "120px" }}
-      >
+    <main
+      className="flex flex-1 flex-col gap-4 px-6"
+      style={{ paddingTop: "80px", paddingBottom: "48px" }}
+    >
         <div
           ref={previewRef}
           className="relative mx-auto w-[320px] touch-none overflow-hidden bg-[#18181B]"
@@ -341,6 +317,17 @@ export default function ShareYourResultClient({
         >
           Select photos
         </button>
+
+        <button
+          type="button"
+          onClick={handleShare}
+          disabled={isSubmitting}
+          className="w-full rounded-full text-base font-semibold text-[#121212] disabled:cursor-not-allowed disabled:opacity-50"
+          style={{ background: "#9FE870", height: "56px" }}
+        >
+          {isSubmitting ? "Generating…" : "Share"}
+        </button>
+
         {photoError ? (
           <p className="-mt-2 text-xs text-red-500">{photoError}</p>
         ) : null}
@@ -375,21 +362,5 @@ export default function ShareYourResultClient({
           onChange={handlePhotoChange}
         />
       </main>
-
-      <div
-        className="fixed bottom-0 left-0 right-0 z-50 max-w-[448px] mx-auto px-6 py-4 pb-8"
-        style={{ background: "#FFFFFF", borderTop: "1px solid #F4F4F5" }}
-      >
-        <button
-          type="button"
-          onClick={handleShare}
-          disabled={isSubmitting}
-          className="w-full rounded-full text-base font-semibold text-[#121212] disabled:cursor-not-allowed disabled:opacity-50"
-          style={{ background: "#9FE870", height: "56px" }}
-        >
-          {isSubmitting ? "Generating…" : "Share"}
-        </button>
-      </div>
-    </>
   );
 }

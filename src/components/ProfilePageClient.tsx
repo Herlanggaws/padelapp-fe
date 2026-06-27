@@ -33,20 +33,17 @@ function ProfileInfoRow({ label, value }: { label: string; value: string }) {
 }
 
 export default function ProfilePageClient() {
-  const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [profile, setProfile] = useState<UserProfile | null>(
+    () => getUserProfileCache() ?? null
+  );
 
   useEffect(() => {
-    const cached = getUserProfileCache();
-    if (cached) setProfile(cached);
-
     fetchUserProfile()
       .then((res) => {
         setUserProfileCache(res.data);
         setProfile(res.data);
       })
-      .catch(() => {
-        if (!cached) setProfile(null);
-      });
+      .catch(() => {});
   }, []);
 
   const avatarSrc =

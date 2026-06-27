@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
 import Modal from "@/components/Modal";
-import BetaBadge from "@/components/BetaBadge";
+import TopAppBar from "@/components/TopAppBar";
 import ScoreKeyboardSheet from "@/components/ScoreKeyboardSheet";
 import BottomSheetSelectPlayers from "@/components/BottomSheetSelectPlayers";
 import { useSnackbar } from "@/context/SnackbarContext";
@@ -1606,7 +1606,7 @@ export default function MatchDetailClient({
     string | null
   >(null);
   const [eventDetail, setEventDetail] = useState<Event | null>(null);
-  const [currentUserGuid, setCurrentUserGuid] = useState<string | null>(null);
+  const [currentUserGuid] = useState<string | null>(() => getUserProfileCache()?.guid ?? null);
   const [showSelectPlayers, setShowSelectPlayers] = useState(false);
   const [isGeneratingRound, setIsGeneratingRound] = useState(false);
 
@@ -1665,9 +1665,6 @@ export default function MatchDetailClient({
     };
   }, [eventGuid]);
 
-  useEffect(() => {
-    setCurrentUserGuid(getUserProfileCache()?.guid ?? null);
-  }, []);
 
   const isEventFinished = eventDetail?.is_finished === true;
 
@@ -2114,62 +2111,26 @@ export default function MatchDetailClient({
 
   return (
     <div className="min-h-screen bg-white max-w-[448px] mx-auto relative flex flex-col">
-      <header
-        className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between gap-2 px-6 max-w-[448px] mx-auto w-full"
-        style={{
-          background: "#FFFFFF",
-          borderBottom: "1px solid #F4F4F5",
-          height: "64px",
-        }}
-      >
-        <div className="flex items-center gap-3 min-w-0">
-          <button
-            className="p-1 shrink-0"
-            onClick={() => {
-              if (window.history.length > 1) {
-                router.back();
-              } else {
-                router.push("/matches");
-              }
-            }}
+      <TopAppBar
+        showBack
+        backFallback="/matches"
+        title={headerTitle}
+        showSettings={false}
+        rightAction={
+          <div
+            className="w-8 h-8 rounded-full overflow-hidden shrink-0"
+            style={{ border: "1px solid #F4F4F5" }}
           >
-            <svg
-              width="20"
-              height="20"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <path d="M19 12H5M12 19l-7-7 7-7" />
-            </svg>
-          </button>
-          <div className="flex min-w-0 items-center gap-2">
-            <span
-              className="truncate font-black text-xl text-[#18181B]"
-              style={{ lineHeight: "28px" }}
-            >
-              {headerTitle}
-            </span>
-            <BetaBadge />
+            <Image
+              src="https://picsum.photos/seed/userprofile/32/32"
+              alt="Player profile"
+              width={32}
+              height={32}
+              className="w-full h-full object-cover"
+            />
           </div>
-        </div>
-
-        <div
-          className="w-8 h-8 rounded-full overflow-hidden shrink-0"
-          style={{ border: "1px solid #F4F4F5" }}
-        >
-          <Image
-            src="https://picsum.photos/seed/userprofile/32/32"
-            alt="Player profile"
-            width={32}
-            height={32}
-            className="w-full h-full object-cover"
-          />
-        </div>
-      </header>
+        }
+      />
 
       <div
         className="flex flex-col"

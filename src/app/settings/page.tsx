@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import BetaBadge from "@/components/BetaBadge";
+import TopAppBar from "@/components/TopAppBar";
 import LogoutButton from "@/components/LogoutButton";
 
 export const metadata: Metadata = {
@@ -10,36 +10,14 @@ export const metadata: Metadata = {
 export default function SettingsPage() {
   return (
     <div className="min-h-screen bg-white max-w-[448px] mx-auto relative">
-      {/* Header */}
-      <header className="flex items-center px-6 py-0 bg-white border-b border-[#F4F4F5] h-16">
-        <div className="flex items-center gap-4">
-          <Link href="/profile" className="p-2 rounded-full">
-            <svg
-              width="20"
-              height="20"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <path d="M19 12H5M12 19l-7-7 7-7" />
-            </svg>
-          </Link>
-          <div className="flex min-w-0 items-center gap-2">
-            <span
-              className="truncate font-semibold text-lg text-[#18181B]"
-              style={{ letterSpacing: "-2.5%" }}
-            >
-              Settings
-            </span>
-            <BetaBadge />
-          </div>
-        </div>
-      </header>
+      <TopAppBar
+        showBack
+        backHref="/profile"
+        title="Settings"
+        showSettings={false}
+      />
 
-      <main className="flex flex-col gap-6 p-6">
+      <main className="flex flex-col gap-6 p-6 pt-22">
         {/* GENERAL Section */}
         <section className="flex flex-col gap-2">
           <div className="px-2 py-2">

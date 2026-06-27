@@ -5,11 +5,14 @@ import { useRouter } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
 import Modal from "@/components/Modal";
+import BetaBadge from "@/components/BetaBadge";
 import ScoreKeyboardSheet from "@/components/ScoreKeyboardSheet";
 import BottomSheetSelectPlayers from "@/components/BottomSheetSelectPlayers";
 import { useSnackbar } from "@/context/SnackbarContext";
+import { getUserProfileCache } from "@/lib/userProfileCache";
 import {
   cancelMatchmakingRound,
+  editMatchmakingMatchScore,
   fetchMatchmakingSession,
   generateMatchmakingRound,
   startMatchmakingRound,
@@ -23,6 +26,7 @@ import {
 } from "@/services/eventService";
 import type {
   CancelMatchmakingRoundErrorResponse,
+  EditMatchmakingMatchScoreErrorResponse,
   GenerateMatchmakingRoundErrorResponse,
   GetMatchmakingSessionErrorResponse,
   MatchmakingMatchParticipant,
@@ -97,6 +101,12 @@ function shouldShowCancelRound(
   status: MatchmakingSessionRoundStatus | string | undefined,
 ): boolean {
   return normalizeRoundStatusKey(status) === "in_progress";
+}
+
+function isRoundCompletedStatus(
+  status: MatchmakingSessionRoundStatus | string | undefined,
+): boolean {
+  return normalizeRoundStatusKey(status) === "completed";
 }
 
 function isMexicanoSession(detail: MatchmakingSessionDetail): boolean {
@@ -527,18 +537,30 @@ function MatchCardComponent({
   match,
   onScoreSidePress,
   scoresEditable,
+  showEdit,
+  onEdit,
+  editHint,
+  showCancelEdit,
+  onCancelEdit,
   showSave,
   isSaving,
   saveDisabled,
+  saveLabel,
   onSave,
 }: {
   match: MatchCard;
   onScoreSidePress?: (side: "a" | "b") => void;
   /** When false (e.g. round still pending), score cells are read-only. */
   scoresEditable?: boolean;
+  showEdit?: boolean;
+  onEdit?: () => void;
+  editHint?: string;
+  showCancelEdit?: boolean;
+  onCancelEdit?: () => void;
   showSave?: boolean;
   isSaving?: boolean;
   saveDisabled?: boolean;
+  saveLabel?: string;
   onSave?: () => void;
 }) {
   const isFeatured = match.isFeatured;
@@ -698,6 +720,35 @@ function MatchCardComponent({
         </div>
       )}
 
+      {editHint ? (
+        <p
+          className={`text-xs font-normal text-center ${isFeatured ? "text-[#18181B]/80" : "text-[#71717A]"}`}
+          style={{ lineHeight: "18px" }}
+        >
+          {editHint}
+        </p>
+      ) : null}
+
+      {showEdit && !isTBD ? (
+        <div
+          className={`pt-3 mt-1 border-t ${isFeatured ? "border-[#18181B]/25" : "border-[#F4F4F5]"}`}
+        >
+          <button
+            type="button"
+            onClick={onEdit}
+            className="w-full py-3 text-center text-sm font-semibold rounded-2xl border cursor-pointer transition-opacity"
+            style={{
+              background: isFeatured ? "rgba(255,255,255,0.35)" : "#FFFFFF",
+              color: "#18181B",
+              borderColor: isFeatured ? "#18181B" : "#E4E4E7",
+              lineHeight: "21px",
+            }}
+          >
+            Edit
+          </button>
+        </div>
+      ) : null}
+
       {showSave && !isTBD ? (
         <div
           className={`pt-3 mt-1 border-t ${isFeatured ? "border-[#18181B]/25" : "border-[#F4F4F5]"}`}
@@ -713,7 +764,41 @@ function MatchCardComponent({
               lineHeight: "21px",
             }}
           >
-            {isSaving ? "Saving…" : "Save"}
+            {isSaving ? "Saving…" : (saveLabel ?? "Save")}
+          </button>
+          {showCancelEdit ? (
+            <button
+              type="button"
+              onClick={onCancelEdit}
+              className="w-full mt-2 py-2.5 text-center text-sm font-semibold rounded-2xl border-0 cursor-pointer"
+              style={{
+                background: "transparent",
+                color: isFeatured ? "#18181B" : "#71717A",
+                lineHeight: "21px",
+              }}
+            >
+              Cancel
+            </button>
+          ) : null}
+        </div>
+      ) : null}
+
+      {showCancelEdit && !showSave && !isTBD ? (
+        <div
+          className={`pt-3 mt-1 border-t ${isFeatured ? "border-[#18181B]/25" : "border-[#F4F4F5]"}`}
+        >
+          <button
+            type="button"
+            onClick={onCancelEdit}
+            className="w-full py-3 text-center text-sm font-semibold rounded-2xl border cursor-pointer"
+            style={{
+              background: isFeatured ? "rgba(255,255,255,0.35)" : "#FFFFFF",
+              color: "#71717A",
+              borderColor: isFeatured ? "#18181B" : "#E4E4E7",
+              lineHeight: "21px",
+            }}
+          >
+            Cancel
           </button>
         </div>
       ) : null}
@@ -746,6 +831,7 @@ function GenerateRoundButton({
 function MatchesTab({
   rounds,
   canManageEvent,
+  isEventFinished,
   isMexicano,
   canGenerateRound,
   onGenerateRoundClick,
@@ -753,6 +839,9 @@ function MatchesTab({
   onScoreSidePress,
   pendingSaveMatchIds,
   savedMatchIds,
+  editingMatchIds,
+  onEditMatch,
+  onCancelEditMatch,
   savingMatchId,
   onSaveMatch,
   startRoundLoadingGuid,
@@ -763,6 +852,7 @@ function MatchesTab({
   rounds: Round[];
   /** Host-only edits while the event is not finished. */
   canManageEvent: boolean;
+  isEventFinished: boolean;
   isMexicano: boolean;
   canGenerateRound: boolean;
   onGenerateRoundClick: () => void;
@@ -770,6 +860,9 @@ function MatchesTab({
   onScoreSidePress?: (matchGuid: string, side: "a" | "b") => void;
   pendingSaveMatchIds: ReadonlySet<string>;
   savedMatchIds: ReadonlySet<string>;
+  editingMatchIds: ReadonlySet<string>;
+  onEditMatch: (matchGuid: string) => void;
+  onCancelEditMatch: (matchGuid: string) => void;
   savingMatchId: string | null;
   onSaveMatch: (matchGuid: string) => void;
   startRoundLoadingGuid: string | null;
@@ -805,6 +898,7 @@ function MatchesTab({
       {rounds.map((round) => {
         const isRoundActive =
           normalizeRoundStatusKey(round.status) === "in_progress";
+        const isRoundCompleted = isRoundCompletedStatus(round.status);
         const showStart = shouldShowStartRound(round.status);
         const showCancel = shouldShowCancelRound(round.status);
         const isRoundMutationBusy =
@@ -815,6 +909,11 @@ function MatchesTab({
           normalizeRoundStatusKey(round.status) !== "pending";
         const showRoundActions =
           canManageEvent && (showStart || showCancel);
+        const canEditCompletedRound =
+          canManageEvent &&
+          !isEventFinished &&
+          isRoundCompleted &&
+          round.matches.some((match) => !editingMatchIds.has(match.id));
 
         return (
           <div
@@ -872,12 +971,36 @@ function MatchesTab({
               />
             ) : null}
 
+            {canEditCompletedRound ? (
+              <button
+                type="button"
+                onClick={() => {
+                  for (const match of round.matches) {
+                    onEditMatch(match.id);
+                  }
+                }}
+                className="w-full py-3 text-center text-sm font-semibold rounded-2xl border cursor-pointer"
+                style={{
+                  background: isRoundActive
+                    ? "rgba(255,255,255,0.35)"
+                    : "#FFFFFF",
+                  color: "#18181B",
+                  borderColor: isRoundActive ? "#18181B" : "#E4E4E7",
+                  lineHeight: "21px",
+                }}
+              >
+                Edit score
+              </button>
+            ) : null}
+
             <div className="flex flex-col gap-4">
               {round.matches.map((match) => {
                 const isMultiCourt = round.matches.length > 1;
                 const hasPendingSave = pendingSaveMatchIds.has(match.id);
-                const isScoreSaved = savedMatchIds.has(match.id);
-                const matchScoresEditable = scoresEditable && !isScoreSaved;
+                const isEditingSavedScore = editingMatchIds.has(match.id);
+                const matchScoresEditable =
+                  scoresEditable &&
+                  (!isRoundCompleted || isEditingSavedScore);
 
                 return (
                   <MatchCardComponent
@@ -889,12 +1012,30 @@ function MatchesTab({
                         ? (side) => onScoreSidePress?.(match.id, side)
                         : undefined
                     }
+                    editHint={
+                      isEditingSavedScore && !hasPendingSave
+                        ? "Tap a score to update"
+                        : undefined
+                    }
                     showSave={
                       canManageEvent &&
-                      isRoundActive &&
-                      (isMultiCourt || hasPendingSave)
+                      ((isRoundCompleted &&
+                        isEditingSavedScore &&
+                        hasPendingSave) ||
+                        (!isRoundCompleted &&
+                          (hasPendingSave ||
+                            (isRoundActive && isMultiCourt))))
                     }
                     saveDisabled={!hasPendingSave}
+                    saveLabel={
+                      isRoundCompleted && hasPendingSave ? "Update" : "Save"
+                    }
+                    showCancelEdit={
+                      isEditingSavedScore &&
+                      !hasPendingSave &&
+                      savingMatchId !== match.id
+                    }
+                    onCancelEdit={() => onCancelEditMatch(match.id)}
                     isSaving={savingMatchId === match.id}
                     onSave={() => onSaveMatch(match.id)}
                   />
@@ -1445,6 +1586,12 @@ export default function MatchDetailClient({
   const [savedMatchIds, setSavedMatchIds] = useState<Set<string>>(
     () => new Set(),
   );
+  const [editingMatchIds, setEditingMatchIds] = useState<Set<string>>(
+    () => new Set(),
+  );
+  const [editScoreSnapshots, setEditScoreSnapshots] = useState<
+    Map<string, { a: number | null; b: number | null }>
+  >(() => new Map());
   const [savingMatchId, setSavingMatchId] = useState<string | null>(null);
   const [startRoundLoadingGuid, setStartRoundLoadingGuid] = useState<
     string | null
@@ -1459,6 +1606,7 @@ export default function MatchDetailClient({
     string | null
   >(null);
   const [eventDetail, setEventDetail] = useState<Event | null>(null);
+  const [currentUserGuid, setCurrentUserGuid] = useState<string | null>(null);
   const [showSelectPlayers, setShowSelectPlayers] = useState(false);
   const [isGeneratingRound, setIsGeneratingRound] = useState(false);
 
@@ -1475,6 +1623,8 @@ export default function MatchDetailClient({
           setMyReport(null);
           setHasMyReport(null);
           setPendingSaveMatchIds(new Set());
+          setEditingMatchIds(new Set());
+          setEditScoreSnapshots(new Map());
           setSavedMatchIds(collectSavedMatchGuids(res.data));
         }
       } catch (e) {
@@ -1514,6 +1664,10 @@ export default function MatchDetailClient({
       cancelled = true;
     };
   }, [eventGuid]);
+
+  useEffect(() => {
+    setCurrentUserGuid(getUserProfileCache()?.guid ?? null);
+  }, []);
 
   const isEventFinished = eventDetail?.is_finished === true;
 
@@ -1592,11 +1746,16 @@ export default function MatchDetailClient({
     (detail?.number_of_courts ?? 1) * 4,
   );
 
+  const isSessionCreator = Boolean(
+    currentUserGuid && detail?.created_by?.guid === currentUserGuid,
+  );
+
   const canManageEvent =
-    eventDetail?.is_host === true && eventDetail?.is_finished !== true;
+    eventDetail?.is_finished !== true &&
+    (eventDetail?.is_host === true || isSessionCreator);
 
   const openScoreEditor = (matchGuid: string, side: "a" | "b") => {
-    if (!canManageEvent || savedMatchIds.has(matchGuid)) return;
+    if (!canManageEvent) return;
     const card = rounds
       .flatMap((r) => r.matches)
       .find((m) => m.id === matchGuid);
@@ -1608,10 +1767,48 @@ export default function MatchDetailClient({
     });
   };
 
+  const handleStartEditMatch = (matchGuid: string) => {
+    if (!canManageEvent || !detail) return;
+    const scores = getMatchRawScores(detail, matchGuid);
+    if (!scores) return;
+    setEditScoreSnapshots((prev) => {
+      const next = new Map(prev);
+      next.set(matchGuid, scores);
+      return next;
+    });
+    setEditingMatchIds((prev) => {
+      const next = new Set(prev);
+      next.add(matchGuid);
+      return next;
+    });
+  };
+
+  const handleCancelEditMatch = (matchGuid: string) => {
+    if (!detail) return;
+    const snapshot = editScoreSnapshots.get(matchGuid);
+    if (snapshot) {
+      setDetail(patchMatchScores(detail, matchGuid, snapshot));
+    }
+    setEditingMatchIds((prev) => {
+      const next = new Set(prev);
+      next.delete(matchGuid);
+      return next;
+    });
+    setPendingSaveMatchIds((prev) => {
+      const next = new Set(prev);
+      next.delete(matchGuid);
+      return next;
+    });
+    setEditScoreSnapshots((prev) => {
+      const next = new Map(prev);
+      next.delete(matchGuid);
+      return next;
+    });
+  };
+
   const applyScoreFromKeyboard = (value: number | null) => {
     if (!canManageEvent || !detail || !scoreSheet) return;
     const matchGuid = scoreSheet.matchGuid;
-    if (savedMatchIds.has(matchGuid)) return;
     const totalSetPoints = detail.total_set_points;
     const before = getMatchRawScores(detail, matchGuid);
 
@@ -1656,12 +1853,24 @@ export default function MatchDetailClient({
       return false;
     }
 
+    const isEditingSavedScore =
+      savedMatchIds.has(matchGuid) || editingMatchIds.has(matchGuid);
+    if (isEditingSavedScore && (scores.a == null || scores.b == null)) {
+      showSnackbar("Both scores are required to edit.");
+      return false;
+    }
+
     setSavingMatchId(matchGuid);
     try {
-      const res = await submitMatchmakingMatchScore(matchGuid, {
-        team_a_score: scores.a,
-        team_b_score: scores.b,
-      });
+      const res = isEditingSavedScore
+        ? await editMatchmakingMatchScore(matchGuid, {
+            team_a_score: scores.a!,
+            team_b_score: scores.b!,
+          })
+        : await submitMatchmakingMatchScore(matchGuid, {
+            team_a_score: scores.a,
+            team_b_score: scores.b,
+          });
       showSnackbar(res.message);
 
       const refreshed = await fetchMatchmakingSession(sessionGuid);
@@ -1672,10 +1881,21 @@ export default function MatchDetailClient({
         next.delete(matchGuid);
         return next;
       });
+      setEditingMatchIds((prev) => {
+        const next = new Set(prev);
+        next.delete(matchGuid);
+        return next;
+      });
+      setEditScoreSnapshots((prev) => {
+        const next = new Map(prev);
+        next.delete(matchGuid);
+        return next;
+      });
       return true;
     } catch (e) {
       const err = e as
         | SubmitMatchmakingMatchScoreErrorResponse
+        | EditMatchmakingMatchScoreErrorResponse
         | GetMatchmakingSessionErrorResponse;
       showSnackbar(err?.message ?? "Could not save or refresh score.");
       return false;
@@ -1887,6 +2107,10 @@ export default function MatchDetailClient({
       : null;
   const isSaveConfirmSaving =
     savingMatchId !== null && savingMatchId === saveConfirmMatchGuid;
+  const isSaveConfirmEditing =
+    saveConfirmMatchGuid != null &&
+    (savedMatchIds.has(saveConfirmMatchGuid) ||
+      editingMatchIds.has(saveConfirmMatchGuid));
 
   return (
     <div className="min-h-screen bg-white max-w-[448px] mx-auto relative flex flex-col">
@@ -1922,12 +2146,15 @@ export default function MatchDetailClient({
               <path d="M19 12H5M12 19l-7-7 7-7" />
             </svg>
           </button>
-          <span
-            className="font-black text-xl text-[#18181B] truncate"
-            style={{ lineHeight: "28px" }}
-          >
-            {headerTitle}
-          </span>
+          <div className="flex min-w-0 items-center gap-2">
+            <span
+              className="truncate font-black text-xl text-[#18181B]"
+              style={{ lineHeight: "28px" }}
+            >
+              {headerTitle}
+            </span>
+            <BetaBadge />
+          </div>
         </div>
 
         <div
@@ -2005,6 +2232,7 @@ export default function MatchDetailClient({
                 <MatchesTab
                   rounds={rounds}
                   canManageEvent={canManageEvent}
+                  isEventFinished={isEventFinished}
                   isMexicano={isMexicano}
                   canGenerateRound={canGenerateNextRound}
                   onGenerateRoundClick={() => setShowSelectPlayers(true)}
@@ -2012,6 +2240,9 @@ export default function MatchDetailClient({
                   onScoreSidePress={openScoreEditor}
                   pendingSaveMatchIds={pendingSaveMatchIds}
                   savedMatchIds={savedMatchIds}
+                  editingMatchIds={editingMatchIds}
+                  onEditMatch={handleStartEditMatch}
+                  onCancelEditMatch={handleCancelEditMatch}
                   savingMatchId={savingMatchId}
                   onSaveMatch={handleRequestSaveMatch}
                   startRoundLoadingGuid={startRoundLoadingGuid}
@@ -2089,9 +2320,12 @@ export default function MatchDetailClient({
       {saveConfirmMatchGuid && (
         <div className="fixed inset-0 z-60 flex items-center justify-center bg-black/40 px-6">
           <div className="w-full max-w-sm bg-white rounded-2xl p-6 flex flex-col gap-4">
-            <h3 className="text-lg font-semibold text-[#151C27]">Save Score</h3>
+            <h3 className="text-lg font-semibold text-[#151C27]">
+              {isSaveConfirmEditing ? "Edit Score" : "Save Score"}
+            </h3>
             <p className="text-sm text-[#41493A]">
-              Are you sure you want to save the score
+              Are you sure you want to {isSaveConfirmEditing ? "update" : "save"}{" "}
+              the score
               {saveConfirmCourt ? (
                 <>
                   {" "}
@@ -2124,7 +2358,11 @@ export default function MatchDetailClient({
                 disabled={isSaveConfirmSaving}
                 className="flex-1 py-3 rounded-full text-base font-semibold text-[#121212] bg-[#9FE870] disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {isSaveConfirmSaving ? "Saving…" : "Save"}
+                {isSaveConfirmSaving
+                  ? "Saving…"
+                  : isSaveConfirmEditing
+                    ? "Update"
+                    : "Save"}
               </button>
             </div>
           </div>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import BetaBadge from "@/components/BetaBadge";
 
 interface LegalBackHeaderProps {
   title: string;
@@ -31,12 +32,15 @@ export default function LegalBackHeader({ title }: LegalBackHeaderProps) {
             <path d="M19 12H5M12 19l-7-7 7-7" />
           </svg>
         </button>
-        <span
-          className="font-semibold text-lg text-[#18181B]"
-          style={{ letterSpacing: "-2.5%" }}
-        >
-          {title}
-        </span>
+        <div className="flex min-w-0 items-center gap-2">
+          <span
+            className="truncate font-semibold text-lg text-[#18181B]"
+            style={{ letterSpacing: "-2.5%" }}
+          >
+            {title}
+          </span>
+          <BetaBadge />
+        </div>
       </div>
     </header>
   );

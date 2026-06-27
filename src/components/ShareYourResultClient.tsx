@@ -257,7 +257,7 @@ export default function ShareYourResultClient({
           totalPoints: summary.total_points,
         },
         backgroundImageSrc: photoPreview ?? undefined,
-        overlayOpacity: photoPreview ? overlayOpacity : undefined,
+        overlayOpacity,
         backgroundTransform: photoPreview
           ? {
               scale: photoTransform.scale,
@@ -269,7 +269,7 @@ export default function ShareYourResultClient({
 
       downloadImage(
         blob,
-        `${eventName.replace(/\s+/g, "-").toLowerCase()}-my-result.jpg`,
+        `${eventName.replace(/\s+/g, "-").toLowerCase()}-my-result.png`,
       );
       showSnackbar("Your result image downloaded.");
     } catch {
@@ -319,15 +319,11 @@ export default function ShareYourResultClient({
               }}
               draggable={false}
             />
-          ) : (
-            <div className="absolute inset-0 bg-[#18181B]" />
-          )}
-          {photoPreview ? (
-            <div
-              className="absolute inset-0"
-              style={{ background: `rgba(0, 0, 0, ${overlayOpacity})` }}
-            />
           ) : null}
+          <div
+            className="absolute inset-0"
+            style={{ background: `rgba(0, 0, 0, ${overlayOpacity})` }}
+          />
           <YourResultStatsOverlay eventName={eventName} summary={summary} />
         </div>
 

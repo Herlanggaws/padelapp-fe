@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import BetaBadge from "@/components/BetaBadge";
 import Modal from "@/components/Modal";
 import { changePassword } from "@/services/authService";
 import type { ChangePasswordErrorResponse } from "@/types/auth";
@@ -98,12 +99,15 @@ export default function ChangePasswordClient() {
                 <path d="M19 12H5M12 19l-7-7 7-7" />
               </svg>
             </Link>
-            <span
-              className="font-semibold text-lg text-[#18181B]"
-              style={{ letterSpacing: "-2.5%" }}
-            >
-              Settings
-            </span>
+            <div className="flex min-w-0 items-center gap-2">
+              <span
+                className="truncate font-semibold text-lg text-[#18181B]"
+                style={{ letterSpacing: "-2.5%" }}
+              >
+                Settings
+              </span>
+              <BetaBadge />
+            </div>
           </div>
         </header>
 

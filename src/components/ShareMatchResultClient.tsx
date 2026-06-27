@@ -279,7 +279,7 @@ export default function ShareMatchResultClient({
         standingsType,
         top3,
         backgroundImageSrc: photoPreview ?? undefined,
-        overlayOpacity: photoPreview ? overlayOpacity : undefined,
+        overlayOpacity,
         backgroundTransform: photoPreview
           ? {
               scale: photoTransform.scale,
@@ -291,7 +291,7 @@ export default function ShareMatchResultClient({
 
       downloadImage(
         blob,
-        `${eventName.replace(/\s+/g, "-").toLowerCase()}-top-3.jpg`,
+        `${eventName.replace(/\s+/g, "-").toLowerCase()}-top-3.png`,
       );
       showSnackbar("Match result image downloaded.");
     } catch {
@@ -341,15 +341,11 @@ export default function ShareMatchResultClient({
               }}
               draggable={false}
             />
-          ) : (
-            <div className="absolute inset-0 bg-[#18181B]" />
-          )}
-          {photoPreview ? (
-            <div
-              className="absolute inset-0"
-              style={{ background: `rgba(0, 0, 0, ${overlayOpacity})` }}
-            />
           ) : null}
+          <div
+            className="absolute inset-0"
+            style={{ background: `rgba(0, 0, 0, ${overlayOpacity})` }}
+          />
           <MatchResultStandingsOverlay
             eventName={eventName}
             standingsType={standingsType}

@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
+import BetaBadge from "@/components/BetaBadge";
 import { joinNewsletter } from "@/services/newsletterService";
 
 export default function LandingPageClient() {
@@ -63,17 +64,20 @@ export default function LandingPageClient() {
       >
         <div className="w-full h-full flex items-center justify-between px-6">
           {/* Logo */}
-          <span
-            style={{
-              fontFamily: "Lexend, sans-serif",
-              fontWeight: 900,
-              fontSize: "24px",
-              lineHeight: "32px",
-              color: "#18181B",
-            }}
-          >
-            RallyRank
-          </span>
+          <div className="flex items-center gap-2">
+            <span
+              style={{
+                fontFamily: "Lexend, sans-serif",
+                fontWeight: 900,
+                fontSize: "24px",
+                lineHeight: "32px",
+                color: "#18181B",
+              }}
+            >
+              RallyRank
+            </span>
+            <BetaBadge />
+          </div>
 
           <Link
             href="/login"

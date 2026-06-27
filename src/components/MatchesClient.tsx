@@ -160,9 +160,10 @@ export default function MatchesClient() {
   const [events, setEvents] = useState<UpcomingEvent[]>([]);
   const [totalCount, setTotalCount] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState("");
 
   useEffect(() => {
-    fetchEvents({ page: 1, limit: 10 })
+    fetchEvents({ page: 1, limit: 100 })
       .then((res) => {
         setEvents(res.data);
         setTotalCount(res.paginate.total_data);
@@ -174,6 +175,19 @@ export default function MatchesClient() {
       .finally(() => setIsLoading(false));
   }, []);
 
+  const filteredEvents = searchQuery.trim()
+    ? events.filter((event) => {
+        const q = searchQuery.toLowerCase();
+        const levelRange = formatLevelRange(event.min_level, event.max_level).toLowerCase();
+        return (
+          event.name.toLowerCase().includes(q) ||
+          levelRange.includes(q) ||
+          String(event.min_level).includes(q) ||
+          String(event.max_level).includes(q)
+        );
+      })
+    : events;
+
   return (
     <div className="min-h-screen bg-white max-w-[448px] mx-auto relative">
       <TopAppBar showNotification={true} />
@@ -184,6 +198,8 @@ export default function MatchesClient() {
             <div className="relative">
               <input
                 type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Search clubs or level..."
                 className="w-full bg-white border border-[#F4F4F5] rounded-2xl py-[18px] pl-12 pr-4 text-base text-[#151C27] placeholder-[#6B7280] outline-none focus:border-[#9FE870] transition-colors font-[Lexend]"
               />
@@ -210,7 +226,7 @@ export default function MatchesClient() {
             Open Matches
           </h2>
           <span className="font-normal text-base text-[#A1A1AA] leading-6">
-            {isLoading ? "—" : `${totalCount} Available`}
+            {isLoading ? "—" : `${searchQuery.trim() ? filteredEvents.length : totalCount} Available`}
           </span>
         </section>
 
@@ -219,13 +235,13 @@ export default function MatchesClient() {
             ? Array.from({ length: 3 }).map((_, i) => (
                 <MatchCardSkeleton key={i} />
               ))
-            : events.map((event) => (
+            : filteredEvents.map((event) => (
                 <MatchCard key={event.guid} event={event} />
               ))}
 
-          {!isLoading && events.length === 0 && (
+          {!isLoading && filteredEvents.length === 0 && (
             <p className="text-center text-base text-[#A1A1AA] py-8">
-              No open matches available.
+              {searchQuery.trim() ? "No matches found." : "No open matches available."}
             </p>
           )}
         </section>

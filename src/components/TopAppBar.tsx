@@ -43,9 +43,9 @@ export default function TopAppBar({
       className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-4 py-4 max-w-[448px] mx-auto w-full"
       style={headerStyle}
     >
-      <div className="flex items-center gap-4">
-        {showBack && (
-          backFallback ? (
+      <div className="flex items-center gap-4 min-w-0 flex-1">
+        {showBack &&
+          (backFallback ? (
             <BackButtonClient fallbackHref={backFallback} />
           ) : (
             <Link href={backLink} className="p-2 rounded-full">
@@ -62,19 +62,20 @@ export default function TopAppBar({
                 <path d="M19 12H5M12 19l-7-7 7-7" />
               </svg>
             </Link>
-          )
-        )}
+          ))}
         <div className="flex min-w-0 items-center gap-2">
           {title ? (
             <span className="truncate font-semibold text-lg tracking-tight text-[#18181B]">
               {title}
             </span>
           ) : (
-            <span className="font-black text-2xl tracking-tight text-[#18181B]">
-              RALLYRANK
-            </span>
+            <>
+              <span className="font-black text-2xl tracking-tight text-[#18181B]">
+                RALLYRANK
+              </span>
+              <BetaBadge />
+            </>
           )}
-          <BetaBadge />
         </div>
       </div>
       <div className="flex items-center gap-4">

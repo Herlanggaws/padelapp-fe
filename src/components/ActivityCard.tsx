@@ -23,7 +23,7 @@ export default function ActivityCard({
     <div className="flex items-center justify-between p-5 rounded-2xl bg-white transition border border-[#F4F4F5] md:group-hover:border-[#DADADA]">
       <div className="flex items-center gap-4">
         <div
-          className="w-12 h-12 rounded-[48px] flex flex-col items-center justify-center"
+          className="w-12 h-12 rounded-[48px] flex flex-col items-center justify-center shrink-0"
           style={{ background: "#F0F3FF" }}
         >
           <span

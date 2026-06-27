@@ -24,10 +24,15 @@ export default function ClubMembersBottomSheet({
   const isFetchingRef = useRef(false);
   const clubGuidRef = useRef(clubGuid);
 
-  // Animate in on mount
+  // Animate in on mount + lock body scroll
   useEffect(() => {
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
     const timer = setTimeout(() => setIsVisible(true), 10);
-    return () => clearTimeout(timer);
+    return () => {
+      clearTimeout(timer);
+      document.body.style.overflow = prev;
+    };
   }, []);
 
   const handleClose = () => {
@@ -149,7 +154,7 @@ export default function ClubMembersBottomSheet({
         </div>
 
         {/* Scrollable Member List */}
-        <div className="flex flex-col overflow-y-auto px-6 py-4">
+        <div className="flex flex-col overflow-y-auto overscroll-contain px-6 py-4">
           {members.map((member) => (
             <div
               key={member.guid}

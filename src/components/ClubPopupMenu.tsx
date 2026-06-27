@@ -9,7 +9,11 @@ interface ClubPopupMenuProps {
   clubId: string;
 }
 
-export default function ClubPopupMenu({ onClose, clubGuid, clubId }: ClubPopupMenuProps) {
+export default function ClubPopupMenu({
+  onClose,
+  clubGuid,
+  clubId,
+}: ClubPopupMenuProps) {
   const [visible, setVisible] = useState(false);
 
   useEffect(() => {
@@ -58,7 +62,7 @@ export default function ClubPopupMenu({ onClose, clubGuid, clubId }: ClubPopupMe
         {/* Menu Items */}
         <div className="flex flex-col gap-4">
           {/* Invite Friends */}
-          <div
+          {/* <div
             className="flex items-center gap-4 p-4 rounded-2xl cursor-pointer"
             style={{ background: "transparent" }}
           >
@@ -111,7 +115,7 @@ export default function ClubPopupMenu({ onClose, clubGuid, clubId }: ClubPopupMe
                 strokeLinejoin="round"
               />
             </svg>
-          </div>
+          </div> */}
 
           {/* Create Event */}
           <Link

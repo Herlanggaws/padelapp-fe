@@ -738,6 +738,43 @@ function canvasToPngBlob(canvas: HTMLCanvasElement): Promise<Blob> {
   });
 }
 
+export function isMobileShareSupported(file: File): boolean {
+  if (!navigator.canShare?.({ files: [file] })) return false;
+  // Safari on macOS reports canShare=true but the share sheet is not useful there.
+  // Guard to mobile/tablet UA only.
+  return /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+}
+
+// Safari taints the canvas when drawing very large images, making them render
+// as black. Pre-resizing to a max dimension before storing as photoPreview
+// keeps the image within Safari's canvas limits while retaining enough quality.
+export function resizeImageDataUrl(
+  dataUrl: string,
+  maxDimension = 1920,
+  quality = 0.92,
+): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => {
+      const { width, height } = img;
+      if (width <= maxDimension && height <= maxDimension) {
+        resolve(dataUrl);
+        return;
+      }
+      const scale = maxDimension / Math.max(width, height);
+      const canvas = document.createElement("canvas");
+      canvas.width = Math.round(width * scale);
+      canvas.height = Math.round(height * scale);
+      const ctx = canvas.getContext("2d");
+      if (!ctx) { reject(new Error("Canvas unavailable")); return; }
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+      resolve(canvas.toDataURL("image/jpeg", quality));
+    };
+    img.onerror = () => reject(new Error("Could not load image"));
+    img.src = dataUrl;
+  });
+}
+
 export function downloadImage(blob: Blob, filename: string) {
   const url = URL.createObjectURL(blob);
   const anchor = document.createElement("a");
@@ -750,6 +787,9 @@ export function downloadImage(blob: Blob, filename: string) {
 export async function captureElementAsPng(
   element: HTMLElement,
   targetWidth = 1080,
+  backgroundDataUrl?: string | null,
+  backgroundTransform?: { scale: number; offsetX: number; offsetY: number },
+  overlayOpacity?: number,
 ): Promise<Blob> {
   const width = element.offsetWidth;
   const height = element.offsetHeight;
@@ -758,10 +798,17 @@ export async function captureElementAsPng(
   }
 
   const scale = targetWidth / width;
-  const blob = await toBlob(element, {
-    cacheBust: true,
-    width: width * scale,
-    height: height * scale,
+  const outWidth = Math.round(width * scale);
+  const outHeight = Math.round(height * scale);
+
+  // Capture only the overlay (stats/text), skipping background nodes tagged
+  // with data-capture-ignore. This avoids Safari's canvas-taint issue when
+  // html-to-image tries to re-fetch large data URL images.
+  const overlayBlob = await toBlob(element, {
+    cacheBust: false,
+    width: outWidth,
+    height: outHeight,
+    filter: (node) => !(node instanceof HTMLElement && node.dataset.captureIgnore === "true"),
     style: {
       transform: `scale(${scale})`,
       transformOrigin: "top left",
@@ -769,7 +816,34 @@ export async function captureElementAsPng(
       height: `${height}px`,
     },
   });
+  if (!overlayBlob) throw new Error("Failed to capture image.");
 
-  if (!blob) throw new Error("Failed to capture image.");
-  return blob;
+  // If no background photo, return the overlay as-is (transparent bg).
+  if (!backgroundDataUrl) return overlayBlob;
+
+  // Composite: draw background photo then overlay onto a single canvas.
+  // Using drawImage directly avoids Safari's canvas-taint issue with html-to-image.
+  const canvas = document.createElement("canvas");
+  canvas.width = outWidth;
+  canvas.height = outHeight;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) throw new Error("Could not create canvas context.");
+
+  const bgImg = await loadImage(backgroundDataUrl);
+  const transform = backgroundTransform ?? { scale: 1, offsetX: 0, offsetY: 0 };
+  const baseScale = Math.max(outWidth / bgImg.width, outHeight / bgImg.height);
+  const finalScale = baseScale * transform.scale;
+  const drawW = bgImg.width * finalScale;
+  const drawH = bgImg.height * finalScale;
+  const centerX = outWidth / 2 + transform.offsetX * scale;
+  const centerY = outHeight / 2 + transform.offsetY * scale;
+  ctx.drawImage(bgImg, centerX - drawW / 2, centerY - drawH / 2, drawW, drawH);
+
+  ctx.fillStyle = `rgba(0,0,0,${overlayOpacity ?? 0.45})`;
+  ctx.fillRect(0, 0, outWidth, outHeight);
+
+  const overlayImg = await loadImage(URL.createObjectURL(overlayBlob));
+  ctx.drawImage(overlayImg, 0, 0, outWidth, outHeight);
+
+  return canvasToPngBlob(canvas);
 }

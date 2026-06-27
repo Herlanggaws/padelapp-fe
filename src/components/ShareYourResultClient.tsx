@@ -16,6 +16,8 @@ import {
   captureElementAsPng,
   downloadImage,
   formatWinPercentage,
+  isMobileShareSupported,
+  resizeImageDataUrl,
 } from "@/utils/shareStandingsImage";
 
 const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp"];
@@ -176,10 +178,11 @@ export default function ShareYourResultClient({
 
     setPhotoError(null);
     const reader = new FileReader();
-    reader.onload = (evt) => {
+    reader.onload = async (evt) => {
       const dataUrl = evt.target?.result;
       if (typeof dataUrl !== "string") return;
-      setPhotoPreview(dataUrl);
+      const resized = await resizeImageDataUrl(dataUrl);
+      setPhotoPreview(resized);
       resetPhotoTransform();
       setOverlayOpacity(DEFAULT_OVERLAY_OPACITY);
     };
@@ -241,11 +244,17 @@ export default function ShareYourResultClient({
 
     setIsSubmitting(true);
     try {
-      const blob = await captureElementAsPng(previewRef.current);
+      const blob = await captureElementAsPng(
+        previewRef.current,
+        1080,
+        photoPreview,
+        photoTransform,
+        overlayOpacity,
+      );
       const filename = `${eventName.replace(/\s+/g, "-").toLowerCase()}-my-result.png`;
       const file = new File([blob], filename, { type: "image/png" });
 
-      if (navigator.canShare?.({ files: [file] })) {
+      if (isMobileShareSupported(file)) {
         await navigator.share({ files: [file], title: eventName });
       } else {
         downloadImage(blob, filename);
@@ -277,34 +286,45 @@ export default function ShareYourResultClient({
       style={{ paddingTop: "80px", paddingBottom: "48px" }}
     >
         <div
-          ref={previewRef}
-          className="relative mx-auto w-[320px] touch-none overflow-hidden bg-[#18181B]"
+          className="relative mx-auto"
           style={{ width: "320px", height: `${(320 * 16) / 9}px` }}
-          onPointerDown={handlePointerDown}
-          onPointerMove={handlePointerMove}
-          onPointerUp={handlePointerUp}
-          onPointerCancel={handlePointerUp}
-          onTouchStart={handleTouchStart}
-          onTouchMove={handleTouchMove}
-          onTouchEnd={handleTouchEnd}
         >
-          {photoPreview ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={photoPreview}
-              alt="Selected background"
-              className="absolute h-full w-full origin-center object-cover"
-              style={{
-                transform: `translate(${photoTransform.offsetX}px, ${photoTransform.offsetY}px) scale(${photoTransform.scale})`,
-              }}
-              draggable={false}
-            />
-          ) : null}
+          {!photoPreview && (
+            <div className="absolute inset-0 bg-[#18181B]" />
+          )}
           <div
-            className="absolute inset-0"
-            style={{ background: `rgba(0, 0, 0, ${overlayOpacity})` }}
-          />
-          <YourResultStatsOverlay eventName={eventName} summary={summary} />
+            ref={previewRef}
+            className="absolute inset-0 touch-none overflow-hidden"
+            onPointerDown={handlePointerDown}
+            onPointerMove={handlePointerMove}
+            onPointerUp={handlePointerUp}
+            onPointerCancel={handlePointerUp}
+            onTouchStart={handleTouchStart}
+            onTouchMove={handleTouchMove}
+            onTouchEnd={handleTouchEnd}
+          >
+            {photoPreview ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={photoPreview}
+                alt="Selected background"
+                className="absolute h-full w-full origin-center object-cover"
+                style={{
+                  transform: `translate(${photoTransform.offsetX}px, ${photoTransform.offsetY}px) scale(${photoTransform.scale})`,
+                }}
+                draggable={false}
+                data-capture-ignore="true"
+              />
+            ) : null}
+            {photoPreview ? (
+              <div
+                className="absolute inset-0"
+                style={{ background: `rgba(0, 0, 0, ${overlayOpacity})` }}
+                data-capture-ignore="true"
+              />
+            ) : null}
+            <YourResultStatsOverlay eventName={eventName} summary={summary} />
+          </div>
         </div>
 
         {photoPreview ? (

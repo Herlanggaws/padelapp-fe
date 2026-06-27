@@ -185,12 +185,6 @@ export default function ShareMatchResultClient({
     };
   }, [eventGuid, router, showSnackbar, standingsType]);
 
-  useEffect(() => {
-    return () => {
-      if (photoPreview) URL.revokeObjectURL(photoPreview);
-    };
-  }, [photoPreview]);
-
   function resetPhotoTransform() {
     setPhotoTransform({ scale: 1, offsetX: 0, offsetY: 0 });
   }
@@ -209,10 +203,15 @@ export default function ShareMatchResultClient({
     }
 
     setPhotoError(null);
-    if (photoPreview) URL.revokeObjectURL(photoPreview);
-    setPhotoPreview(URL.createObjectURL(file));
-    resetPhotoTransform();
-    setOverlayOpacity(DEFAULT_OVERLAY_OPACITY);
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      const dataUrl = evt.target?.result;
+      if (typeof dataUrl !== "string") return;
+      setPhotoPreview(dataUrl);
+      resetPhotoTransform();
+      setOverlayOpacity(DEFAULT_OVERLAY_OPACITY);
+    };
+    reader.readAsDataURL(file);
   }
 
   function handlePointerDown(e: React.PointerEvent<HTMLDivElement>) {
@@ -271,14 +270,19 @@ export default function ShareMatchResultClient({
     setIsSubmitting(true);
     try {
       const blob = await captureElementAsPng(previewRef.current);
+      const filename = `${eventName.replace(/\s+/g, "-").toLowerCase()}-top-3.png`;
+      const file = new File([blob], filename, { type: "image/png" });
 
-      downloadImage(
-        blob,
-        `${eventName.replace(/\s+/g, "-").toLowerCase()}-top-3.png`,
-      );
-      showSnackbar("Match result image downloaded.");
-    } catch {
-      showSnackbar("Could not share match result.");
+      if (navigator.canShare?.({ files: [file] })) {
+        await navigator.share({ files: [file], title: eventName });
+      } else {
+        downloadImage(blob, filename);
+        showSnackbar("Match result image downloaded.");
+      }
+    } catch (err) {
+      if (err instanceof Error && err.name !== "AbortError") {
+        showSnackbar("Could not share match result.");
+      }
     } finally {
       setIsSubmitting(false);
     }

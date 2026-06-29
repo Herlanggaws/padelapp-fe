@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
 // Auth routes are public and should redirect authenticated users to dashboard.
-const authRoutes = ["/login", "/register", "/forgot-password"];
+const authRoutes = ["/login", "/register", "/forgot-password", "/reset-password"];
 
 // Public content routes are accessible with or without authentication.
 const publicContentRoutes = ["/", "/privacy-policy", "/terms-of-service"];

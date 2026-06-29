@@ -18,6 +18,11 @@ import type {
   ChangePasswordErrorResponse,
   GetUserProfileSuccessResponse,
   GetUserProfileErrorResponse,
+  ValidateResetTokenSuccessResponse,
+  ValidateResetTokenErrorResponse,
+  ResetPasswordPayload,
+  ResetPasswordSuccessResponse,
+  ResetPasswordErrorResponse,
 } from "@/types/auth";
 
 export type {
@@ -40,6 +45,11 @@ export type {
   ChangePasswordErrorResponse,
   GetUserProfileSuccessResponse,
   GetUserProfileErrorResponse,
+  ValidateResetTokenSuccessResponse,
+  ValidateResetTokenErrorResponse,
+  ResetPasswordPayload,
+  ResetPasswordSuccessResponse,
+  ResetPasswordErrorResponse,
 };
 
 const BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
@@ -252,6 +262,41 @@ export async function forgotPassword(
   }
 
   return data as ForgotPasswordSuccessResponse;
+}
+
+export async function validateResetToken(
+  token: string,
+): Promise<ValidateResetTokenSuccessResponse> {
+  const response = await fetch(
+    `${BASE_URL}/auth/forgot-password/reset?token=${encodeURIComponent(token)}`,
+    { method: "GET" },
+  );
+
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw data as ValidateResetTokenErrorResponse;
+  }
+
+  return data as ValidateResetTokenSuccessResponse;
+}
+
+export async function resetPassword(
+  payload: ResetPasswordPayload,
+): Promise<ResetPasswordSuccessResponse> {
+  const response = await fetch(`${BASE_URL}/auth/forgot-password/reset`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw data as ResetPasswordErrorResponse;
+  }
+
+  return data as ResetPasswordSuccessResponse;
 }
 
 export async function changePassword(

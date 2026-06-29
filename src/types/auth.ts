@@ -125,3 +125,26 @@ export interface GetUserProfileSuccessResponse {
 export interface GetUserProfileErrorResponse {
   message: string;
 }
+
+export interface ValidateResetTokenSuccessResponse {
+  data: null;
+  message: string;
+}
+
+export interface ValidateResetTokenErrorResponse {
+  message: string;
+}
+
+export interface ResetPasswordPayload {
+  token: string;
+  password: string;
+}
+
+export interface ResetPasswordSuccessResponse {
+  data: null;
+  message: string;
+}
+
+export interface ResetPasswordErrorResponse {
+  message: string;
+}

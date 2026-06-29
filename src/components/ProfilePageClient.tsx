@@ -2,6 +2,16 @@
 
 import Image from "next/image";
 import { useEffect, useState } from "react";
+
+function getInitials(name: string | undefined | null): string {
+  if (!name) return "?";
+  return name
+    .trim()
+    .split(/\s+/)
+    .slice(0, 2)
+    .map((word) => word[0].toUpperCase())
+    .join("");
+}
 import TopAppBar from "@/components/TopAppBar";
 import BottomNavBar from "@/components/BottomNavBar";
 import ProfileJoinedClubsSectionClient from "@/components/ProfileJoinedClubsSectionClient";
@@ -12,7 +22,6 @@ import {
 } from "@/lib/userProfileCache";
 import type { UserProfile } from "@/types/auth";
 
-const DEFAULT_AVATAR = "https://i.pravatar.cc/128?img=3";
 
 function formatDate(value: string | null): string {
   if (!value) return "—";
@@ -27,17 +36,18 @@ function ProfileInfoRow({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex flex-col gap-1 py-3 border-b border-[#F2F2F2] last:border-b-0">
       <span className="text-xs text-[#5F5E5E]">{label}</span>
-      <span className="text-sm font-medium text-[#151C27] break-all">{value}</span>
+      <span className="text-sm font-medium text-[#151C27] break-all">
+        {value}
+      </span>
     </div>
   );
 }
 
 export default function ProfilePageClient() {
-  const [profile, setProfile] = useState<UserProfile | null>(
-    () => getUserProfileCache() ?? null
-  );
+  const [profile, setProfile] = useState<UserProfile | null>(null);
 
   useEffect(() => {
+    setProfile(getUserProfileCache() ?? null);
     fetchUserProfile()
       .then((res) => {
         setUserProfileCache(res.data);
@@ -46,8 +56,7 @@ export default function ProfilePageClient() {
       .catch(() => {});
   }, []);
 
-  const avatarSrc =
-    profile?.profile_photo?.trim() || DEFAULT_AVATAR;
+  const avatarSrc = profile?.profile_photo?.trim() || null;
 
   return (
     <div className="min-h-screen bg-white max-w-[448px] mx-auto relative">
@@ -55,16 +64,24 @@ export default function ProfilePageClient() {
 
       <main className="flex flex-col gap-6 px-4 pt-20 pb-36">
         <section className="flex flex-col items-center gap-4 pb-4">
-          {/* <div className="relative">
+          <div className="relative">
             <div className="w-32 h-32 rounded-full border-[3px] border-[#9FE870] p-1 bg-white">
               <div className="w-full h-full rounded-full overflow-hidden">
-                <Image
-                  src={avatarSrc}
-                  alt="Profile Picture"
-                  width={128}
-                  height={128}
-                  className="w-full h-full object-cover"
-                />
+                {avatarSrc ? (
+                  <Image
+                    src={avatarSrc}
+                    alt="Profile Picture"
+                    width={128}
+                    height={128}
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <div className="w-full h-full bg-[#9FE870] flex items-center justify-center">
+                    <span className="text-[#2E6900] font-bold text-3xl select-none">
+                      {getInitials(profile?.name)}
+                    </span>
+                  </div>
+                )}
               </div>
             </div>
             <div className="absolute bottom-1 right-1 w-8 h-8 bg-[#9FE870] rounded-full border-4 border-white flex items-center justify-center">
@@ -82,7 +99,7 @@ export default function ProfilePageClient() {
                 <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
               </svg>
             </div>
-          </div> */}
+          </div>
 
           <div className="flex flex-col items-center gap-2">
             <h1

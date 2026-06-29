@@ -20,8 +20,8 @@ export default function ResetPasswordForm() {
   const searchParams = useSearchParams();
   const token = searchParams.get("token") ?? "";
 
-  const [tokenValid, setTokenValid] = useState<boolean | null>(null);
-  const [tokenError, setTokenError] = useState("");
+  const [tokenValid, setTokenValid] = useState<boolean | null>(token ? null : false);
+  const [tokenError, setTokenError] = useState(token ? "" : "Reset token is missing.");
 
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -39,11 +39,7 @@ export default function ResetPasswordForm() {
   };
 
   useEffect(() => {
-    if (!token) {
-      setTokenValid(false);
-      setTokenError("Reset token is missing.");
-      return;
-    }
+    if (!token) return;
 
     validateResetToken(token)
       .then(() => setTokenValid(true))

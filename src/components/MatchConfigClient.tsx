@@ -101,6 +101,13 @@ export default function MatchConfigClient({
       );
       return;
     }
+    if (selectedPlayers.length === 0) {
+      showModal(
+        "No players selected",
+        "Go back to the event page and select players before generating a match.",
+      );
+      return;
+    }
     setShowGenerateConfirm(true);
   };
 
@@ -114,6 +121,7 @@ export default function MatchConfigClient({
         team_assignment: uiTeamAssignmentToApi(teamAssignment),
         total_set_points: selectedPoints,
         teams: [],
+        participant_guids: selectedPlayers.map((p) => p.participant_guid),
       });
       router.push(
         `/matches/${result.data.guid}?event_guid=${encodeURIComponent(eventGuid)}`,

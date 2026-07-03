@@ -19,13 +19,19 @@ export type MatchmakingSessionFormatApi =
 
 export type MatchmakingTeamAssignmentApi = "random" | "organizer_set";
 
+export interface CreateMatchmakingSessionTeam {
+  player1_guid: string;
+  player2_guid: string;
+}
+
 export interface CreateMatchmakingSessionPayload {
   event_guid: string;
   format: MatchmakingSessionFormatApi;
   number_of_courts: number;
   team_assignment: MatchmakingTeamAssignmentApi;
   total_set_points: number;
-  teams: unknown[];
+  teams: CreateMatchmakingSessionTeam[];
+  participant_guids: string[];
 }
 
 export interface MatchmakingSessionCreatedBy {

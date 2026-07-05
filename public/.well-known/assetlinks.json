@@ -1,0 +1,13 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.xervproject.rallyrank",
+      "sha256_cert_fingerprints": [
+        "13:2B:12:FC:CD:B0:9F:13:A0:0D:1A:97:6B:FD:7B:F4:91:3B:78:76:94:49:24:C0:4E:B0:EE:37:EC:4A:FB:62",
+        "EA:15:B8:F8:51:3A:72:96:12:20:1A:7E:77:34:ED:C7:CE:9C:E3:3B:60:B1:04:54:F6:E2:54:4C:94:31:DF:C0"
+      ]
+    }
+  }
+]

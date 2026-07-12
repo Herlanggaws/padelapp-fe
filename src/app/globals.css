@@ -22,3 +22,20 @@ body {
 * {
   box-sizing: border-box;
 }
+
+@keyframes live-scoreboard-marquee {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+.live-scoreboard-marquee {
+  animation: live-scoreboard-marquee 40s linear infinite;
+}
+
+.live-scoreboard-marquee:hover {
+  animation-play-state: paused;
+}

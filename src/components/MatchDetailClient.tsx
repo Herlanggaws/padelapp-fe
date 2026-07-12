@@ -2117,18 +2117,27 @@ export default function MatchDetailClient({
         title={headerTitle}
         showSettings={false}
         rightAction={
-          <div
-            className="w-8 h-8 rounded-full overflow-hidden shrink-0"
-            style={{ border: "1px solid #F4F4F5" }}
-          >
-            <Image
-              src="https://picsum.photos/seed/userprofile/32/32"
-              alt="Player profile"
-              width={32}
-              height={32}
-              className="w-full h-full object-cover"
-            />
-          </div>
+          eventGuid ? (
+            <a
+              href={`/live/${encodeURIComponent(eventGuid)}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold uppercase text-[#18181B] no-underline"
+              style={{
+                background: "#9FE870",
+                borderRadius: "999px",
+                border: "1px solid #18181B",
+                lineHeight: "12px",
+              }}
+            >
+              <span
+                className="w-1.5 h-1.5 rounded-full shrink-0"
+                style={{ background: "#2E6900" }}
+                aria-hidden
+              />
+              Live
+            </a>
+          ) : null
         }
       />
 

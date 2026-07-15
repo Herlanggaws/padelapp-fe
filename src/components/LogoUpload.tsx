@@ -9,11 +9,12 @@ const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp"];
 
 interface LogoUploadProps {
   onUpload?: (url: string | null) => void;
+  initialUrl?: string | null;
 }
 
-export default function LogoUpload({ onUpload }: LogoUploadProps) {
+export default function LogoUpload({ onUpload, initialUrl }: LogoUploadProps) {
   const inputRef = useRef<HTMLInputElement>(null);
-  const [preview, setPreview] = useState<string | null>(null);
+  const [preview, setPreview] = useState<string | null>(initialUrl ?? null);
   const [error, setError] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
 

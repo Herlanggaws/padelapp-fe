@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useSnackbar } from "@/context/SnackbarContext";
+import { usePhotoTransform } from "@/hooks/usePhotoTransform";
 import { fetchEventDetail, fetchEventStandings } from "@/services/eventService";
 import type {
   EventStandingRow,
@@ -23,12 +24,6 @@ import {
 const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp"];
 const DEFAULT_OVERLAY_OPACITY = 0.45;
 const MEDAL_TEXT_COLORS = ["#EAB308", "#A1A1AA", "#FB923C"];
-
-interface PhotoTransform {
-  scale: number;
-  offsetX: number;
-  offsetY: number;
-}
 
 interface ShareMatchResultClientProps {
   eventGuid: string;
@@ -98,13 +93,6 @@ function MatchResultStandingsOverlay({
   );
 }
 
-function getTouchDistance(touches: React.TouchList) {
-  if (touches.length < 2) return 0;
-  const dx = touches[0].clientX - touches[1].clientX;
-  const dy = touches[0].clientY - touches[1].clientY;
-  return Math.hypot(dx, dy);
-}
-
 export default function ShareMatchResultClient({
   eventGuid,
   standingsType,
@@ -113,24 +101,17 @@ export default function ShareMatchResultClient({
   const { showSnackbar } = useSnackbar();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const previewRef = useRef<HTMLDivElement>(null);
-  const dragStartRef = useRef<{
-    x: number;
-    y: number;
-    offsetX: number;
-    offsetY: number;
-  } | null>(null);
-  const pinchStartRef = useRef<{ distance: number; scale: number } | null>(
-    null,
-  );
+  const {
+    photoTransform,
+    photoImgRef,
+    previewGestureProps,
+    resetPhotoTransform,
+    getPhotoTransform,
+  } = usePhotoTransform();
 
   const [eventName, setEventName] = useState("");
   const [top3, setTop3] = useState<ShareStandingRow[]>([]);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
-  const [photoTransform, setPhotoTransform] = useState<PhotoTransform>({
-    scale: 1,
-    offsetX: 0,
-    offsetY: 0,
-  });
   const [overlayOpacity, setOverlayOpacity] = useState(DEFAULT_OVERLAY_OPACITY);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -185,10 +166,6 @@ export default function ShareMatchResultClient({
     };
   }, [eventGuid, router, showSnackbar, standingsType]);
 
-  function resetPhotoTransform() {
-    setPhotoTransform({ scale: 1, offsetX: 0, offsetY: 0 });
-  }
-
   function handleSelectPhotoClick() {
     fileInputRef.current?.click();
   }
@@ -215,56 +192,6 @@ export default function ShareMatchResultClient({
     reader.readAsDataURL(file);
   }
 
-  function handlePointerDown(e: React.PointerEvent<HTMLDivElement>) {
-    if (!photoPreview) return;
-    dragStartRef.current = {
-      x: e.clientX,
-      y: e.clientY,
-      offsetX: photoTransform.offsetX,
-      offsetY: photoTransform.offsetY,
-    };
-    e.currentTarget.setPointerCapture(e.pointerId);
-  }
-
-  function handlePointerMove(e: React.PointerEvent<HTMLDivElement>) {
-    if (!dragStartRef.current) return;
-    setPhotoTransform((current) => ({
-      ...current,
-      offsetX:
-        dragStartRef.current!.offsetX + (e.clientX - dragStartRef.current!.x),
-      offsetY:
-        dragStartRef.current!.offsetY + (e.clientY - dragStartRef.current!.y),
-    }));
-  }
-
-  function handlePointerUp() {
-    dragStartRef.current = null;
-  }
-
-  function handleTouchStart(e: React.TouchEvent<HTMLDivElement>) {
-    if (!photoPreview || e.touches.length < 2) return;
-    pinchStartRef.current = {
-      distance: getTouchDistance(e.touches),
-      scale: photoTransform.scale,
-    };
-  }
-
-  function handleTouchMove(e: React.TouchEvent<HTMLDivElement>) {
-    if (!photoPreview || !pinchStartRef.current || e.touches.length < 2) return;
-    const distance = getTouchDistance(e.touches);
-    if (distance <= 0) return;
-    const nextScale =
-      pinchStartRef.current.scale * (distance / pinchStartRef.current.distance);
-    setPhotoTransform((current) => ({
-      ...current,
-      scale: Math.min(3, Math.max(1, nextScale)),
-    }));
-  }
-
-  function handleTouchEnd() {
-    pinchStartRef.current = null;
-  }
-
   async function handleShare() {
     if (top3.length === 0 || isSubmitting || !previewRef.current) return;
 
@@ -274,7 +201,7 @@ export default function ShareMatchResultClient({
         previewRef.current,
         1080,
         photoPreview,
-        photoTransform,
+        getPhotoTransform(),
         overlayOpacity,
       );
       const filename = `${eventName.replace(/\s+/g, "-").toLowerCase()}-top-3.png`;
@@ -318,25 +245,16 @@ export default function ShareMatchResultClient({
         {!photoPreview && (
           <div className="absolute inset-0 rounded-none bg-[#18181B]" />
         )}
-        <div
-          ref={previewRef}
-          className="absolute inset-0 touch-none overflow-hidden"
-          onPointerDown={handlePointerDown}
-          onPointerMove={handlePointerMove}
-          onPointerUp={handlePointerUp}
-          onPointerCancel={handlePointerUp}
-          onTouchStart={handleTouchStart}
-          onTouchMove={handleTouchMove}
-          onTouchEnd={handleTouchEnd}
-        >
+        <div ref={previewRef} {...previewGestureProps}>
           {photoPreview ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img
+              ref={photoImgRef}
               src={photoPreview}
               alt="Selected background"
               className="absolute h-full w-full origin-center object-cover"
               style={{
-                transform: `translate(${photoTransform.offsetX}px, ${photoTransform.offsetY}px) scale(${photoTransform.scale})`,
+                transform: `translate3d(${photoTransform.offsetX}px, ${photoTransform.offsetY}px, 0) scale(${photoTransform.scale})`,
               }}
               draggable={false}
               data-capture-ignore="true"

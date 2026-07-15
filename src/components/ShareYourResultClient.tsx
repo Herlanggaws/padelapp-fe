@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useSnackbar } from "@/context/SnackbarContext";
+import { usePhotoTransform } from "@/hooks/usePhotoTransform";
 import {
   fetchEventDetail,
   fetchPlayerEventSummary,
@@ -22,12 +23,6 @@ import {
 
 const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp"];
 const DEFAULT_OVERLAY_OPACITY = 0.45;
-
-interface PhotoTransform {
-  scale: number;
-  offsetX: number;
-  offsetY: number;
-}
 
 interface ShareYourResultClientProps {
   eventGuid: string;
@@ -72,13 +67,6 @@ function YourResultStatsOverlay({
   );
 }
 
-function getTouchDistance(touches: React.TouchList) {
-  if (touches.length < 2) return 0;
-  const dx = touches[0].clientX - touches[1].clientX;
-  const dy = touches[0].clientY - touches[1].clientY;
-  return Math.hypot(dx, dy);
-}
-
 export default function ShareYourResultClient({
   eventGuid,
 }: ShareYourResultClientProps) {
@@ -86,24 +74,17 @@ export default function ShareYourResultClient({
   const { showSnackbar } = useSnackbar();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const previewRef = useRef<HTMLDivElement>(null);
-  const dragStartRef = useRef<{
-    x: number;
-    y: number;
-    offsetX: number;
-    offsetY: number;
-  } | null>(null);
-  const pinchStartRef = useRef<{ distance: number; scale: number } | null>(
-    null,
-  );
+  const {
+    photoTransform,
+    photoImgRef,
+    previewGestureProps,
+    resetPhotoTransform,
+    getPhotoTransform,
+  } = usePhotoTransform();
 
   const [eventName, setEventName] = useState("");
   const [summary, setSummary] = useState<PlayerEventSummary | null>(null);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
-  const [photoTransform, setPhotoTransform] = useState<PhotoTransform>({
-    scale: 1,
-    offsetX: 0,
-    offsetY: 0,
-  });
   const [overlayOpacity, setOverlayOpacity] = useState(
     DEFAULT_OVERLAY_OPACITY,
   );
@@ -159,10 +140,6 @@ export default function ShareYourResultClient({
     };
   }, [eventGuid, router, showSnackbar]);
 
-  function resetPhotoTransform() {
-    setPhotoTransform({ scale: 1, offsetX: 0, offsetY: 0 });
-  }
-
   function handleSelectPhotoClick() {
     fileInputRef.current?.click();
   }
@@ -189,56 +166,6 @@ export default function ShareYourResultClient({
     reader.readAsDataURL(file);
   }
 
-  function handlePointerDown(e: React.PointerEvent<HTMLDivElement>) {
-    if (!photoPreview) return;
-    dragStartRef.current = {
-      x: e.clientX,
-      y: e.clientY,
-      offsetX: photoTransform.offsetX,
-      offsetY: photoTransform.offsetY,
-    };
-    e.currentTarget.setPointerCapture(e.pointerId);
-  }
-
-  function handlePointerMove(e: React.PointerEvent<HTMLDivElement>) {
-    if (!dragStartRef.current) return;
-    setPhotoTransform((current) => ({
-      ...current,
-      offsetX:
-        dragStartRef.current!.offsetX + (e.clientX - dragStartRef.current!.x),
-      offsetY:
-        dragStartRef.current!.offsetY + (e.clientY - dragStartRef.current!.y),
-    }));
-  }
-
-  function handlePointerUp() {
-    dragStartRef.current = null;
-  }
-
-  function handleTouchStart(e: React.TouchEvent<HTMLDivElement>) {
-    if (!photoPreview || e.touches.length < 2) return;
-    pinchStartRef.current = {
-      distance: getTouchDistance(e.touches),
-      scale: photoTransform.scale,
-    };
-  }
-
-  function handleTouchMove(e: React.TouchEvent<HTMLDivElement>) {
-    if (!photoPreview || !pinchStartRef.current || e.touches.length < 2) return;
-    const distance = getTouchDistance(e.touches);
-    if (distance <= 0) return;
-    const nextScale =
-      pinchStartRef.current.scale * (distance / pinchStartRef.current.distance);
-    setPhotoTransform((current) => ({
-      ...current,
-      scale: Math.min(3, Math.max(1, nextScale)),
-    }));
-  }
-
-  function handleTouchEnd() {
-    pinchStartRef.current = null;
-  }
-
   async function handleShare() {
     if (!summary || isSubmitting || !previewRef.current) return;
 
@@ -248,7 +175,7 @@ export default function ShareYourResultClient({
         previewRef.current,
         1080,
         photoPreview,
-        photoTransform,
+        getPhotoTransform(),
         overlayOpacity,
       );
       const filename = `${eventName.replace(/\s+/g, "-").toLowerCase()}-my-result.png`;
@@ -285,106 +212,95 @@ export default function ShareYourResultClient({
       className="flex flex-1 flex-col gap-4 px-6"
       style={{ paddingTop: "80px", paddingBottom: "48px" }}
     >
-        <div
-          className="relative mx-auto"
-          style={{ width: "320px", height: `${(320 * 16) / 9}px` }}
-        >
-          {!photoPreview && (
-            <div className="absolute inset-0 bg-[#18181B]" />
-          )}
-          <div
-            ref={previewRef}
-            className="absolute inset-0 touch-none overflow-hidden"
-            onPointerDown={handlePointerDown}
-            onPointerMove={handlePointerMove}
-            onPointerUp={handlePointerUp}
-            onPointerCancel={handlePointerUp}
-            onTouchStart={handleTouchStart}
-            onTouchMove={handleTouchMove}
-            onTouchEnd={handleTouchEnd}
-          >
-            {photoPreview ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={photoPreview}
-                alt="Selected background"
-                className="absolute h-full w-full origin-center object-cover"
-                style={{
-                  transform: `translate(${photoTransform.offsetX}px, ${photoTransform.offsetY}px) scale(${photoTransform.scale})`,
-                }}
-                draggable={false}
-                data-capture-ignore="true"
-              />
-            ) : null}
-            {photoPreview ? (
-              <div
-                className="absolute inset-0"
-                style={{ background: `rgba(0, 0, 0, ${overlayOpacity})` }}
-                data-capture-ignore="true"
-              />
-            ) : null}
-            <YourResultStatsOverlay eventName={eventName} summary={summary} />
-          </div>
-        </div>
-
-        {photoPreview ? (
-          <p className="text-center text-xs text-[#71717A]">
-            Pinch to resize, drag to move
-          </p>
-        ) : null}
-
-        <button
-          type="button"
-          onClick={handleSelectPhotoClick}
-          className="w-full rounded-full text-sm font-semibold text-[#18181B]"
-          style={{ background: "#F4F4F5", height: "56px" }}
-        >
-          Select photos
-        </button>
-
-        <button
-          type="button"
-          onClick={handleShare}
-          disabled={isSubmitting}
-          className="w-full rounded-full text-base font-semibold text-[#121212] disabled:cursor-not-allowed disabled:opacity-50"
-          style={{ background: "#9FE870", height: "56px" }}
-        >
-          {isSubmitting ? "Generating…" : "Share"}
-        </button>
-
-        {photoError ? (
-          <p className="-mt-2 text-xs text-red-500">{photoError}</p>
-        ) : null}
-
-        {photoPreview ? (
-          <div className="flex flex-col gap-2">
-            <label
-              htmlFor="overlay-opacity"
-              className="text-sm font-medium text-[#18181B]"
-            >
-              Opacity: {Math.round(overlayOpacity * 100)}%
-            </label>
-            <input
-              id="overlay-opacity"
-              type="range"
-              min={0}
-              max={80}
-              value={Math.round(overlayOpacity * 100)}
-              onChange={(e) =>
-                setOverlayOpacity(Number(e.target.value) / 100)
-              }
-              className="w-full accent-[#9FE870]"
+      <div
+        className="relative mx-auto"
+        style={{ width: "320px", height: `${(320 * 16) / 9}px` }}
+      >
+        {!photoPreview && (
+          <div className="absolute inset-0 bg-[#18181B]" />
+        )}
+        <div ref={previewRef} {...previewGestureProps}>
+          {photoPreview ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              ref={photoImgRef}
+              src={photoPreview}
+              alt="Selected background"
+              className="absolute h-full w-full origin-center object-cover"
+              style={{
+                transform: `translate3d(${photoTransform.offsetX}px, ${photoTransform.offsetY}px, 0) scale(${photoTransform.scale})`,
+              }}
+              draggable={false}
+              data-capture-ignore="true"
             />
-          </div>
-        ) : null}
+          ) : null}
+          {photoPreview ? (
+            <div
+              className="absolute inset-0"
+              style={{ background: `rgba(0, 0, 0, ${overlayOpacity})` }}
+              data-capture-ignore="true"
+            />
+          ) : null}
+          <YourResultStatsOverlay eventName={eventName} summary={summary} />
+        </div>
+      </div>
 
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept="image/jpeg,image/png,image/webp"
-          className="hidden"
-          onChange={handlePhotoChange}
-        />
-      </main>
+      {photoPreview ? (
+        <p className="text-center text-xs text-[#71717A]">
+          Pinch to resize, drag to move
+        </p>
+      ) : null}
+
+      <button
+        type="button"
+        onClick={handleSelectPhotoClick}
+        className="w-full rounded-full text-sm font-semibold text-[#18181B]"
+        style={{ background: "#F4F4F5", height: "56px" }}
+      >
+        Select photos
+      </button>
+
+      <button
+        type="button"
+        onClick={handleShare}
+        disabled={isSubmitting}
+        className="w-full rounded-full text-base font-semibold text-[#121212] disabled:cursor-not-allowed disabled:opacity-50"
+        style={{ background: "#9FE870", height: "56px" }}
+      >
+        {isSubmitting ? "Generating…" : "Share"}
+      </button>
+
+      {photoError ? (
+        <p className="-mt-2 text-xs text-red-500">{photoError}</p>
+      ) : null}
+
+      {photoPreview ? (
+        <div className="flex flex-col gap-2">
+          <label
+            htmlFor="overlay-opacity"
+            className="text-sm font-medium text-[#18181B]"
+          >
+            Opacity: {Math.round(overlayOpacity * 100)}%
+          </label>
+          <input
+            id="overlay-opacity"
+            type="range"
+            min={0}
+            max={80}
+            value={Math.round(overlayOpacity * 100)}
+            onChange={(e) => setOverlayOpacity(Number(e.target.value) / 100)}
+            className="w-full accent-[#9FE870]"
+          />
+        </div>
+      ) : null}
+
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/jpeg,image/png,image/webp"
+        className="hidden"
+        onChange={handlePhotoChange}
+      />
+    </main>
   );
 }

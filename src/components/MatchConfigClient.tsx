@@ -12,12 +12,17 @@ import type {
   CreateMatchmakingSessionErrorResponse,
   MatchConfigSelectedPlayer,
   MatchmakingSessionFormatApi,
-  MatchmakingTeamAssignmentApi,
 } from "@/types/matchmaking";
 
 type GameFormat = "Mexicano" | "Americano" | "Team Americano";
-type TeamAssignment = "Random" | "Organizer Set";
-type SetPoints = 4 | 8 | 12 | 16 | 21 | 24 | 32;
+type ScoreType = "Total Set Point" | "Race to X Point";
+
+const totalSetPointRows: number[][] = [
+  [4, 8, 12, 16],
+  [21, 24, 32],
+];
+
+const raceToXPointRows: number[][] = [[3, 4, 5, 6, 7]];
 
 function uiFormatToApi(value: GameFormat): MatchmakingSessionFormatApi {
   switch (value) {
@@ -30,12 +35,6 @@ function uiFormatToApi(value: GameFormat): MatchmakingSessionFormatApi {
   }
 }
 
-function uiTeamAssignmentToApi(
-  value: TeamAssignment,
-): MatchmakingTeamAssignmentApi {
-  return value === "Organizer Set" ? "organizer_set" : "random";
-}
-
 export default function MatchConfigClient({
   eventGuid,
 }: {
@@ -44,9 +43,8 @@ export default function MatchConfigClient({
   const router = useRouter();
   const [selectedFormat, setSelectedFormat] = useState<GameFormat>("Americano");
   const [courts, setCourts] = useState(2);
-  const [teamAssignment, setTeamAssignment] =
-    useState<TeamAssignment>("Random");
-  const [selectedPoints, setSelectedPoints] = useState<SetPoints>(21);
+  const [scoreType, setScoreType] = useState<ScoreType>("Total Set Point");
+  const [selectedPoints, setSelectedPoints] = useState<number>(21);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
   const [modalTitle, setModalTitle] = useState("Error");
@@ -88,10 +86,14 @@ export default function MatchConfigClient({
     },
   ];
 
-  const pointOptionRows: SetPoints[][] = [
-    [4, 8, 12, 16],
-    [21, 24, 32],
-  ];
+  const pointOptionRows =
+    scoreType === "Total Set Point" ? totalSetPointRows : raceToXPointRows;
+
+  const handleScoreTypeChange = (option: ScoreType) => {
+    if (option === scoreType) return;
+    setScoreType(option);
+    setSelectedPoints(option === "Total Set Point" ? 21 : 5);
+  };
 
   const handleGenerateMatchClick = () => {
     if (!eventGuid.trim()) {
@@ -118,8 +120,12 @@ export default function MatchConfigClient({
         event_guid: eventGuid,
         format: uiFormatToApi(selectedFormat),
         number_of_courts: courts,
-        team_assignment: uiTeamAssignmentToApi(teamAssignment),
-        total_set_points: selectedPoints,
+        team_assignment: "random",
+        total_set_points:
+          scoreType === "Total Set Point" ? selectedPoints : null,
+        race_to_points:
+          scoreType === "Race to X Point" ? selectedPoints : null,
+        pairing_variant: "smart",
         teams: [],
         participant_guids: selectedPlayers.map((p) => p.participant_guid),
       });
@@ -154,7 +160,8 @@ export default function MatchConfigClient({
               <span className="font-semibold">{selectedFormat}</span> format,{" "}
               <span className="font-semibold">{courts}</span> court
               {courts !== 1 ? "s" : ""}, and{" "}
-              <span className="font-semibold">{selectedPoints}</span> set points
+              <span className="font-semibold">{selectedPoints}</span>{" "}
+              {scoreType === "Total Set Point" ? "set points" : "race to points"}
               {selectedPlayers.length > 0 && (
                 <>
                   {" "}
@@ -318,61 +325,45 @@ export default function MatchConfigClient({
         </div>
       </section>
 
-      {/* Team Assignment Section */}
-      {selectedFormat !== "Mexicano" && (
+      {/* Score Type Section */}
       <section className="flex flex-col gap-2">
         <h2
           className="text-xl font-normal text-[#151C27]"
           style={{ lineHeight: "26px" }}
         >
-          Team Assignment
+          Score Type
         </h2>
         <div
           className="flex items-center p-1 bg-[#F0F3FF]"
           style={{ borderRadius: "9999px" }}
         >
-          {(["Random", "Organizer Set"] as TeamAssignment[]).map((option) => {
-            const isActive = teamAssignment === option;
-            const isDisabled = option === "Organizer Set";
-            return (
-              <button
-                key={option}
-                type="button"
-                disabled={isDisabled}
-                onClick={() => setTeamAssignment(option)}
-                className="flex-1 py-3 text-center transition-all disabled:cursor-not-allowed"
-                style={{
-                  borderRadius: "9999px",
-                  background: isActive ? "#FFFFFF" : "transparent",
-                  boxShadow: isActive
-                    ? "0px 1px 2px 0px rgba(0,0,0,0.05)"
-                    : "none",
-                  color: isDisabled
-                    ? "#A1A1AA"
-                    : isActive
-                      ? "#151C27"
-                      : "#71717A",
-                  fontSize: "12px",
-                  fontWeight: isActive ? 600 : 400,
-                  lineHeight: "12px",
-                }}
-              >
-                {option}
-              </button>
-            );
-          })}
+          {(["Total Set Point", "Race to X Point"] as ScoreType[]).map(
+            (option) => {
+              const isActive = scoreType === option;
+              return (
+                <button
+                  key={option}
+                  type="button"
+                  onClick={() => handleScoreTypeChange(option)}
+                  className="flex-1 py-3 text-center transition-all"
+                  style={{
+                    borderRadius: "9999px",
+                    background: isActive ? "#FFFFFF" : "transparent",
+                    boxShadow: isActive
+                      ? "0px 1px 2px 0px rgba(0,0,0,0.05)"
+                      : "none",
+                    color: isActive ? "#151C27" : "#71717A",
+                    fontSize: "12px",
+                    fontWeight: isActive ? 600 : 400,
+                    lineHeight: "12px",
+                  }}
+                >
+                  {option}
+                </button>
+              );
+            },
+          )}
         </div>
-      </section>
-      )}
-
-      {/* Total Set Points Section */}
-      <section className="flex flex-col gap-2">
-        <h2
-          className="text-xl font-normal text-[#151C27]"
-          style={{ lineHeight: "26px" }}
-        >
-          Total Set Points
-        </h2>
         <div className="flex flex-col gap-2">
           {pointOptionRows.map((row) => (
             <div key={row.join("-")} className="flex gap-2">

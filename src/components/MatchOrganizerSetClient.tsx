@@ -1,6 +1,16 @@
 "use client";
 
+import { useState } from "react";
 import Image from "next/image";
+
+type ScoreType = "Total Set Point" | "Race to X Point";
+
+const totalSetPointRows: number[][] = [
+  [4, 8, 12, 16],
+  [21, 24, 32],
+];
+
+const raceToXPointRows: number[][] = [[3, 4, 5, 6, 7]];
 
 interface Player {
   id: string;
@@ -201,6 +211,18 @@ function CourtSection({ court }: { court: CourtTeams }) {
 }
 
 export default function MatchOrganizerSetClient() {
+  const [scoreType, setScoreType] = useState<ScoreType>("Total Set Point");
+  const [selectedPoints, setSelectedPoints] = useState<number>(21);
+
+  const pointOptionRows =
+    scoreType === "Total Set Point" ? totalSetPointRows : raceToXPointRows;
+
+  const handleScoreTypeChange = (option: ScoreType) => {
+    if (option === scoreType) return;
+    setScoreType(option);
+    setSelectedPoints(option === "Total Set Point" ? 21 : 5);
+  };
+
   return (
     <main className="flex flex-col gap-6 pb-32" style={{ paddingTop: "80px" }}>
       {/* Summary Cards */}
@@ -278,45 +300,79 @@ export default function MatchOrganizerSetClient() {
         </div>
       </div>
 
-      {/* Team Assignment Toggle */}
+      {/* Score Type Toggle */}
       <div className="flex flex-col gap-2 px-6">
         <div className="px-1">
           <span
             className="text-[10px] font-bold uppercase tracking-[10%] text-[#474646]"
             style={{ lineHeight: "15px" }}
           >
-            TEAM ASSIGNMENT
+            SCORE TYPE
           </span>
         </div>
         <div
           className="flex items-center p-1"
           style={{ background: "#E5E2E1", borderRadius: "9999px" }}
         >
-          <button
-            className="flex-1 py-2 text-center"
-            style={{
-              borderRadius: "9999px",
-              color: "#71717A",
-              fontSize: "16px",
-              fontWeight: 400,
-              lineHeight: "24px",
-            }}
-          >
-            Random
-          </button>
-          <button
-            className="flex-1 py-2 text-center bg-white border border-[#F4F4F5]"
-            style={{
-              borderRadius: "9999px",
-              color: "#18181B",
-              fontSize: "16px",
-              fontWeight: 400,
-              lineHeight: "24px",
-              boxShadow: "0px 1px 2px 0px rgba(0,0,0,0.05)",
-            }}
-          >
-            Organizer Set
-          </button>
+          {(["Total Set Point", "Race to X Point"] as ScoreType[]).map(
+            (option) => {
+              const isActive = scoreType === option;
+              return (
+                <button
+                  key={option}
+                  type="button"
+                  onClick={() => handleScoreTypeChange(option)}
+                  className={`flex-1 py-2 text-center transition-all ${
+                    isActive ? "bg-white border border-[#F4F4F5]" : ""
+                  }`}
+                  style={{
+                    borderRadius: "9999px",
+                    color: isActive ? "#18181B" : "#71717A",
+                    fontSize: "16px",
+                    fontWeight: 400,
+                    lineHeight: "24px",
+                    boxShadow: isActive
+                      ? "0px 1px 2px 0px rgba(0,0,0,0.05)"
+                      : "none",
+                  }}
+                >
+                  {option}
+                </button>
+              );
+            },
+          )}
+        </div>
+
+        {/* Point Options */}
+        <div className="flex flex-col gap-2">
+          {pointOptionRows.map((row) => (
+            <div key={row.join("-")} className="flex gap-2">
+              {row.map((pts) => {
+                const isSelected = selectedPoints === pts;
+                return (
+                  <button
+                    key={pts}
+                    type="button"
+                    onClick={() => setSelectedPoints(pts)}
+                    className="flex-1 py-2 px-6 text-center transition-all"
+                    style={{
+                      borderRadius: "9999px",
+                      background: isSelected ? "#18181B" : "#FFFFFF",
+                      border: isSelected
+                        ? "1px solid #18181B"
+                        : "1px solid #F4F4F5",
+                      color: isSelected ? "#9FE870" : "#151C27",
+                      fontSize: "12px",
+                      fontWeight: 600,
+                      lineHeight: "12px",
+                    }}
+                  >
+                    {pts}
+                  </button>
+                );
+              })}
+            </div>
+          ))}
         </div>
       </div>
 

@@ -1735,6 +1735,11 @@ export default function MatchDetailClient({
   const headerTitle = detail?.event.name ?? (isLoading ? "Loading…" : "Match");
   const rounds = detail ? mapDetailToRounds(detail) : [];
   const isMexicano = detail ? isMexicanoSession(detail) : false;
+  const isRaceMode = Boolean(
+    detail &&
+      detail.total_set_points == null &&
+      detail.race_to_points != null,
+  );
   const canGenerateNextRound = isMexicano && canGenerateMexicanoRound(rounds);
   const generateRoundLabel =
     rounds.length === 0 ? "Generate Round" : "Generate Next Round";
@@ -1806,23 +1811,35 @@ export default function MatchDetailClient({
   const applyScoreFromKeyboard = (value: number | null) => {
     if (!canManageEvent || !detail || !scoreSheet) return;
     const matchGuid = scoreSheet.matchGuid;
-    const totalSetPoints = detail.total_set_points;
     const before = getMatchRawScores(detail, matchGuid);
 
     let afterA: number | null;
     let afterB: number | null;
 
-    if (value === null) {
-      afterA = null;
-      afterB = null;
-    } else {
-      const otherScore = totalSetPoints - value;
+    if (isRaceMode) {
       if (scoreSheet.side === "a") {
         afterA = value;
-        afterB = otherScore;
+        afterB = before?.b ?? null;
       } else {
-        afterA = otherScore;
+        afterA = before?.a ?? null;
         afterB = value;
+      }
+    } else {
+      const totalSetPoints = detail.total_set_points;
+      if (totalSetPoints == null) return;
+
+      if (value === null) {
+        afterA = null;
+        afterB = null;
+      } else {
+        const otherScore = totalSetPoints - value;
+        if (scoreSheet.side === "a") {
+          afterA = value;
+          afterB = otherScore;
+        } else {
+          afterA = otherScore;
+          afterB = value;
+        }
       }
     }
 
@@ -2251,7 +2268,9 @@ export default function MatchDetailClient({
         onRequestClose={() => setScoreSheet(null)}
         onConfirm={applyScoreFromKeyboard}
         initialValue={scoreSheet?.initial ?? null}
-        maxValue={detail?.total_set_points ?? 32}
+        maxValue={
+          detail?.race_to_points ?? detail?.total_set_points ?? 32
+        }
       />
 
       {showFinishConfirm && (

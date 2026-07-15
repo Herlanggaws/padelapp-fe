@@ -17,6 +17,11 @@ import type {
   GenerateMatchmakingRoundPayload,
   GenerateMatchmakingRoundSuccessResponse,
   GenerateMatchmakingRoundErrorResponse,
+  FetchMatchmakingAvailablePairsSuccessResponse,
+  FetchMatchmakingAvailablePairsErrorResponse,
+  UpdateMatchmakingPairsPayload,
+  UpdateMatchmakingPairsSuccessResponse,
+  UpdateMatchmakingPairsErrorResponse,
 } from "@/types/matchmaking";
 import { fetchWithAuth } from "@/services/authService";
 
@@ -39,6 +44,11 @@ export type {
   GenerateMatchmakingRoundPayload,
   GenerateMatchmakingRoundSuccessResponse,
   GenerateMatchmakingRoundErrorResponse,
+  FetchMatchmakingAvailablePairsSuccessResponse,
+  FetchMatchmakingAvailablePairsErrorResponse,
+  UpdateMatchmakingPairsPayload,
+  UpdateMatchmakingPairsSuccessResponse,
+  UpdateMatchmakingPairsErrorResponse,
 };
 
 const BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
@@ -186,4 +196,42 @@ export async function generateMatchmakingRound(
   }
 
   return data as GenerateMatchmakingRoundSuccessResponse;
+}
+
+export async function fetchMatchmakingAvailablePairs(
+  matchGuid: string,
+): Promise<FetchMatchmakingAvailablePairsSuccessResponse> {
+  const response = await fetchWithAuth(
+    `${BASE_URL}/padel/matchmaking/match/${matchGuid}/available-pairs`,
+  );
+
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw data as FetchMatchmakingAvailablePairsErrorResponse;
+  }
+
+  return data as FetchMatchmakingAvailablePairsSuccessResponse;
+}
+
+export async function updateMatchmakingPairs(
+  matchGuid: string,
+  payload: UpdateMatchmakingPairsPayload,
+): Promise<UpdateMatchmakingPairsSuccessResponse> {
+  const response = await fetchWithAuth(
+    `${BASE_URL}/padel/matchmaking/match/${matchGuid}/pairs`,
+    {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    },
+  );
+
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw data as UpdateMatchmakingPairsErrorResponse;
+  }
+
+  return data as UpdateMatchmakingPairsSuccessResponse;
 }

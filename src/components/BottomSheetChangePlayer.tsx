@@ -57,7 +57,10 @@ export default function BottomSheetChangePlayer({
     setIsLoading(true);
     setLoadError(null);
     try {
-      const res = await fetchMatchmakingAvailablePairs(matchGuidRef.current);
+      const res = await fetchMatchmakingAvailablePairs(
+        matchGuidRef.current,
+        currentParticipantGuid,
+      );
       const available = (res.data.participants ?? []).filter(
         (p) => p.guid !== currentParticipantGuid,
       );

@@ -9,12 +9,13 @@ const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp"];
 
 interface CoverPhotoUploadProps {
   onUpload?: (url: string | null) => void;
+  initialUrl?: string | null;
 }
 
 
-export default function CoverPhotoUpload({ onUpload }: CoverPhotoUploadProps) {
+export default function CoverPhotoUpload({ onUpload, initialUrl }: CoverPhotoUploadProps) {
   const inputRef = useRef<HTMLInputElement>(null);
-  const [preview, setPreview] = useState<string | null>(null);
+  const [preview, setPreview] = useState<string | null>(initialUrl ?? null);
   const [isDragging, setIsDragging] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);

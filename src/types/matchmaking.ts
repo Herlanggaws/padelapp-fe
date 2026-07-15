@@ -19,6 +19,8 @@ export type MatchmakingSessionFormatApi =
 
 export type MatchmakingTeamAssignmentApi = "random" | "organizer_set";
 
+export type MatchmakingPairingVariantApi = "smart" | string;
+
 export interface CreateMatchmakingSessionTeam {
   player1_guid: string;
   player2_guid: string;
@@ -29,7 +31,9 @@ export interface CreateMatchmakingSessionPayload {
   format: MatchmakingSessionFormatApi;
   number_of_courts: number;
   team_assignment: MatchmakingTeamAssignmentApi;
-  total_set_points: number;
+  total_set_points: number | null;
+  race_to_points: number | null;
+  pairing_variant: MatchmakingPairingVariantApi;
   teams: CreateMatchmakingSessionTeam[];
   participant_guids: string[];
 }
@@ -55,7 +59,9 @@ export interface MatchmakingSession {
   format: MatchmakingSessionFormatApi;
   number_of_courts: number;
   team_assignment: MatchmakingTeamAssignmentApi;
-  total_set_points: number;
+  total_set_points: number | null;
+  race_to_points: number | null;
+  pairing_variant: MatchmakingPairingVariantApi;
   created_by: MatchmakingSessionCreatedBy;
 }
 

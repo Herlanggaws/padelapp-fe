@@ -2,6 +2,9 @@ import type {
   CreateClubPayload,
   CreateClubSuccessResponse,
   CreateClubErrorResponse,
+  UpdateClubPayload,
+  UpdateClubSuccessResponse,
+  UpdateClubErrorResponse,
   FetchClubsParams,
   FetchClubsSuccessResponse,
   FetchClubsErrorResponse,
@@ -24,6 +27,9 @@ export type {
   CreateClubPayload,
   CreateClubSuccessResponse,
   CreateClubErrorResponse,
+  UpdateClubPayload,
+  UpdateClubSuccessResponse,
+  UpdateClubErrorResponse,
   FetchClubsParams,
   FetchClubsSuccessResponse,
   FetchClubsErrorResponse,
@@ -59,6 +65,25 @@ export async function createClub(
   }
 
   return data as CreateClubSuccessResponse;
+}
+
+export async function updateClub(
+  guid: string,
+  payload: UpdateClubPayload,
+): Promise<UpdateClubSuccessResponse> {
+  const response = await fetchWithAuth(`${BASE_URL}/padel/club/${guid}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw data as UpdateClubErrorResponse;
+  }
+
+  return data as UpdateClubSuccessResponse;
 }
 
 export async function fetchClubs(

@@ -14,6 +14,22 @@ export interface CreateClubErrorResponse {
   message: string;
 }
 
+export interface UpdateClubPayload {
+  name: string;
+  description?: string;
+  cover_photo?: string;
+  logo?: string;
+}
+
+export interface UpdateClubSuccessResponse {
+  data: null;
+  message: string;
+}
+
+export interface UpdateClubErrorResponse {
+  message: string;
+}
+
 // Explore Clubs types
 export interface Club {
   guid: string;

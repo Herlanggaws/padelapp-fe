@@ -200,9 +200,10 @@ export async function generateMatchmakingRound(
 
 export async function fetchMatchmakingAvailablePairs(
   matchGuid: string,
+  userGuid: string,
 ): Promise<FetchMatchmakingAvailablePairsSuccessResponse> {
   const response = await fetchWithAuth(
-    `${BASE_URL}/padel/matchmaking/match/${matchGuid}/available-pairs`,
+    `${BASE_URL}/padel/matchmaking/match/${matchGuid}/available-pairs/${userGuid}`,
   );
 
   const data = await response.json();

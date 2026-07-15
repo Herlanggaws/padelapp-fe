@@ -8,6 +8,7 @@ import Modal from "@/components/Modal";
 import TopAppBar from "@/components/TopAppBar";
 import ScoreKeyboardSheet from "@/components/ScoreKeyboardSheet";
 import BottomSheetSelectPlayers from "@/components/BottomSheetSelectPlayers";
+import BottomSheetChangePlayer from "@/components/BottomSheetChangePlayer";
 import { useSnackbar } from "@/context/SnackbarContext";
 import { getUserProfileCache } from "@/lib/userProfileCache";
 import {
@@ -17,6 +18,7 @@ import {
   generateMatchmakingRound,
   startMatchmakingRound,
   submitMatchmakingMatchScore,
+  updateMatchmakingPairs,
 } from "@/services/matchmakingService";
 import {
   fetchEventDetail,
@@ -39,6 +41,7 @@ import type {
   MatchmakingSessionTeam,
   StartMatchmakingRoundErrorResponse,
   SubmitMatchmakingMatchScoreErrorResponse,
+  UpdateMatchmakingPairsErrorResponse,
 } from "@/types/matchmaking";
 import type {
   Event,
@@ -57,6 +60,7 @@ interface MatchPlayer {
   avatarSeed: string;
   avatarUrl?: string;
   side: "left" | "right";
+  participantGuid?: string;
 }
 
 interface MatchCard {
@@ -107,6 +111,14 @@ function isRoundCompletedStatus(
   status: MatchmakingSessionRoundStatus | string | undefined,
 ): boolean {
   return normalizeRoundStatusKey(status) === "completed";
+}
+
+/** Host may change players while the round is pending or in progress. */
+function canChangePlayersInRound(
+  status: MatchmakingSessionRoundStatus | string | undefined,
+): boolean {
+  const key = normalizeRoundStatusKey(status);
+  return key === "pending" || key === "in_progress";
 }
 
 function isMexicanoSession(detail: MatchmakingSessionDetail): boolean {
@@ -328,11 +340,13 @@ function playersToMatchPlayers(
     i: number,
   ): MatchPlayer => {
     const label = playerLabel(player);
+    const guid = playerGuid(player);
     return {
       name: label || "TBD",
-      avatarSeed: avatarSeedFromGuid(playerGuid(player) ?? `tbd-${side}-${i}`),
+      avatarSeed: avatarSeedFromGuid(guid ?? `tbd-${side}-${i}`),
       avatarUrl: player?.profile_photo?.trim() || undefined,
       side,
+      participantGuid: guid,
     };
   };
   if (players.length === 0) {
@@ -428,15 +442,15 @@ function mapEventStandingsToRows(rows: EventStandingRow[]): StandingRow[] {
 function PlayerRow({
   player,
   isFeatured,
+  onPress,
 }: {
   player: MatchPlayer;
   isFeatured?: boolean;
+  onPress?: () => void;
 }) {
   const isRight = player.side === "right";
-  return (
-    <div
-      className={`flex items-center gap-3 ${isRight ? "flex-row-reverse" : ""}`}
-    >
+  const content = (
+    <>
       <div
         className="w-8 h-8 rounded-full overflow-hidden shrink-0"
         style={{
@@ -471,6 +485,27 @@ function PlayerRow({
       >
         {player.name}
       </span>
+    </>
+  );
+
+  if (onPress) {
+    return (
+      <button
+        type="button"
+        onClick={onPress}
+        className={`flex items-center gap-3 border-0 bg-transparent p-0 cursor-pointer ${isRight ? "flex-row-reverse" : ""}`}
+        aria-label={`Change player ${player.name}`}
+      >
+        {content}
+      </button>
+    );
+  }
+
+  return (
+    <div
+      className={`flex items-center gap-3 ${isRight ? "flex-row-reverse" : ""}`}
+    >
+      {content}
     </div>
   );
 }
@@ -547,6 +582,7 @@ function MatchCardComponent({
   saveDisabled,
   saveLabel,
   onSave,
+  onPlayerPress,
 }: {
   match: MatchCard;
   onScoreSidePress?: (side: "a" | "b") => void;
@@ -562,6 +598,7 @@ function MatchCardComponent({
   saveDisabled?: boolean;
   saveLabel?: string;
   onSave?: () => void;
+  onPlayerPress?: (participantGuid: string, playerName: string) => void;
 }) {
   const isFeatured = match.isFeatured;
   const isTBD = match.round === "tbd";
@@ -661,6 +698,11 @@ function MatchCardComponent({
                 key={`${p.avatarSeed}-a`}
                 player={p}
                 isFeatured={isFeatured}
+                onPress={
+                  p.participantGuid && onPlayerPress
+                    ? () => onPlayerPress(p.participantGuid!, p.name)
+                    : undefined
+                }
               />
             ))}
           </div>
@@ -714,6 +756,11 @@ function MatchCardComponent({
                 key={`${p.avatarSeed}-b`}
                 player={p}
                 isFeatured={isFeatured}
+                onPress={
+                  p.participantGuid && onPlayerPress
+                    ? () => onPlayerPress(p.participantGuid!, p.name)
+                    : undefined
+                }
               />
             ))}
           </div>
@@ -848,6 +895,7 @@ function MatchesTab({
   onStartRound,
   cancellingRoundGuid,
   onCancelRound,
+  onPlayerPress,
 }: {
   rounds: Round[];
   /** Host-only edits while the event is not finished. */
@@ -869,6 +917,11 @@ function MatchesTab({
   onStartRound: (roundGuid: string) => void;
   cancellingRoundGuid: string | null;
   onCancelRound: (roundGuid: string) => void;
+  onPlayerPress?: (
+    matchGuid: string,
+    participantGuid: string,
+    playerName: string,
+  ) => void;
 }) {
   const showGenerateRound = isMexicano && canManageEvent && canGenerateRound;
   const generateLabel =
@@ -909,6 +962,8 @@ function MatchesTab({
           normalizeRoundStatusKey(round.status) !== "pending";
         const showRoundActions =
           canManageEvent && (showStart || showCancel);
+        const canChangePlayers =
+          canManageEvent && canChangePlayersInRound(round.status);
         const canEditCompletedRound =
           canManageEvent &&
           !isEventFinished &&
@@ -1010,6 +1065,12 @@ function MatchesTab({
                     onScoreSidePress={
                       canManageEvent && matchScoresEditable
                         ? (side) => onScoreSidePress?.(match.id, side)
+                        : undefined
+                    }
+                    onPlayerPress={
+                      canChangePlayers && onPlayerPress
+                        ? (participantGuid, playerName) =>
+                            onPlayerPress(match.id, participantGuid, playerName)
                         : undefined
                     }
                     editHint={
@@ -1609,6 +1670,12 @@ export default function MatchDetailClient({
   const [currentUserGuid] = useState<string | null>(() => getUserProfileCache()?.guid ?? null);
   const [showSelectPlayers, setShowSelectPlayers] = useState(false);
   const [isGeneratingRound, setIsGeneratingRound] = useState(false);
+  const [playerChangeSheet, setPlayerChangeSheet] = useState<{
+    matchGuid: string;
+    oldParticipantGuid: string;
+    playerName: string;
+  } | null>(null);
+  const [isUpdatingPlayer, setIsUpdatingPlayer] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -1972,6 +2039,46 @@ export default function MatchDetailClient({
     }
   };
 
+  const openPlayerChange = (
+    matchGuid: string,
+    oldParticipantGuid: string,
+    playerName: string,
+  ) => {
+    if (!canManageEvent) return;
+    setPlayerChangeSheet({
+      matchGuid,
+      oldParticipantGuid,
+      playerName,
+    });
+  };
+
+  const handleConfirmPlayerChange = async (newParticipantGuid: string) => {
+    if (!canManageEvent || !playerChangeSheet) return;
+    const { matchGuid, oldParticipantGuid } = playerChangeSheet;
+    if (newParticipantGuid === oldParticipantGuid) return;
+
+    setIsUpdatingPlayer(true);
+    try {
+      await updateMatchmakingPairs(matchGuid, {
+        old_participant_guid: oldParticipantGuid,
+        new_participant_guid: newParticipantGuid,
+      });
+      const refreshed = await fetchMatchmakingSession(sessionGuid);
+      setDetail(refreshed.data);
+      setSavedMatchIds((prev) => mergeSavedMatchGuids(prev, refreshed.data));
+      setPlayerChangeSheet(null);
+      showSnackbar("Player updated");
+    } catch (e) {
+      const err = e as
+        | UpdateMatchmakingPairsErrorResponse
+        | GetMatchmakingSessionErrorResponse;
+      setModalMessage(err?.message ?? "Could not update player.");
+      setModalOpen(true);
+    } finally {
+      setIsUpdatingPlayer(false);
+    }
+  };
+
   const handleFinishEvent = async () => {
     if (!canManageEvent) return;
     if (!eventGuid) {
@@ -2219,6 +2326,7 @@ export default function MatchDetailClient({
                   onStartRound={handleStartRound}
                   cancellingRoundGuid={cancellingRoundGuid}
                   onCancelRound={handleCancelRound}
+                  onPlayerPress={openPlayerChange}
                 />
               ) : activeTab === "Standings" ? (
                 <StandingsTab
@@ -2422,6 +2530,19 @@ export default function MatchDetailClient({
           onNext={(players) => {
             handleGenerateRound(players.map((p) => p.participant_guid));
           }}
+        />
+      )}
+
+      {playerChangeSheet && (
+        <BottomSheetChangePlayer
+          matchGuid={playerChangeSheet.matchGuid}
+          currentParticipantGuid={playerChangeSheet.oldParticipantGuid}
+          playerName={playerChangeSheet.playerName}
+          isSubmitting={isUpdatingPlayer}
+          onClose={() => {
+            if (!isUpdatingPlayer) setPlayerChangeSheet(null);
+          }}
+          onConfirm={handleConfirmPlayerChange}
         />
       )}
     </div>

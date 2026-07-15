@@ -209,3 +209,38 @@ export interface GenerateMatchmakingRoundSuccessResponse {
 export interface GenerateMatchmakingRoundErrorResponse {
   message: string;
 }
+
+/** Participant available to replace a player on a match */
+export interface MatchmakingAvailableParticipant {
+  guid: string;
+  name: string;
+  email: string;
+  profile_photo: string | null;
+}
+
+export interface FetchMatchmakingAvailablePairsSuccessData {
+  participants: MatchmakingAvailableParticipant[];
+}
+
+export interface FetchMatchmakingAvailablePairsSuccessResponse {
+  data: FetchMatchmakingAvailablePairsSuccessData;
+  message: string;
+}
+
+export interface FetchMatchmakingAvailablePairsErrorResponse {
+  message: string;
+}
+
+export interface UpdateMatchmakingPairsPayload {
+  old_participant_guid: string;
+  new_participant_guid: string;
+}
+
+export interface UpdateMatchmakingPairsSuccessResponse {
+  data: null;
+  message: string;
+}
+
+export interface UpdateMatchmakingPairsErrorResponse {
+  message: string;
+}

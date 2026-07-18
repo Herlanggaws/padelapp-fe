@@ -23,9 +23,12 @@ export function proxy(request: NextRequest) {
   );
   const isPublicRoute = isAuthRoute || isPublicContentRoute;
 
-  // Check for auth token in cookies
-  const token = request.cookies.get("access_token")?.value;
-  const isAuthenticated = Boolean(token);
+  // Consider authenticated if either token is present.
+  // If only refresh_token exists, let the request through — the client-side
+  // axios interceptor will exchange it for a new access_token on the first 401.
+  const accessToken = request.cookies.get("access_token")?.value;
+  const refreshToken = request.cookies.get("refresh_token")?.value;
+  const isAuthenticated = Boolean(accessToken) || Boolean(refreshToken);
 
   // If accessing a protected route without auth, redirect to login
   if (!isPublicRoute && !isAuthenticated) {

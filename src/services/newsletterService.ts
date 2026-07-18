@@ -1,3 +1,4 @@
+import axios from "axios";
 import type {
   NewsletterPayload,
   NewsletterSuccessResponse,
@@ -7,20 +8,16 @@ import type {
 export async function joinNewsletter(
   payload: NewsletterPayload,
 ): Promise<NewsletterSuccessResponse> {
-  const response = await fetch(
-    `${process.env.NEXT_PUBLIC_API_BASE_URL}/public/newsletter`,
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    },
-  );
-
-  const data = await response.json();
-
-  if (!response.ok) {
-    throw data as NewsletterErrorResponse;
+  try {
+    const { data } = await axios.post<NewsletterSuccessResponse>(
+      `${process.env.NEXT_PUBLIC_API_BASE_URL}/public/newsletter`,
+      payload,
+    );
+    return data;
+  } catch (err) {
+    if (axios.isAxiosError(err)) {
+      throw err.response?.data as NewsletterErrorResponse;
+    }
+    throw err;
   }
-
-  return data as NewsletterSuccessResponse;
 }

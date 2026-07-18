@@ -41,7 +41,7 @@ import type {
   DeleteEventSuccessResponse,
   DeleteEventErrorResponse,
 } from "@/types/event";
-import { fetchWithAuth } from "@/services/authService";
+import apiClient from "@/lib/apiClient";
 
 export type {
   CreateEventPayload,
@@ -87,50 +87,26 @@ export type {
   DeleteEventErrorResponse,
 };
 
-const BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
-
 export async function fetchUpcomingEvents(
   params: FetchUpcomingEventsParams = {},
 ): Promise<FetchUpcomingEventsSuccessResponse> {
   const { page = 1, limit = 10 } = params;
-
-  const query = new URLSearchParams({
-    page: String(page),
-    limit: String(limit),
-  });
-
-  const response = await fetchWithAuth(
-    `${BASE_URL}/padel/event/upcoming?${query.toString()}`,
+  const { data } = await apiClient.get<FetchUpcomingEventsSuccessResponse>(
+    "/padel/event/upcoming",
+    { params: { page, limit } },
   );
-  const data = await response.json();
-
-  if (!response.ok) {
-    throw data as FetchUpcomingEventsErrorResponse;
-  }
-
-  return data as FetchUpcomingEventsSuccessResponse;
+  return data;
 }
 
 export async function fetchEvents(
   params: FetchEventsParams = {},
 ): Promise<FetchEventsSuccessResponse> {
   const { page = 1, limit = 10 } = params;
-
-  const query = new URLSearchParams({
-    page: String(page),
-    limit: String(limit),
-  });
-
-  const response = await fetchWithAuth(
-    `${BASE_URL}/padel/event?${query.toString()}`,
+  const { data } = await apiClient.get<FetchEventsSuccessResponse>(
+    "/padel/event",
+    { params: { page, limit } },
   );
-  const data = await response.json();
-
-  if (!response.ok) {
-    throw data as FetchEventsErrorResponse;
-  }
-
-  return data as FetchEventsSuccessResponse;
+  return data;
 }
 
 export async function fetchClubEvents(
@@ -143,25 +119,11 @@ export async function fetchClubEvents(
     page = 1,
     limit = 10,
   } = params;
-
-  const query = new URLSearchParams({
-    club_guid,
-    sort,
-    direction,
-    page: String(page),
-    limit: String(limit),
-  });
-
-  const response = await fetchWithAuth(
-    `${BASE_URL}/padel/event?${query.toString()}`,
+  const { data } = await apiClient.get<FetchClubEventsSuccessResponse>(
+    "/padel/event",
+    { params: { club_guid, sort, direction, page, limit } },
   );
-  const data = await response.json();
-
-  if (!response.ok) {
-    throw data as FetchClubEventsErrorResponse;
-  }
-
-  return data as FetchClubEventsSuccessResponse;
+  return data;
 }
 
 export async function fetchEventParticipants(
@@ -174,244 +136,133 @@ export async function fetchEventParticipants(
     page = 1,
     limit = 10,
   } = params;
-
-  const query = new URLSearchParams({
-    event_guid,
-    sort,
-    direction,
-    page: String(page),
-    limit: String(limit),
-  });
-
-  const response = await fetchWithAuth(
-    `${BASE_URL}/padel/event-participant?${query.toString()}`,
+  const { data } = await apiClient.get<FetchEventParticipantsSuccessResponse>(
+    "/padel/event-participant",
+    { params: { event_guid, sort, direction, page, limit } },
   );
-  const data = await response.json();
-
-  if (!response.ok) {
-    throw data as FetchEventParticipantsErrorResponse;
-  }
-
-  return data as FetchEventParticipantsSuccessResponse;
+  return data;
 }
 
 export async function fetchEventDetail(
   id: string,
 ): Promise<FetchEventDetailSuccessResponse> {
-  const response = await fetchWithAuth(`${BASE_URL}/padel/event/${id}`);
-  const data = await response.json();
-
-  if (!response.ok) {
-    throw data as FetchEventDetailErrorResponse;
-  }
-
-  return data as FetchEventDetailSuccessResponse;
+  const { data } = await apiClient.get<FetchEventDetailSuccessResponse>(
+    `/padel/event/${id}`,
+  );
+  return data;
 }
 
 export async function fetchEventStandings(
   params: FetchEventStandingsParams,
 ): Promise<FetchEventStandingsSuccessResponse> {
-  const query = new URLSearchParams({ type: params.type });
-  const response = await fetchWithAuth(
-    `${BASE_URL}/padel/event/${params.event_guid}/standings?${query.toString()}`,
+  const { data } = await apiClient.get<FetchEventStandingsSuccessResponse>(
+    `/padel/event/${params.event_guid}/standings`,
+    { params: { type: params.type } },
   );
-  const data = await response.json();
-
-  if (!response.ok) {
-    throw data as FetchEventStandingsErrorResponse;
-  }
-
-  return data as FetchEventStandingsSuccessResponse;
+  return data;
 }
 
 export async function fetchPlayerEventSummary(
   eventGuid: string,
 ): Promise<FetchPlayerEventSummarySuccessResponse> {
-  const response = await fetchWithAuth(
-    `${BASE_URL}/padel/event/${eventGuid}/standings/me`,
+  const { data } = await apiClient.get<FetchPlayerEventSummarySuccessResponse>(
+    `/padel/event/${eventGuid}/standings/me`,
   );
-  const data = await response.json();
-
-  if (!response.ok) {
-    throw data as FetchPlayerEventSummaryErrorResponse;
-  }
-
-  return data as FetchPlayerEventSummarySuccessResponse;
+  return data;
 }
 
 export async function joinEvent(
   payload: JoinEventPayload,
 ): Promise<JoinEventSuccessResponse> {
-  const response = await fetchWithAuth(`${BASE_URL}/padel/event-participant`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
-  });
-
-  const data = await response.json();
-
-  if (!response.ok) {
-    throw data as JoinEventErrorResponse;
-  }
-
-  return data as JoinEventSuccessResponse;
+  const { data } = await apiClient.post<JoinEventSuccessResponse>(
+    "/padel/event-participant",
+    payload,
+  );
+  return data;
 }
 
 export async function leaveEvent(
   guid: string,
 ): Promise<LeaveEventSuccessResponse> {
-  const response = await fetchWithAuth(
-    `${BASE_URL}/padel/event-participant/${guid}`,
-    { method: "DELETE" },
+  const { data } = await apiClient.delete<LeaveEventSuccessResponse>(
+    `/padel/event-participant/${guid}`,
   );
-
-  const data = await response.json();
-
-  if (!response.ok) {
-    throw data as LeaveEventErrorResponse;
-  }
-
-  return data as LeaveEventSuccessResponse;
+  return data;
 }
 
 export async function approveParticipant(
   participantGuid: string,
 ): Promise<ParticipantActionSuccessResponse> {
-  const response = await fetchWithAuth(
-    `${BASE_URL}/padel/event-participant/${participantGuid}/approve`,
-    { method: "PUT" },
+  const { data } = await apiClient.put<ParticipantActionSuccessResponse>(
+    `/padel/event-participant/${participantGuid}/approve`,
   );
-
-  const data = await response.json();
-
-  if (!response.ok) {
-    throw data as ParticipantActionErrorResponse;
-  }
-
-  return data as ParticipantActionSuccessResponse;
+  return data;
 }
 
 export async function rejectParticipant(
   participantGuid: string,
 ): Promise<ParticipantActionSuccessResponse> {
-  const response = await fetchWithAuth(
-    `${BASE_URL}/padel/event-participant/${participantGuid}/reject`,
-    { method: "PUT" },
+  const { data } = await apiClient.put<ParticipantActionSuccessResponse>(
+    `/padel/event-participant/${participantGuid}/reject`,
   );
-
-  const data = await response.json();
-
-  if (!response.ok) {
-    throw data as ParticipantActionErrorResponse;
-  }
-
-  return data as ParticipantActionSuccessResponse;
+  return data;
 }
 
 export async function createEvent(
   payload: CreateEventPayload,
 ): Promise<CreateEventSuccessResponse> {
-  const response = await fetchWithAuth(`${BASE_URL}/padel/event`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
-  });
-
-  const data = await response.json();
-
-  if (!response.ok) {
-    throw data as CreateEventErrorResponse;
-  }
-
-  return data as CreateEventSuccessResponse;
+  const { data } = await apiClient.post<CreateEventSuccessResponse>(
+    "/padel/event",
+    payload,
+  );
+  return data;
 }
 
 export async function updateEvent(
   guid: string,
   payload: UpdateEventPayload,
 ): Promise<UpdateEventSuccessResponse> {
-  const response = await fetchWithAuth(`${BASE_URL}/padel/event/${guid}`, {
-    method: "PUT",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
-  });
-
-  const data = await response.json();
-
-  if (!response.ok) {
-    throw data as UpdateEventErrorResponse;
-  }
-
-  return data as UpdateEventSuccessResponse;
+  const { data } = await apiClient.put<UpdateEventSuccessResponse>(
+    `/padel/event/${guid}`,
+    payload,
+  );
+  return data;
 }
 
 export async function addOutsiderParticipant(
   payload: AddOutsiderParticipantPayload,
 ): Promise<AddOutsiderParticipantSuccessResponse> {
-  const response = await fetchWithAuth(
-    `${BASE_URL}/padel/event-participant/outsider`,
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    },
+  const { data } = await apiClient.post<AddOutsiderParticipantSuccessResponse>(
+    "/padel/event-participant/outsider",
+    payload,
   );
-
-  const data = await response.json();
-
-  if (!response.ok) {
-    throw data as AddOutsiderParticipantErrorResponse;
-  }
-
-  return data as AddOutsiderParticipantSuccessResponse;
+  return data;
 }
 
 export async function removeOutsiderParticipant(
   participantGuid: string,
 ): Promise<RemoveOutsiderParticipantSuccessResponse> {
-  const response = await fetchWithAuth(
-    `${BASE_URL}/padel/event-participant/outsider/${participantGuid}`,
-    { method: "DELETE" },
-  );
-
-  const data = await response.json();
-
-  if (!response.ok) {
-    throw data as RemoveOutsiderParticipantErrorResponse;
-  }
-
-  return data as RemoveOutsiderParticipantSuccessResponse;
+  const { data } =
+    await apiClient.delete<RemoveOutsiderParticipantSuccessResponse>(
+      `/padel/event-participant/outsider/${participantGuid}`,
+    );
+  return data;
 }
 
 export async function deleteEvent(
   guid: string,
 ): Promise<DeleteEventSuccessResponse> {
-  const response = await fetchWithAuth(`${BASE_URL}/padel/event/${guid}`, {
-    method: "DELETE",
-  });
-
-  const data = await response.json();
-
-  if (!response.ok) {
-    throw data as DeleteEventErrorResponse;
-  }
-
-  return data as DeleteEventSuccessResponse;
+  const { data } = await apiClient.delete<DeleteEventSuccessResponse>(
+    `/padel/event/${guid}`,
+  );
+  return data;
 }
 
 export async function finishEvent(
   eventGuid: string,
 ): Promise<FinishEventSuccessResponse> {
-  const response = await fetchWithAuth(
-    `${BASE_URL}/padel/event/${eventGuid}/finish`,
-    { method: "PUT" },
+  const { data } = await apiClient.put<FinishEventSuccessResponse>(
+    `/padel/event/${eventGuid}/finish`,
   );
-
-  const data = await response.json();
-
-  if (!response.ok) {
-    throw data as FinishEventErrorResponse;
-  }
-
-  return data as FinishEventSuccessResponse;
+  return data;
 }

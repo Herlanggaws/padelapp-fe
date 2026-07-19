@@ -12,12 +12,7 @@ export default function LogoutButton() {
   const handleLogout = async () => {
     setIsLoading(true);
     try {
-      const accessToken = document.cookie
-        .split("; ")
-        .find((row) => row.startsWith("access_token="))
-        ?.split("=")[1] ?? "";
-
-      await logoutUser(accessToken);
+      await logoutUser();
       document.cookie =
         "access_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax";
       document.cookie =

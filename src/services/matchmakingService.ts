@@ -23,7 +23,7 @@ import type {
   UpdateMatchmakingPairsSuccessResponse,
   UpdateMatchmakingPairsErrorResponse,
 } from "@/types/matchmaking";
-import { fetchWithAuth } from "@/services/authService";
+import apiClient from "@/lib/apiClient";
 
 export type {
   CreateMatchmakingSessionPayload,
@@ -51,188 +51,99 @@ export type {
   UpdateMatchmakingPairsErrorResponse,
 };
 
-const BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
-
 export async function createMatchmakingSession(
   payload: CreateMatchmakingSessionPayload,
 ): Promise<CreateMatchmakingSessionSuccessResponse> {
-  const response = await fetchWithAuth(
-    `${BASE_URL}/padel/matchmaking/session`,
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    },
+  const { data } = await apiClient.post<CreateMatchmakingSessionSuccessResponse>(
+    "/padel/matchmaking/session",
+    payload,
   );
-
-  const data = await response.json();
-
-  if (!response.ok) {
-    throw data as CreateMatchmakingSessionErrorResponse;
-  }
-
-  return data as CreateMatchmakingSessionSuccessResponse;
+  return data;
 }
 
 export async function fetchMatchmakingSession(
   sessionGuid: string,
 ): Promise<GetMatchmakingSessionSuccessResponse> {
-  const response = await fetchWithAuth(
-    `${BASE_URL}/padel/matchmaking/session/${sessionGuid}`,
+  const { data } = await apiClient.get<GetMatchmakingSessionSuccessResponse>(
+    `/padel/matchmaking/session/${sessionGuid}`,
   );
-
-  const data = await response.json();
-
-  if (!response.ok) {
-    throw data as GetMatchmakingSessionErrorResponse;
-  }
-
-  return data as GetMatchmakingSessionSuccessResponse;
+  return data;
 }
 
 export async function submitMatchmakingMatchScore(
   matchGuid: string,
   payload: SubmitMatchmakingMatchScorePayload,
 ): Promise<SubmitMatchmakingMatchScoreSuccessResponse> {
-  const response = await fetchWithAuth(
-    `${BASE_URL}/padel/matchmaking/match/${matchGuid}/score`,
-    {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    },
-  );
-
-  const data = await response.json();
-
-  if (!response.ok) {
-    throw data as SubmitMatchmakingMatchScoreErrorResponse;
-  }
-
-  return data as SubmitMatchmakingMatchScoreSuccessResponse;
+  const { data } =
+    await apiClient.put<SubmitMatchmakingMatchScoreSuccessResponse>(
+      `/padel/matchmaking/match/${matchGuid}/score`,
+      payload,
+    );
+  return data;
 }
 
 export async function editMatchmakingMatchScore(
   matchGuid: string,
   payload: EditMatchmakingMatchScorePayload,
 ): Promise<EditMatchmakingMatchScoreSuccessResponse> {
-  const response = await fetchWithAuth(
-    `${BASE_URL}/padel/matchmaking/match/${matchGuid}/score/edit`,
-    {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    },
-  );
-
-  const data = await response.json();
-
-  if (!response.ok) {
-    throw data as EditMatchmakingMatchScoreErrorResponse;
-  }
-
-  return data as EditMatchmakingMatchScoreSuccessResponse;
+  const { data } =
+    await apiClient.put<EditMatchmakingMatchScoreSuccessResponse>(
+      `/padel/matchmaking/match/${matchGuid}/score/edit`,
+      payload,
+    );
+  return data;
 }
 
 export async function startMatchmakingRound(
   roundGuid: string,
 ): Promise<StartMatchmakingRoundSuccessResponse> {
-  const response = await fetchWithAuth(
-    `${BASE_URL}/padel/matchmaking/round/${roundGuid}/start`,
-    {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({}),
-    },
+  const { data } = await apiClient.put<StartMatchmakingRoundSuccessResponse>(
+    `/padel/matchmaking/round/${roundGuid}/start`,
+    {},
   );
-
-  const data = await response.json();
-
-  if (!response.ok) {
-    throw data as StartMatchmakingRoundErrorResponse;
-  }
-
-  return data as StartMatchmakingRoundSuccessResponse;
+  return data;
 }
 
 export async function cancelMatchmakingRound(
   roundGuid: string,
 ): Promise<CancelMatchmakingRoundSuccessResponse> {
-  const response = await fetchWithAuth(
-    `${BASE_URL}/padel/matchmaking/round/${roundGuid}/cancel`,
-    {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({}),
-    },
+  const { data } = await apiClient.put<CancelMatchmakingRoundSuccessResponse>(
+    `/padel/matchmaking/round/${roundGuid}/cancel`,
+    {},
   );
-
-  const data = await response.json();
-
-  if (!response.ok) {
-    throw data as CancelMatchmakingRoundErrorResponse;
-  }
-
-  return data as CancelMatchmakingRoundSuccessResponse;
+  return data;
 }
 
 export async function generateMatchmakingRound(
   sessionGuid: string,
   payload: GenerateMatchmakingRoundPayload,
 ): Promise<GenerateMatchmakingRoundSuccessResponse> {
-  const response = await fetchWithAuth(
-    `${BASE_URL}/padel/matchmaking/session/${sessionGuid}/generate-round`,
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    },
-  );
-
-  const data = await response.json();
-
-  if (!response.ok) {
-    throw data as GenerateMatchmakingRoundErrorResponse;
-  }
-
-  return data as GenerateMatchmakingRoundSuccessResponse;
+  const { data } =
+    await apiClient.post<GenerateMatchmakingRoundSuccessResponse>(
+      `/padel/matchmaking/session/${sessionGuid}/generate-round`,
+      payload,
+    );
+  return data;
 }
 
 export async function fetchMatchmakingAvailablePairs(
   matchGuid: string,
   userGuid: string,
 ): Promise<FetchMatchmakingAvailablePairsSuccessResponse> {
-  const response = await fetchWithAuth(
-    `${BASE_URL}/padel/matchmaking/match/${matchGuid}/available-pairs/${userGuid}`,
-  );
-
-  const data = await response.json();
-
-  if (!response.ok) {
-    throw data as FetchMatchmakingAvailablePairsErrorResponse;
-  }
-
-  return data as FetchMatchmakingAvailablePairsSuccessResponse;
+  const { data } =
+    await apiClient.get<FetchMatchmakingAvailablePairsSuccessResponse>(
+      `/padel/matchmaking/match/${matchGuid}/available-pairs/${userGuid}`,
+    );
+  return data;
 }
 
 export async function updateMatchmakingPairs(
   matchGuid: string,
   payload: UpdateMatchmakingPairsPayload,
 ): Promise<UpdateMatchmakingPairsSuccessResponse> {
-  const response = await fetchWithAuth(
-    `${BASE_URL}/padel/matchmaking/match/${matchGuid}/pairs`,
-    {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    },
+  const { data } = await apiClient.put<UpdateMatchmakingPairsSuccessResponse>(
+    `/padel/matchmaking/match/${matchGuid}/pairs`,
+    payload,
   );
-
-  const data = await response.json();
-
-  if (!response.ok) {
-    throw data as UpdateMatchmakingPairsErrorResponse;
-  }
-
-  return data as UpdateMatchmakingPairsSuccessResponse;
+  return data;
 }

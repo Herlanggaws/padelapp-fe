@@ -108,6 +108,7 @@ export interface ClubMemberUser {
   name: string;
   email: string;
   profile_photo: string;
+  rank_points: number;
 }
 
 export interface ClubMember {

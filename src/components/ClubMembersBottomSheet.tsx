@@ -193,6 +193,12 @@ export default function ClubMembersBottomSheet({
                   >
                     {member.user.email}
                   </span>
+                  <span
+                    className="text-xs text-[#41493A] mt-1"
+                    style={{ lineHeight: "12px" }}
+                  >
+                    Rank Points: {member.user.rank_points ?? "—"}
+                  </span>
                 </div>
               </div>
             </div>

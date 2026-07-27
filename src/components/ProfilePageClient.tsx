@@ -22,7 +22,6 @@ import {
 } from "@/lib/userProfileCache";
 import type { UserProfile } from "@/types/auth";
 
-
 function formatDate(value: string | null): string {
   if (!value) return "—";
   return new Date(value).toLocaleDateString(undefined, {
@@ -84,7 +83,7 @@ export default function ProfilePageClient() {
                 )}
               </div>
             </div>
-            <div className="absolute bottom-1 right-1 w-8 h-8 bg-[#9FE870] rounded-full border-4 border-white flex items-center justify-center">
+            {/* <div className="absolute bottom-1 right-1 w-8 h-8 bg-[#9FE870] rounded-full border-4 border-white flex items-center justify-center">
               <svg
                 width="12"
                 height="12"
@@ -98,7 +97,7 @@ export default function ProfilePageClient() {
                 <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
                 <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
               </svg>
-            </div>
+            </div> */}
           </div>
 
           <div className="flex flex-col items-center gap-2">

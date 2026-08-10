@@ -1,110 +1,125 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Image from "next/image";
+import { useRouter } from "next/navigation";
+import Modal from "@/components/Modal";
+import { useSnackbar } from "@/context/SnackbarContext";
+import {
+  clearMatchOrganizerSetDraft,
+  getMatchOrganizerSetDraft,
+  setMatchOrganizerSetDraft,
+  setMatchOrganizerSetTeams,
+} from "@/lib/matchOrganizerSetDraftStorage";
+import { setMatchConfigPlayers } from "@/lib/matchConfigPlayersStorage";
+import type {
+  MatchConfigSelectedPlayer,
+  MatchOrganizerSetCourtSlot,
+  MatchOrganizerSetDraft,
+} from "@/types/matchmaking";
 
-type ScoreType = "Total Set Point" | "Race to X Point";
+type TeamSide = "teamA" | "teamB";
+type SlotIndex = 0 | 1;
 
-const totalSetPointRows: number[][] = [
-  [4, 8, 12, 16],
-  [21, 24, 32],
-];
-
-const raceToXPointRows: number[][] = [[3, 4, 5, 6, 7]];
-
-interface Player {
-  id: string;
-  name: string;
-  avatarSeed: string;
+function formatLabel(format: MatchOrganizerSetDraft["format"]) {
+  switch (format) {
+    case "mexicano":
+      return "Mexicano";
+    case "americano":
+      return "Americano";
+    case "team_americano":
+      return "Team Americano";
+  }
 }
 
-interface CourtTeams {
-  courtNumber: number;
-  isPro?: boolean;
-  teamA: (Player | null)[];
-  teamB: (Player | null)[];
+function PlayerAvatar({
+  player,
+  size,
+}: {
+  player: MatchConfigSelectedPlayer;
+  size: number;
+}) {
+  const photo = player.profile_photo?.trim();
+  if (photo) {
+    return (
+      <Image
+        src={photo}
+        alt={player.name}
+        width={size}
+        height={size}
+        className="w-full h-full object-cover"
+      />
+    );
+  }
+  return (
+    <div className="w-full h-full flex items-center justify-center bg-gray-200">
+      <span
+        className="font-semibold text-gray-600"
+        style={{ fontSize: Math.max(10, size / 2.5) }}
+      >
+        {player.name.charAt(0).toUpperCase()}
+      </span>
+    </div>
+  );
 }
-
-const initialCourts: CourtTeams[] = [
-  {
-    courtNumber: 1,
-    isPro: true,
-    teamA: [
-      { id: "alex", name: "Alex G.", avatarSeed: "alex" },
-      { id: "sarah", name: "Sarah L.", avatarSeed: "sarah" },
-    ],
-    teamB: [{ id: "marc", name: "Marc V.", avatarSeed: "marc" }, null],
-  },
-  {
-    courtNumber: 2,
-    teamA: [
-      { id: "elena", name: "Elena R.", avatarSeed: "elena" },
-      { id: "julian", name: "Julian M.", avatarSeed: "julian" },
-    ],
-    teamB: [null, null],
-  },
-];
-
-const unassignedPlayers: Player[] = [
-  { id: "sophia", name: "Sophia K.", avatarSeed: "sophia" },
-  { id: "david", name: "David T.", avatarSeed: "david" },
-  { id: "lina", name: "Lina B.", avatarSeed: "lina" },
-  { id: "hugo", name: "Hugo P.", avatarSeed: "hugo" },
-];
 
 function PlayerSlot({
   player,
-  isEmpty,
+  isTarget,
+  onClick,
 }: {
-  player: Player | null;
-  isEmpty?: boolean;
+  player: MatchConfigSelectedPlayer | null;
+  isTarget: boolean;
+  onClick: () => void;
 }) {
-  if (!player || isEmpty) {
+  if (!player) {
     return (
-      <div
+      <button
+        type="button"
+        onClick={onClick}
         className="flex items-center justify-center px-2 py-2 w-full"
         style={{
-          border: "1px dashed #E4E4E7",
+          border: isTarget ? "1px dashed #9FE870" : "1px dashed #E4E4E7",
+          background: isTarget ? "rgba(159, 232, 112, 0.15)" : "transparent",
           borderRadius: "48px",
           minHeight: "44px",
         }}
       >
         <span
-          className="text-[10px] font-bold uppercase text-[#D4D4D8]"
-          style={{ lineHeight: "15px" }}
+          className="text-[10px] font-bold uppercase"
+          style={{
+            lineHeight: "15px",
+            color: isTarget ? "#2E6900" : "#D4D4D8",
+          }}
         >
-          DROP PLAYER
+          {isTarget ? "TAP TO PLACE" : "DROP PLAYER"}
         </span>
-      </div>
+      </button>
     );
   }
 
   return (
-    <div
+    <button
+      type="button"
+      onClick={onClick}
       className="flex items-center justify-between px-2 py-2 w-full bg-white border border-[#F4F4F5]"
       style={{ borderRadius: "48px" }}
     >
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2 min-w-0">
         <div
           className="w-8 h-8 rounded-full overflow-hidden flex-shrink-0"
           style={{ border: "2px solid #9FE870" }}
         >
-          <Image
-            src={`https://picsum.photos/seed/${player.avatarSeed}/32/32`}
-            alt={player.name}
-            width={32}
-            height={32}
-            className="w-full h-full object-cover"
-          />
+          <PlayerAvatar player={player} size={32} />
         </div>
         <span
-          className="text-base font-medium text-[#151C27]"
-          style={{ lineHeight: "24px" }}
+          className="text-sm font-medium text-[#151C27] truncate"
+          style={{ lineHeight: "20px" }}
         >
           {player.name}
         </span>
       </div>
-      <button className="p-1">
+      <span className="p-1 shrink-0" aria-hidden>
         <svg width="10" height="16" viewBox="0 0 10 16" fill="none">
           <circle cx="3" cy="3" r="1.5" fill="#A1A1AA" />
           <circle cx="7" cy="3" r="1.5" fill="#A1A1AA" />
@@ -113,18 +128,45 @@ function PlayerSlot({
           <circle cx="3" cy="13" r="1.5" fill="#A1A1AA" />
           <circle cx="7" cy="13" r="1.5" fill="#A1A1AA" />
         </svg>
-      </button>
-    </div>
+      </span>
+    </button>
   );
 }
 
-function CourtSection({ court }: { court: CourtTeams }) {
+function CourtSection({
+  court,
+  playerByGuid,
+  selectedGuid,
+  onEmptySlotClick,
+  onFilledSlotClick,
+}: {
+  court: MatchOrganizerSetCourtSlot;
+  playerByGuid: Map<string, MatchConfigSelectedPlayer>;
+  selectedGuid: string | null;
+  onEmptySlotClick: (side: TeamSide, index: SlotIndex) => void;
+  onFilledSlotClick: (side: TeamSide, index: SlotIndex) => void;
+}) {
+  const renderSlot = (side: TeamSide, index: SlotIndex) => {
+    const guid = court[side][index];
+    const player = guid ? (playerByGuid.get(guid) ?? null) : null;
+    return (
+      <PlayerSlot
+        key={`${side}-${index}`}
+        player={player}
+        isTarget={!player && selectedGuid != null}
+        onClick={() =>
+          player
+            ? onFilledSlotClick(side, index)
+            : onEmptySlotClick(side, index)
+        }
+      />
+    );
+  };
+
   return (
     <div className="flex flex-col gap-4">
-      {/* Court Header */}
       <div className="flex items-center justify-between px-1">
         <div className="flex items-center gap-2">
-          {/* Court icon */}
           <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
             <rect
               x="1"
@@ -159,24 +201,9 @@ function CourtSection({ court }: { court: CourtTeams }) {
             Court {court.courtNumber}
           </span>
         </div>
-        {court.isPro && (
-          <div
-            className="px-2 py-0.5"
-            style={{ background: "#9FE870", borderRadius: "9999px" }}
-          >
-            <span
-              className="text-[10px] font-bold uppercase text-[#2E6900]"
-              style={{ lineHeight: "15px" }}
-            >
-              PRO COURT
-            </span>
-          </div>
-        )}
       </div>
 
-      {/* Teams */}
       <div className="flex gap-4">
-        {/* Team A */}
         <div className="flex-1 flex flex-col gap-2">
           <span
             className="text-[10px] font-bold uppercase text-[#A1A1AA] px-1"
@@ -185,13 +212,11 @@ function CourtSection({ court }: { court: CourtTeams }) {
             TEAM A
           </span>
           <div className="flex flex-col gap-2">
-            {court.teamA.map((player, i) => (
-              <PlayerSlot key={i} player={player} />
-            ))}
+            {renderSlot("teamA", 0)}
+            {renderSlot("teamA", 1)}
           </div>
         </div>
 
-        {/* Team B */}
         <div className="flex-1 flex flex-col gap-2">
           <span
             className="text-[10px] font-bold uppercase text-[#A1A1AA] px-1"
@@ -200,9 +225,8 @@ function CourtSection({ court }: { court: CourtTeams }) {
             TEAM B
           </span>
           <div className="flex flex-col gap-2">
-            {court.teamB.map((player, i) => (
-              <PlayerSlot key={i} player={player} isEmpty={player === null} />
-            ))}
+            {renderSlot("teamB", 0)}
+            {renderSlot("teamB", 1)}
           </div>
         </div>
       </div>
@@ -210,24 +234,183 @@ function CourtSection({ court }: { court: CourtTeams }) {
   );
 }
 
-export default function MatchOrganizerSetClient() {
-  const [scoreType, setScoreType] = useState<ScoreType>("Total Set Point");
-  const [selectedPoints, setSelectedPoints] = useState<number>(21);
+function deriveTeams(courts: MatchOrganizerSetCourtSlot[]) {
+  const teams: { player1_guid: string; player2_guid: string }[] = [];
+  for (const court of courts) {
+    const [a0, a1] = court.teamA;
+    const [b0, b1] = court.teamB;
+    if (a0 && a1) teams.push({ player1_guid: a0, player2_guid: a1 });
+    if (b0 && b1) teams.push({ player1_guid: b0, player2_guid: b1 });
+  }
+  return teams;
+}
 
-  const pointOptionRows =
-    scoreType === "Total Set Point" ? totalSetPointRows : raceToXPointRows;
+export default function MatchOrganizerSetClient({
+  eventGuid,
+}: {
+  eventGuid: string;
+}) {
+  const router = useRouter();
+  const { showSnackbar } = useSnackbar();
+  const [draft, setDraft] = useState<MatchOrganizerSetDraft | null>(null);
+  const [courts, setCourts] = useState<MatchOrganizerSetCourtSlot[]>([]);
+  const [selectedGuid, setSelectedGuid] = useState<string | null>(null);
+  const [unassignedOpen, setUnassignedOpen] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [modalOpen, setModalOpen] = useState(false);
+  const [modalMessage, setModalMessage] = useState("");
 
-  const handleScoreTypeChange = (option: ScoreType) => {
-    if (option === scoreType) return;
-    setScoreType(option);
-    setSelectedPoints(option === "Total Set Point" ? 21 : 5);
+  useEffect(() => {
+    if (!eventGuid.trim()) return;
+    const stored = getMatchOrganizerSetDraft(eventGuid);
+    if (!stored) {
+      router.replace(
+        `/matches/configure?event_guid=${encodeURIComponent(eventGuid)}`,
+      );
+      return;
+    }
+    setDraft(stored);
+    setCourts(stored.courts);
+  }, [eventGuid, router]);
+
+  const playerByGuid = useMemo(() => {
+    const map = new Map<string, MatchConfigSelectedPlayer>();
+    for (const player of draft?.players ?? []) {
+      map.set(player.participant_guid, player);
+    }
+    return map;
+  }, [draft]);
+
+  const assignedGuids = useMemo(() => {
+    const set = new Set<string>();
+    for (const court of courts) {
+      for (const guid of [...court.teamA, ...court.teamB]) {
+        if (guid) set.add(guid);
+      }
+    }
+    return set;
+  }, [courts]);
+
+  const unassignedPlayers = useMemo(
+    () =>
+      (draft?.players ?? []).filter(
+        (p) => !assignedGuids.has(p.participant_guid),
+      ),
+    [draft, assignedGuids],
+  );
+
+  const updateCourts = (
+    updater: (prev: MatchOrganizerSetCourtSlot[]) => MatchOrganizerSetCourtSlot[],
+  ) => {
+    setCourts((prev) => {
+      const next = updater(prev);
+      if (draft) {
+        setMatchOrganizerSetDraft({ ...draft, courts: next });
+      }
+      return next;
+    });
   };
+
+  const handleSelectUnassigned = (guid: string) => {
+    setSelectedGuid((prev) => (prev === guid ? null : guid));
+  };
+
+  const handleEmptySlotClick = (
+    courtNumber: number,
+    side: TeamSide,
+    index: SlotIndex,
+  ) => {
+    if (!selectedGuid) return;
+    updateCourts((prev) =>
+      prev.map((court) => {
+        if (court.courtNumber !== courtNumber) return court;
+        const nextSide: [string | null, string | null] = [...court[side]];
+        nextSide[index] = selectedGuid;
+        return { ...court, [side]: nextSide };
+      }),
+    );
+    setSelectedGuid(null);
+  };
+
+  const handleFilledSlotClick = (
+    courtNumber: number,
+    side: TeamSide,
+    index: SlotIndex,
+  ) => {
+    updateCourts((prev) =>
+      prev.map((court) => {
+        if (court.courtNumber !== courtNumber) return court;
+        const nextSide: [string | null, string | null] = [...court[side]];
+        nextSide[index] = null;
+        return { ...court, [side]: nextSide };
+      }),
+    );
+    setSelectedGuid(null);
+  };
+
+  const handleConfirmPairs = () => {
+    if (!draft) return;
+
+    const incompletePair = courts.some((court) => {
+      const aFilled = court.teamA.filter(Boolean).length;
+      const bFilled = court.teamB.filter(Boolean).length;
+      return (
+        (aFilled > 0 && aFilled < 2) || (bFilled > 0 && bFilled < 2)
+      );
+    });
+    if (incompletePair) {
+      setModalMessage(
+        "Each team needs 2 players. Complete or clear incomplete pairs.",
+      );
+      setModalOpen(true);
+      return;
+    }
+
+    const teams = deriveTeams(courts);
+    if (teams.length === 0) {
+      setModalMessage("Create at least one complete pair before confirming.");
+      setModalOpen(true);
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      setMatchOrganizerSetDraft({ ...draft, courts });
+      setMatchOrganizerSetTeams({
+        event_guid: draft.event_guid,
+        teams,
+      });
+      clearMatchOrganizerSetDraft();
+      showSnackbar(
+        `Saved ${teams.length} pair${teams.length !== 1 ? "s" : ""} locally`,
+      );
+      router.push(`/events/${encodeURIComponent(draft.event_guid)}`);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  if (!draft) {
+    return (
+      <main
+        className="flex items-center justify-center pb-32"
+        style={{ paddingTop: "80px" }}
+      >
+        <span className="text-sm text-[#71717A]">Loading...</span>
+      </main>
+    );
+  }
 
   return (
     <main className="flex flex-col gap-6 pb-32" style={{ paddingTop: "80px" }}>
-      {/* Summary Cards */}
+      <Modal
+        isOpen={modalOpen}
+        onClose={() => setModalOpen(false)}
+        title="Set pairs"
+        message={modalMessage}
+      />
+
       <div className="flex gap-4 px-6">
-        {/* Game Format Card */}
         <div
           className="flex-1 flex flex-col gap-2 p-4 bg-white border border-[#F4F4F5]"
           style={{ borderRadius: "16px" }}
@@ -246,12 +429,11 @@ export default function MatchOrganizerSetClient() {
               className="text-base font-semibold text-[#18181B]"
               style={{ lineHeight: "24px" }}
             >
-              Americano
+              {formatLabel(draft.format)}
             </span>
           </div>
         </div>
 
-        {/* Courts Card */}
         <div
           className="flex-1 flex flex-col gap-2 p-4 bg-white border border-[#F4F4F5]"
           style={{ borderRadius: "16px" }}
@@ -292,98 +474,90 @@ export default function MatchOrganizerSetClient() {
             </svg>
             <span
               className="text-base font-semibold text-[#18181B]"
-              style={{ lineHeight: "24px", color: "#18181B" }}
+              style={{ lineHeight: "24px" }}
             >
-              2 Courts
+              {draft.number_of_courts} Court
+              {draft.number_of_courts !== 1 ? "s" : ""}
             </span>
           </div>
         </div>
       </div>
 
-      {/* Score Type Toggle */}
       <div className="flex flex-col gap-2 px-6">
         <div className="px-1">
           <span
             className="text-[10px] font-bold uppercase tracking-[10%] text-[#474646]"
             style={{ lineHeight: "15px" }}
           >
-            SCORE TYPE
+            TEAM ASSIGNMENT
           </span>
         </div>
         <div
           className="flex items-center p-1"
           style={{ background: "#E5E2E1", borderRadius: "9999px" }}
         >
-          {(["Total Set Point", "Race to X Point"] as ScoreType[]).map(
-            (option) => {
-              const isActive = scoreType === option;
-              return (
-                <button
-                  key={option}
-                  type="button"
-                  onClick={() => handleScoreTypeChange(option)}
-                  className={`flex-1 py-2 text-center transition-all ${
-                    isActive ? "bg-white border border-[#F4F4F5]" : ""
-                  }`}
-                  style={{
-                    borderRadius: "9999px",
-                    color: isActive ? "#18181B" : "#71717A",
-                    fontSize: "16px",
-                    fontWeight: 400,
-                    lineHeight: "24px",
-                    boxShadow: isActive
-                      ? "0px 1px 2px 0px rgba(0,0,0,0.05)"
-                      : "none",
-                  }}
-                >
-                  {option}
-                </button>
+          <button
+            type="button"
+            onClick={() => {
+              if (draft) {
+                setMatchConfigPlayers({
+                  event_guid: draft.event_guid,
+                  players: draft.players,
+                });
+              }
+              router.push(
+                `/matches/configure?event_guid=${encodeURIComponent(eventGuid)}`,
               );
-            },
-          )}
+            }}
+            className="flex-1 py-2 text-center"
+            style={{
+              borderRadius: "9999px",
+              color: "#71717A",
+              fontSize: "16px",
+              fontWeight: 400,
+              lineHeight: "24px",
+            }}
+          >
+            Random
+          </button>
+          <button
+            type="button"
+            className="flex-1 py-2 text-center bg-white border border-[#F4F4F5]"
+            style={{
+              borderRadius: "9999px",
+              color: "#18181B",
+              fontSize: "16px",
+              fontWeight: 400,
+              lineHeight: "24px",
+              boxShadow: "0px 1px 2px 0px rgba(0,0,0,0.05)",
+            }}
+          >
+            Organizer Set
+          </button>
         </div>
-
-        {/* Point Options */}
-        <div className="flex flex-col gap-2">
-          {pointOptionRows.map((row) => (
-            <div key={row.join("-")} className="flex gap-2">
-              {row.map((pts) => {
-                const isSelected = selectedPoints === pts;
-                return (
-                  <button
-                    key={pts}
-                    type="button"
-                    onClick={() => setSelectedPoints(pts)}
-                    className="flex-1 py-2 px-6 text-center transition-all"
-                    style={{
-                      borderRadius: "9999px",
-                      background: isSelected ? "#18181B" : "#FFFFFF",
-                      border: isSelected
-                        ? "1px solid #18181B"
-                        : "1px solid #F4F4F5",
-                      color: isSelected ? "#9FE870" : "#151C27",
-                      fontSize: "12px",
-                      fontWeight: 600,
-                      lineHeight: "12px",
-                    }}
-                  >
-                    {pts}
-                  </button>
-                );
-              })}
-            </div>
-          ))}
-        </div>
+        <p className="text-xs text-[#71717A] px-1">
+          Tap a player below, then tap an empty slot. Tap a filled slot to
+          remove.
+        </p>
       </div>
 
-      {/* Courts Interactive Area */}
       <div className="flex flex-col gap-6 px-6">
-        {initialCourts.map((court) => (
-          <CourtSection key={court.courtNumber} court={court} />
+        {courts.map((court) => (
+          <CourtSection
+            key={court.courtNumber}
+            court={court}
+            playerByGuid={playerByGuid}
+            selectedGuid={selectedGuid}
+            onEmptySlotClick={(side, index) =>
+              handleEmptySlotClick(court.courtNumber, side, index)
+            }
+            onFilledSlotClick={(side, index) =>
+              handleFilledSlotClick(court.courtNumber, side, index)
+            }
+          />
         ))}
       </div>
 
-      {/* Unassigned Players Section */}
       <div
         className="mx-6 flex flex-col gap-4 p-4 border border-[#F4F4F5]"
         style={{
@@ -391,7 +565,11 @@ export default function MatchOrganizerSetClient() {
           borderRadius: "24px",
         }}
       >
-        <div className="flex items-center justify-between">
+        <button
+          type="button"
+          onClick={() => setUnassignedOpen((v) => !v)}
+          className="flex items-center justify-between"
+        >
           <div className="px-1">
             <span
               className="text-[10px] font-bold uppercase tracking-[10%] text-[#474646]"
@@ -400,58 +578,83 @@ export default function MatchOrganizerSetClient() {
               UNASSIGNED PLAYERS ({unassignedPlayers.length})
             </span>
           </div>
-          <button>
-            <svg width="14" height="7" viewBox="0 0 14 7" fill="none">
-              <path
-                d="M1 1L7 6L13 1"
-                stroke="#A1A1AA"
-                strokeWidth="1.5"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            </svg>
-          </button>
-        </div>
+          <svg
+            width="14"
+            height="7"
+            viewBox="0 0 14 7"
+            fill="none"
+            style={{
+              transform: unassignedOpen ? "rotate(0deg)" : "rotate(-90deg)",
+              transition: "transform 0.2s",
+            }}
+          >
+            <path
+              d="M1 1L7 6L13 1"
+              stroke="#A1A1AA"
+              strokeWidth="1.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
+        </button>
 
-        {/* Player chips */}
-        <div className="flex flex-wrap gap-2">
-          {unassignedPlayers.map((player) => (
-            <div
-              key={player.id}
-              className="flex items-center gap-2 px-3 py-1.5 bg-white border border-[#E4E4E7]"
-              style={{
-                borderRadius: "9999px",
-                boxShadow: "0px 1px 2px 0px rgba(0,0,0,0.05)",
-              }}
-            >
-              <div className="w-6 h-6 rounded-full overflow-hidden flex-shrink-0">
-                <Image
-                  src={`https://picsum.photos/seed/${player.avatarSeed}/24/24`}
-                  alt={player.name}
-                  width={24}
-                  height={24}
-                  className="w-full h-full object-cover"
-                />
-              </div>
-              <span
-                className="text-xs font-medium text-[#151C27]"
-                style={{ lineHeight: "18px" }}
-              >
-                {player.name}
+        {unassignedOpen && (
+          <div className="flex flex-wrap gap-2">
+            {unassignedPlayers.length === 0 ? (
+              <span className="text-xs text-[#71717A] px-1">
+                All players assigned
               </span>
-              <button className="p-0.5">
-                <svg width="6" height="10" viewBox="0 0 6 10" fill="none">
-                  <circle cx="1.5" cy="2" r="1" fill="#A1A1AA" />
-                  <circle cx="4.5" cy="2" r="1" fill="#A1A1AA" />
-                  <circle cx="1.5" cy="5" r="1" fill="#A1A1AA" />
-                  <circle cx="4.5" cy="5" r="1" fill="#A1A1AA" />
-                  <circle cx="1.5" cy="8" r="1" fill="#A1A1AA" />
-                  <circle cx="4.5" cy="8" r="1" fill="#A1A1AA" />
-                </svg>
-              </button>
-            </div>
-          ))}
-        </div>
+            ) : (
+              unassignedPlayers.map((player) => {
+                const isSelected = selectedGuid === player.participant_guid;
+                return (
+                  <button
+                    key={player.participant_guid}
+                    type="button"
+                    onClick={() =>
+                      handleSelectUnassigned(player.participant_guid)
+                    }
+                    className="flex items-center gap-2 px-3 py-1.5 bg-white border"
+                    style={{
+                      borderRadius: "9999px",
+                      borderColor: isSelected ? "#9FE870" : "#E4E4E7",
+                      boxShadow: isSelected
+                        ? "0px 0px 0px 2px rgba(159,232,112,0.35)"
+                        : "0px 1px 2px 0px rgba(0,0,0,0.05)",
+                    }}
+                  >
+                    <div className="w-6 h-6 rounded-full overflow-hidden flex-shrink-0">
+                      <PlayerAvatar player={player} size={24} />
+                    </div>
+                    <span
+                      className="text-xs font-medium text-[#151C27]"
+                      style={{ lineHeight: "18px" }}
+                    >
+                      {player.name}
+                    </span>
+                  </button>
+                );
+              })
+            )}
+          </div>
+        )}
+      </div>
+
+      <div className="fixed bottom-0 left-0 right-0 z-50 max-w-[448px] mx-auto px-6 py-4 pb-8 bg-white border-t border-[#F4F4F5]">
+        <button
+          type="button"
+          onClick={handleConfirmPairs}
+          disabled={isSubmitting}
+          className="w-full text-xl font-semibold text-[#9FE870] py-5 rounded-full disabled:opacity-50 disabled:cursor-not-allowed"
+          style={{
+            background: "#18181B",
+            lineHeight: "26px",
+            boxShadow:
+              "0px 4px 6px -4px rgba(0,0,0,0.1), 0px 10px 15px -3px rgba(0,0,0,0.1)",
+          }}
+        >
+          {isSubmitting ? "Saving..." : "Confirm Pairs"}
+        </button>
       </div>
     </main>
   );

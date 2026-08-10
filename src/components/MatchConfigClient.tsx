@@ -7,14 +7,20 @@ import {
   clearMatchConfigPlayers,
   getMatchConfigPlayers,
 } from "@/lib/matchConfigPlayersStorage";
+import {
+  eventPairsToTeams,
+  getEventPairs,
+} from "@/lib/eventPairsStorage";
 import { createMatchmakingSession } from "@/services/matchmakingService";
 import type {
   CreateMatchmakingSessionErrorResponse,
   MatchConfigSelectedPlayer,
   MatchmakingSessionFormatApi,
+  MatchmakingTeamAssignmentApi,
 } from "@/types/matchmaking";
 
 type GameFormat = "Mexicano" | "Americano" | "Team Americano";
+type TeamAssignment = "Random" | "Organizer Set";
 type ScoreType = "Total Set Point" | "Race to X Point";
 
 const totalSetPointRows: number[][] = [
@@ -35,6 +41,12 @@ function uiFormatToApi(value: GameFormat): MatchmakingSessionFormatApi {
   }
 }
 
+function uiTeamAssignmentToApi(
+  value: TeamAssignment,
+): MatchmakingTeamAssignmentApi {
+  return value === "Organizer Set" ? "organizer_set" : "random";
+}
+
 export default function MatchConfigClient({
   eventGuid,
 }: {
@@ -43,6 +55,8 @@ export default function MatchConfigClient({
   const router = useRouter();
   const [selectedFormat, setSelectedFormat] = useState<GameFormat>("Americano");
   const [courts, setCourts] = useState(2);
+  const [teamAssignment, setTeamAssignment] =
+    useState<TeamAssignment>("Random");
   const [scoreType, setScoreType] = useState<ScoreType>("Total Set Point");
   const [selectedPoints, setSelectedPoints] = useState<number>(21);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -53,6 +67,9 @@ export default function MatchConfigClient({
     MatchConfigSelectedPlayer[]
   >([]);
   const [showGenerateConfirm, setShowGenerateConfirm] = useState(false);
+  const [eventPairs, setEventPairs] = useState<
+    NonNullable<ReturnType<typeof getEventPairs>>
+  >([]);
 
   useEffect(() => {
     if (!eventGuid.trim()) return;
@@ -61,6 +78,7 @@ export default function MatchConfigClient({
       setSelectedPlayers(players);
       clearMatchConfigPlayers();
     }
+    setEventPairs(getEventPairs(eventGuid) ?? []);
   }, [eventGuid]);
 
   const showModal = (title: string, message: string) => {
@@ -88,6 +106,8 @@ export default function MatchConfigClient({
 
   const pointOptionRows =
     scoreType === "Total Set Point" ? totalSetPointRows : raceToXPointRows;
+  const isOrganizerSet =
+    selectedFormat !== "Mexicano" && teamAssignment === "Organizer Set";
 
   const handleScoreTypeChange = (option: ScoreType) => {
     if (option === scoreType) return;
@@ -103,10 +123,17 @@ export default function MatchConfigClient({
       );
       return;
     }
-    if (selectedPlayers.length === 0) {
+    if (selectedPlayers.length === 0 && eventPairs.length === 0) {
       showModal(
-        "No players selected",
-        "Go back to the event page and select players before generating a match.",
+        "No pairs set",
+        "Go back to the event page and set pairs before generating a match.",
+      );
+      return;
+    }
+    if (isOrganizerSet && eventPairs.length === 0) {
+      showModal(
+        "No pairs set",
+        "Set pairs on the event detail page before generating with Organizer Set.",
       );
       return;
     }
@@ -116,17 +143,19 @@ export default function MatchConfigClient({
   const handleGenerateMatch = async () => {
     setIsSubmitting(true);
     try {
+      const pairs = isOrganizerSet ? (getEventPairs(eventGuid) ?? []) : [];
+      const teams = isOrganizerSet ? eventPairsToTeams(pairs) : [];
       const result = await createMatchmakingSession({
         event_guid: eventGuid,
         format: uiFormatToApi(selectedFormat),
         number_of_courts: courts,
-        team_assignment: "random",
+        team_assignment: uiTeamAssignmentToApi(teamAssignment),
         total_set_points:
           scoreType === "Total Set Point" ? selectedPoints : null,
         race_to_points:
           scoreType === "Race to X Point" ? selectedPoints : null,
         pairing_variant: "smart",
-        teams: [],
+        teams,
         participant_guids: selectedPlayers.map((p) => p.participant_guid),
       });
       router.push(
@@ -151,7 +180,7 @@ export default function MatchConfigClient({
 
       {showGenerateConfirm && (
         <div className="fixed inset-0 z-60 flex items-center justify-center bg-black/40 px-6">
-          <div className="w-full max-w-sm bg-white rounded-2xl p-6 flex flex-col gap-4">
+          <div className="w-full max-w-sm bg-white rounded-2xl p-6 flex flex-col gap-4 max-h-[80vh]">
             <h3 className="text-lg font-semibold text-[#151C27]">
               Generate Match
             </h3>
@@ -162,18 +191,33 @@ export default function MatchConfigClient({
               {courts !== 1 ? "s" : ""}, and{" "}
               <span className="font-semibold">{selectedPoints}</span>{" "}
               {scoreType === "Total Set Point" ? "set points" : "race to points"}
-              {selectedPlayers.length > 0 && (
+              {eventPairs.length > 0 && (
                 <>
                   {" "}
                   for{" "}
-                  <span className="font-semibold">
-                    {selectedPlayers.length}
-                  </span>{" "}
-                  player{selectedPlayers.length !== 1 ? "s" : ""}
+                  <span className="font-semibold">{eventPairs.length}</span>{" "}
+                  pair{eventPairs.length !== 1 ? "s" : ""}
                 </>
               )}
               ?
             </p>
+            {eventPairs.length > 0 && (
+              <div className="flex flex-col gap-2 overflow-y-auto max-h-48">
+                {eventPairs.map((pair) => (
+                  <div
+                    key={pair.id}
+                    className="flex flex-col gap-1 p-3 rounded-2xl border border-[#F4F4F5] bg-[#FAFAFA]"
+                  >
+                    <span className="text-sm font-semibold text-[#151C27]">
+                      {pair.team_name || "Team"}
+                    </span>
+                    <span className="text-xs text-[#71717A]">
+                      {pair.player1.name} & {pair.player2.name}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
             <div className="flex gap-3 mt-2">
               <button
                 type="button"
@@ -216,7 +260,12 @@ export default function MatchConfigClient({
                 type="button"
                 disabled={isDisabled}
                 aria-disabled={isDisabled}
-                onClick={() => setSelectedFormat(format.value)}
+                onClick={() => {
+                  setSelectedFormat(format.value);
+                  if (format.value === "Mexicano") {
+                    setTeamAssignment("Random");
+                  }
+                }}
                 className="flex items-center justify-between px-4 py-4 border border-[#F4F4F5] bg-white disabled:opacity-50 disabled:cursor-not-allowed"
                 style={{
                   borderRadius:
@@ -324,6 +373,47 @@ export default function MatchConfigClient({
           </button>
         </div>
       </section>
+
+      {/* Team Assignment Section */}
+      {selectedFormat !== "Mexicano" && (
+        <section className="flex flex-col gap-2">
+          <h2
+            className="text-xl font-normal text-[#151C27]"
+            style={{ lineHeight: "26px" }}
+          >
+            Team Assignment
+          </h2>
+          <div
+            className="flex items-center p-1 bg-[#F0F3FF]"
+            style={{ borderRadius: "9999px" }}
+          >
+            {(["Random", "Organizer Set"] as TeamAssignment[]).map((option) => {
+              const isActive = teamAssignment === option;
+              return (
+                <button
+                  key={option}
+                  type="button"
+                  onClick={() => setTeamAssignment(option)}
+                  className="flex-1 py-3 text-center transition-all"
+                  style={{
+                    borderRadius: "9999px",
+                    background: isActive ? "#FFFFFF" : "transparent",
+                    boxShadow: isActive
+                      ? "0px 1px 2px 0px rgba(0,0,0,0.05)"
+                      : "none",
+                    color: isActive ? "#151C27" : "#71717A",
+                    fontSize: "12px",
+                    fontWeight: isActive ? 600 : 400,
+                    lineHeight: "12px",
+                  }}
+                >
+                  {option}
+                </button>
+              );
+            })}
+          </div>
+        </section>
+      )}
 
       {/* Score Type Section */}
       <section className="flex flex-col gap-2">

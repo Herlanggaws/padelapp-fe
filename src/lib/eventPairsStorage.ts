@@ -50,5 +50,6 @@ export function eventPairsToTeams(
   return pairs.map((pair) => ({
     player1_guid: pair.player1.participant_guid,
     player2_guid: pair.player2.participant_guid,
+    team_name: pair.team_name.trim(),
   }));
 }

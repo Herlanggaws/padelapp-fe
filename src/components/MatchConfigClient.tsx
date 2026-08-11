@@ -55,8 +55,6 @@ export default function MatchConfigClient({
   const router = useRouter();
   const [selectedFormat, setSelectedFormat] = useState<GameFormat>("Americano");
   const [courts, setCourts] = useState(2);
-  const [teamAssignment, setTeamAssignment] =
-    useState<TeamAssignment>("Random");
   const [scoreType, setScoreType] = useState<ScoreType>("Total Set Point");
   const [selectedPoints, setSelectedPoints] = useState<number>(21);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -106,8 +104,10 @@ export default function MatchConfigClient({
 
   const pointOptionRows =
     scoreType === "Total Set Point" ? totalSetPointRows : raceToXPointRows;
-  const isOrganizerSet =
-    selectedFormat !== "Mexicano" && teamAssignment === "Organizer Set";
+  const hasPairs = eventPairs.length > 0;
+  const teamAssignment: TeamAssignment = hasPairs
+    ? "Organizer Set"
+    : "Random";
 
   const handleScoreTypeChange = (option: ScoreType) => {
     if (option === scoreType) return;
@@ -125,15 +125,8 @@ export default function MatchConfigClient({
     }
     if (selectedPlayers.length === 0 && eventPairs.length === 0) {
       showModal(
-        "No pairs set",
-        "Go back to the event page and set pairs before generating a match.",
-      );
-      return;
-    }
-    if (isOrganizerSet && eventPairs.length === 0) {
-      showModal(
-        "No pairs set",
-        "Set pairs on the event detail page before generating with Organizer Set.",
+        "No players",
+        "Go back to the event page and add participants before generating a match.",
       );
       return;
     }
@@ -143,8 +136,15 @@ export default function MatchConfigClient({
   const handleGenerateMatch = async () => {
     setIsSubmitting(true);
     try {
-      const pairs = isOrganizerSet ? (getEventPairs(eventGuid) ?? []) : [];
-      const teams = isOrganizerSet ? eventPairsToTeams(pairs) : [];
+      const pairs = getEventPairs(eventGuid) ?? eventPairs;
+      const teams = pairs.length > 0 ? eventPairsToTeams(pairs) : [];
+      const participantGuids =
+        selectedPlayers.length > 0
+          ? selectedPlayers.map((p) => p.participant_guid)
+          : pairs.flatMap((pair) => [
+              pair.player1.participant_guid,
+              pair.player2.participant_guid,
+            ]);
       const result = await createMatchmakingSession({
         event_guid: eventGuid,
         format: uiFormatToApi(selectedFormat),
@@ -156,7 +156,7 @@ export default function MatchConfigClient({
           scoreType === "Race to X Point" ? selectedPoints : null,
         pairing_variant: "smart",
         teams,
-        participant_guids: selectedPlayers.map((p) => p.participant_guid),
+        participant_guids: participantGuids,
       });
       router.push(
         `/matches/${result.data.guid}?event_guid=${encodeURIComponent(eventGuid)}`,
@@ -260,12 +260,7 @@ export default function MatchConfigClient({
                 type="button"
                 disabled={isDisabled}
                 aria-disabled={isDisabled}
-                onClick={() => {
-                  setSelectedFormat(format.value);
-                  if (format.value === "Mexicano") {
-                    setTeamAssignment("Random");
-                  }
-                }}
+                onClick={() => setSelectedFormat(format.value)}
                 className="flex items-center justify-between px-4 py-4 border border-[#F4F4F5] bg-white disabled:opacity-50 disabled:cursor-not-allowed"
                 style={{
                   borderRadius:
@@ -375,45 +370,46 @@ export default function MatchConfigClient({
       </section>
 
       {/* Team Assignment Section */}
-      {selectedFormat !== "Mexicano" && (
-        <section className="flex flex-col gap-2">
-          <h2
-            className="text-xl font-normal text-[#151C27]"
-            style={{ lineHeight: "26px" }}
-          >
-            Team Assignment
-          </h2>
+      <section className="flex flex-col gap-2">
+        <h2
+          className="text-xl font-normal text-[#151C27]"
+          style={{ lineHeight: "26px" }}
+        >
+          Team Assignment
+        </h2>
+        <div className="flex items-center gap-3 px-4 py-4 border border-[#F4F4F5] bg-[#FAFAFA] rounded-[24px]">
           <div
-            className="flex items-center p-1 bg-[#F0F3FF]"
-            style={{ borderRadius: "9999px" }}
+            className="w-10 h-10 rounded-full flex items-center justify-center shrink-0"
+            style={{ background: hasPairs ? "#9FE870" : "#F0F3FF" }}
           >
-            {(["Random", "Organizer Set"] as TeamAssignment[]).map((option) => {
-              const isActive = teamAssignment === option;
-              return (
-                <button
-                  key={option}
-                  type="button"
-                  onClick={() => setTeamAssignment(option)}
-                  className="flex-1 py-3 text-center transition-all"
-                  style={{
-                    borderRadius: "9999px",
-                    background: isActive ? "#FFFFFF" : "transparent",
-                    boxShadow: isActive
-                      ? "0px 1px 2px 0px rgba(0,0,0,0.05)"
-                      : "none",
-                    color: isActive ? "#151C27" : "#71717A",
-                    fontSize: "12px",
-                    fontWeight: isActive ? 600 : 400,
-                    lineHeight: "12px",
-                  }}
-                >
-                  {option}
-                </button>
-              );
-            })}
+            {hasPairs ? (
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                <path
+                  d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5s-3 1.34-3 3 1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5C15 14.17 10.33 13 8 13zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"
+                  fill="#2E6900"
+                />
+              </svg>
+            ) : (
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                <path
+                  d="M12 4V1L8 5l4 4V6c3.31 0 6 2.69 6 6 0 1.01-.25 1.97-.7 2.8l1.46 1.46A7.93 7.93 0 0 0 20 12c0-4.42-3.58-8-8-8zm0 14c-3.31 0-6-2.69-6-6 0-1.01.25-1.97.7-2.8L5.24 7.74A7.93 7.93 0 0 0 4 12c0 4.42 3.58 8 8 8v3l4-4-4-4v3z"
+                  fill="#5F5E5E"
+                />
+              </svg>
+            )}
           </div>
-        </section>
-      )}
+          <div className="flex flex-col gap-0.5 min-w-0">
+            <span className="text-sm font-semibold text-[#151C27]">
+              {teamAssignment}
+            </span>
+            <span className="text-xs text-[#71717A]">
+              {hasPairs
+                ? `Using ${eventPairs.length} pair${eventPairs.length !== 1 ? "s" : ""} from the event`
+                : "Pairs will be assigned automatically"}
+            </span>
+          </div>
+        </div>
+      </section>
 
       {/* Score Type Section */}
       <section className="flex flex-col gap-2">

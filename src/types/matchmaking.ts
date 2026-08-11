@@ -41,6 +41,7 @@ export type MatchmakingPairingVariantApi = "smart" | string;
 export interface CreateMatchmakingSessionTeam {
   player1_guid: string;
   player2_guid: string;
+  team_name?: string;
 }
 
 export interface CreateMatchmakingSessionPayload {

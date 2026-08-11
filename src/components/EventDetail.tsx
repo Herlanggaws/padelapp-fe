@@ -10,7 +10,11 @@ import BottomSheetEventSettings from "@/components/BottomSheetEventSettings";
 import BottomSheetSeeAllPlayers from "@/components/BottomSheetSeeAllPlayers";
 import BottomSheetSetPairs from "@/components/BottomSheetSetPairs";
 import { setMatchConfigPlayers } from "@/lib/matchConfigPlayersStorage";
-import { getEventPairs, type EventPair } from "@/lib/eventPairsStorage";
+import {
+  clearEventPairs,
+  getEventPairs,
+  type EventPair,
+} from "@/lib/eventPairsStorage";
 import type { MatchConfigSelectedPlayer } from "@/types/matchmaking";
 import {
   fetchEventDetail,
@@ -284,36 +288,82 @@ function EventDetailContent({
     setEventPairsState(pairs);
   }, [event.guid]);
 
+  const handleClearPairs = () => {
+    clearEventPairs();
+    setEventPairsState([]);
+    showSnackbar("Pairs cleared. Team assignment is Random again.");
+  };
+
   const handleGenerateMatchClick = () => {
-    if (eventPairs.length === 0) {
-      showSnackbar("Set pairs before generating a match");
-      setShowSetPairs(true);
-      return;
-    }
     setShowGenerateConfirm(true);
   };
 
-  const handleConfirmGenerateMatch = () => {
-    const players: MatchConfigSelectedPlayer[] = [];
-    const seen = new Set<string>();
-    for (const pair of eventPairs) {
-      for (const player of [pair.player1, pair.player2]) {
-        if (seen.has(player.participant_guid)) continue;
-        seen.add(player.participant_guid);
-        players.push({
-          participant_guid: player.participant_guid,
-          user_guid: player.user_guid || "",
-          name: player.name,
-          email: "",
-          profile_photo: player.profile_photo,
-        });
-      }
-    }
-    setMatchConfigPlayers({ event_guid: event.guid, players });
+  const handleConfirmGenerateMatch = async () => {
     setShowGenerateConfirm(false);
-    router.push(
-      `/matches/configure?event_guid=${encodeURIComponent(event.guid)}`,
-    );
+
+    if (eventPairs.length > 0) {
+      const players: MatchConfigSelectedPlayer[] = [];
+      const seen = new Set<string>();
+      for (const pair of eventPairs) {
+        for (const player of [pair.player1, pair.player2]) {
+          if (seen.has(player.participant_guid)) continue;
+          seen.add(player.participant_guid);
+          players.push({
+            participant_guid: player.participant_guid,
+            user_guid: player.user_guid || "",
+            name: player.name,
+            email: "",
+            profile_photo: player.profile_photo,
+          });
+        }
+      }
+      setMatchConfigPlayers({ event_guid: event.guid, players });
+      router.push(
+        `/matches/configure?event_guid=${encodeURIComponent(event.guid)}`,
+      );
+      return;
+    }
+
+    try {
+      const first = await fetchEventParticipants({
+        event_guid: event.guid,
+        limit: 50,
+      });
+      const totalPages = first.paginate.total_page;
+      const rest =
+        totalPages > 1
+          ? await Promise.all(
+              Array.from({ length: totalPages - 1 }, (_, i) =>
+                fetchEventParticipants({
+                  event_guid: event.guid,
+                  page: i + 2,
+                  limit: 50,
+                }),
+              ),
+            )
+          : [];
+      const participants = [
+        ...first.data,
+        ...rest.flatMap((res) => res.data),
+      ];
+      const players: MatchConfigSelectedPlayer[] = participants.map((p) => ({
+        participant_guid: p.guid,
+        user_guid: p.user_guid || p.user.guid || "",
+        name: p.user.name,
+        email: p.user.email ?? "",
+        profile_photo: p.user.profile_photo,
+      }));
+      if (players.length === 0) {
+        showSnackbar("Add participants before generating a match");
+        return;
+      }
+      setMatchConfigPlayers({ event_guid: event.guid, players });
+      router.push(
+        `/matches/configure?event_guid=${encodeURIComponent(event.guid)}`,
+      );
+    } catch {
+      showSnackbar("Could not load participants");
+    }
   };
 
   const handleJoinLeaveClick = () => {
@@ -571,18 +621,30 @@ function EventDetailContent({
                 >
                   PAIRS ({eventPairs.length})
                 </span>
-                <button
-                  type="button"
-                  className="text-xs font-semibold text-[#2F6C00] cursor-pointer"
-                  onClick={() => setShowSetPairs(true)}
-                >
-                  {eventPairs.length > 0 ? "Edit Pairs" : "Set Pairs"}
-                </button>
+                <div className="flex items-center gap-3">
+                  {eventPairs.length > 0 && (
+                    <button
+                      type="button"
+                      className="text-xs font-semibold text-[#BA1A1A] cursor-pointer"
+                      onClick={handleClearPairs}
+                    >
+                      Clear Pairs
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    className="text-xs font-semibold text-[#2F6C00] cursor-pointer"
+                    onClick={() => setShowSetPairs(true)}
+                  >
+                    {eventPairs.length > 0 ? "Edit Pairs" : "Set Pairs"}
+                  </button>
+                </div>
               </div>
 
               {eventPairs.length === 0 ? (
                 <p className="text-sm text-[#A1A1AA]">
-                  Set pairs from participants before generating a match.
+                  Optional. Leave empty for Random teams, or set pairs for
+                  Organizer Set.
                 </p>
               ) : (
                 <div className="flex flex-col gap-2">
@@ -800,33 +862,43 @@ function EventDetailContent({
         />
       )}
 
-      {/* Generate Match Confirmation (pairs) */}
+      {/* Generate Match Confirmation */}
       {showGenerateConfirm && (
         <div className="fixed inset-0 z-60 flex items-center justify-center bg-black/40 px-6">
           <div className="w-full max-w-sm bg-white rounded-2xl p-6 flex flex-col gap-4 max-h-[80vh]">
             <h3 className="text-lg font-semibold text-[#151C27]">
               Generate Match
             </h3>
-            <p className="text-sm text-[#41493A]">
-              Generate a match with these{" "}
-              <span className="font-semibold">{eventPairs.length}</span> pair
-              {eventPairs.length !== 1 ? "s" : ""}?
-            </p>
-            <div className="flex flex-col gap-2 overflow-y-auto max-h-60">
-              {eventPairs.map((pair) => (
-                <div
-                  key={pair.id}
-                  className="flex flex-col gap-1 p-3 rounded-2xl border border-[#F4F4F5] bg-[#FAFAFA]"
-                >
-                  <span className="text-sm font-semibold text-[#151C27]">
-                    {pair.team_name || "Team"}
-                  </span>
-                  <span className="text-xs text-[#71717A]">
-                    {pair.player1.name} & {pair.player2.name}
-                  </span>
+            {eventPairs.length > 0 ? (
+              <>
+                <p className="text-sm text-[#41493A]">
+                  Generate a match with these{" "}
+                  <span className="font-semibold">{eventPairs.length}</span>{" "}
+                  pair{eventPairs.length !== 1 ? "s" : ""}?
+                </p>
+                <div className="flex flex-col gap-2 overflow-y-auto max-h-60">
+                  {eventPairs.map((pair) => (
+                    <div
+                      key={pair.id}
+                      className="flex flex-col gap-1 p-3 rounded-2xl border border-[#F4F4F5] bg-[#FAFAFA]"
+                    >
+                      <span className="text-sm font-semibold text-[#151C27]">
+                        {pair.team_name || "Team"}
+                      </span>
+                      <span className="text-xs text-[#71717A]">
+                        {pair.player1.name} & {pair.player2.name}
+                      </span>
+                    </div>
+                  ))}
                 </div>
-              ))}
-            </div>
+              </>
+            ) : (
+              <p className="text-sm text-[#41493A]">
+                No pairs set. Teams will be assigned{" "}
+                <span className="font-semibold">Random</span>. Continue to
+                configure the match?
+              </p>
+            )}
             <div className="flex gap-3 mt-2">
               <button
                 type="button"

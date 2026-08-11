@@ -2,12 +2,18 @@
 
 import Image from "next/image";
 import { useLiveScoreboard } from "@/hooks/useLiveScoreboard";
-import type {
-  LiveScoreboardConnectionStatus,
-  LiveScoreboardMatch,
-  LiveScoreboardPlayer,
-  LiveScoreboardRound,
-  LiveScoreboardStandingRow,
+import {
+  getLiveStandingDisplayName,
+  getLiveStandingSubtitle,
+  getLiveTeamDisplayLabel,
+  getLiveTeamName,
+  getLiveTeamPlayers,
+  isLiveTeamStanding,
+  type LiveScoreboardConnectionStatus,
+  type LiveScoreboardMatch,
+  type LiveScoreboardPlayer,
+  type LiveScoreboardRound,
+  type LiveScoreboardStandingRow,
 } from "@/types/scoreboard";
 
 function formatEventDateTime(dateTime: string) {
@@ -50,10 +56,6 @@ function connectionLabel(status: LiveScoreboardConnectionStatus) {
     default:
       return "Connecting…";
   }
-}
-
-function playerNames(players: LiveScoreboardPlayer[]) {
-  return players.map((p) => p.name).join(" & ");
 }
 
 interface HistoricalMatchItem {
@@ -162,8 +164,10 @@ function MatchCard({
   isLive?: boolean;
   size?: "sm" | "md";
 }) {
-  const teamA = match.team_a?.players ?? [];
-  const teamB = match.team_b?.players ?? [];
+  const teamA = getLiveTeamPlayers(match.team_a);
+  const teamB = getLiveTeamPlayers(match.team_b);
+  const teamAName = getLiveTeamName(match.team_a);
+  const teamBName = getLiveTeamName(match.team_b);
   const compact = size === "sm";
 
   return (
@@ -194,6 +198,14 @@ function MatchCard({
 
       <div className="flex items-center gap-1.5">
         <div className={`flex-1 flex flex-col min-w-0 ${compact ? "gap-1" : "gap-1.5"}`}>
+          {teamAName ? (
+            <span
+              className={`font-semibold truncate ${featured ? "text-[#18181B]" : "text-[#151C27]"}`}
+              style={{ fontSize: compact ? 10 : 11, lineHeight: "13px" }}
+            >
+              {teamAName}
+            </span>
+          ) : null}
           {teamA.map((p, idx) => (
             <PlayerNameRow
               key={`${match.guid}-a-${p.guid || idx}`}
@@ -242,7 +254,17 @@ function MatchCard({
           </div>
         </div>
 
-        <div className={`flex-1 flex flex-col min-w-0 ${compact ? "gap-1" : "gap-1.5"}`}>
+        <div
+          className={`flex-1 flex flex-col min-w-0 items-end ${compact ? "gap-1" : "gap-1.5"}`}
+        >
+          {teamBName ? (
+            <span
+              className={`font-semibold truncate text-right ${featured ? "text-[#18181B]" : "text-[#151C27]"}`}
+              style={{ fontSize: compact ? 10 : 11, lineHeight: "13px" }}
+            >
+              {teamBName}
+            </span>
+          ) : null}
           {teamB.map((p, idx) => (
             <PlayerNameRow
               key={`${match.guid}-b-${p.guid || idx}`}
@@ -348,11 +370,22 @@ function RoundSection({
             Byes
           </span>
           {byes.map((bye, idx) => {
-            const player = bye.player;
-            if (!player) return null;
+            const player = bye.player ?? bye.player1 ?? bye.player2;
+            const label =
+              bye.team_name?.trim() ||
+              [bye.player1?.name, bye.player2?.name]
+                .map((name) => name?.trim())
+                .filter(Boolean)
+                .join(" & ") ||
+              player?.name;
+            if (!label) return null;
             return (
               <div
-                key={player.guid || `${round.guid}-bye-${idx}`}
+                key={
+                  bye.team_name ||
+                  player?.guid ||
+                  `${round.guid}-bye-${idx}`
+                }
                 className="flex items-center gap-1 px-1.5 py-0.5"
                 style={{
                   background: featured ? "rgba(255,255,255,0.35)" : "#FFFFFF",
@@ -360,12 +393,14 @@ function RoundSection({
                   border: `1px solid ${featured ? "#18181B" : "#F4F4F5"}`,
                 }}
               >
-                <PlayerAvatar player={player} featured={featured} size="sm" />
+                {player ? (
+                  <PlayerAvatar player={player} featured={featured} size="sm" />
+                ) : null}
                 <span
                   className="font-medium text-[#18181B]"
                   style={{ fontSize: 10 }}
                 >
-                  {player.name}
+                  {label}
                 </span>
               </div>
             );
@@ -383,8 +418,22 @@ function HistoricalMatchCard({
   roundNumber: number;
   match: LiveScoreboardMatch;
 }) {
-  const teamA = playerNames(match.team_a?.players ?? []);
-  const teamB = playerNames(match.team_b?.players ?? []);
+  const teamA = getLiveTeamDisplayLabel(match.team_a);
+  const teamB = getLiveTeamDisplayLabel(match.team_b);
+  const teamAPlayers = getLiveTeamPlayers(match.team_a)
+    .map((player) => player.name?.trim())
+    .filter(Boolean)
+    .join(" & ");
+  const teamBPlayers = getLiveTeamPlayers(match.team_b)
+    .map((player) => player.name?.trim())
+    .filter(Boolean)
+    .join(" & ");
+  const teamATitle = getLiveTeamName(match.team_a)
+    ? `${teamA}${teamAPlayers ? ` · ${teamAPlayers}` : ""}`
+    : teamA;
+  const teamBTitle = getLiveTeamName(match.team_b)
+    ? `${teamB}${teamBPlayers ? ` · ${teamBPlayers}` : ""}`
+    : teamB;
 
   return (
     <div
@@ -413,11 +462,11 @@ function HistoricalMatchCard({
       </div>
       <div className="flex items-center gap-1.5">
         <span
-          className="flex-1 min-w-0 truncate text-[#18181B] text-left"
+          className="flex-1 min-w-0 truncate text-[#18181B] text-left font-medium"
           style={{ fontSize: 11, lineHeight: "14px" }}
-          title={teamA}
+          title={teamATitle}
         >
-          {teamA || "—"}
+          {teamA}
         </span>
         <span
           className="shrink-0 font-semibold tabular-nums text-[#18181B]"
@@ -426,11 +475,11 @@ function HistoricalMatchCard({
           {formatScore(match.team_a_score)}-{formatScore(match.team_b_score)}
         </span>
         <span
-          className="flex-1 min-w-0 truncate text-[#18181B] text-right"
+          className="flex-1 min-w-0 truncate text-[#18181B] text-right font-medium"
           style={{ fontSize: 11, lineHeight: "14px" }}
-          title={teamB}
+          title={teamBTitle}
         >
-          {teamB || "—"}
+          {teamB}
         </span>
       </div>
     </div>
@@ -492,6 +541,8 @@ function StandingsTable({ standings }: { standings: LiveScoreboardStandingRow[] 
     );
   }
 
+  const hasTeamStandings = standings.some(isLiveTeamStanding);
+
   return (
     <div
       className="border border-[#F4F4F5] overflow-hidden"
@@ -511,7 +562,10 @@ function StandingsTable({ standings }: { standings: LiveScoreboardStandingRow[] 
           className="font-semibold uppercase text-[#A1A1AA]"
           style={{ fontSize: 9, lineHeight: "11px" }}
         >
-          {standings.length} player{standings.length === 1 ? "" : "s"}
+          {standings.length}{" "}
+          {hasTeamStandings
+            ? `team${standings.length === 1 ? "" : "s"}`
+            : `player${standings.length === 1 ? "" : "s"}`}
         </span>
       </div>
 
@@ -527,7 +581,7 @@ function StandingsTable({ standings }: { standings: LiveScoreboardStandingRow[] 
           </div>
           <div className="flex-1 pl-1 pr-0 py-1.5 min-w-0">
             <span className="uppercase text-[#A1A1AA]" style={{ fontSize: 9 }}>
-              PLAYER
+              {hasTeamStandings ? "TEAM" : "PLAYER"}
             </span>
           </div>
           {(["MP", "W", "D", "L", "+/-", "PTS"] as const).map((label) => (
@@ -543,85 +597,127 @@ function StandingsTable({ standings }: { standings: LiveScoreboardStandingRow[] 
           ))}
         </div>
 
-        {standings.map((row, idx) => (
-          <div
-            key={`${row.rank}-${row.player.guid}`}
-            className="flex items-center min-w-[440px]"
-            style={{
-              borderTop: idx > 0 ? "1px solid #FAFAFA" : "none",
-            }}
-          >
-            <div
-              className="flex items-center gap-0.5 py-1.5 pl-2 pr-0.5 shrink-0"
-              style={{ width: "40px" }}
-            >
-              <span
-                className="font-semibold text-[#18181B]"
-                style={{ fontSize: 11 }}
-              >
-                {row.rank}
-              </span>
-              {row.rank <= 3 ? (
-                <svg width="10" height="10" viewBox="0 0 12 12" fill="none">
-                  <path
-                    d="M6 1L7.5 4.5L11 5L8.5 7.5L9 11L6 9.5L3 11L3.5 7.5L1 5L4.5 4.5L6 1Z"
-                    fill={
-                      row.rank === 1
-                        ? "#EAB308"
-                        : row.rank === 2
-                          ? "#A1A1AA"
-                          : "#FB923C"
-                    }
-                  />
-                </svg>
-              ) : null}
-            </div>
+        {standings.map((row, idx) => {
+          const displayName = getLiveStandingDisplayName(row);
+          const subtitle = getLiveStandingSubtitle(row);
+          const avatarPlayer =
+            row.player ?? row.player1 ?? row.player2 ?? null;
+          const rowKey =
+            row.player?.guid ||
+            row.player1?.guid ||
+            row.team_name ||
+            `${row.rank}-${idx}`;
 
-            <div className="flex items-center gap-1.5 py-1.5 min-w-0 flex-1 pl-1 pr-0">
-              <PlayerAvatar player={row.player} size="sm" />
-              <span
-                className="font-normal text-[#18181B] truncate"
-                style={{ fontSize: 11 }}
-              >
-                {row.player.name}
-              </span>
-            </div>
-
-            <div className="px-0.5 py-1.5 text-center shrink-0" style={{ width: 24 }}>
-              <span className="text-[#52525B]" style={{ fontSize: 11 }}>
-                {row.matches_played}
-              </span>
-            </div>
-            <div className="px-0.5 py-1.5 text-center shrink-0" style={{ width: 24 }}>
-              <span className="text-[#52525B]" style={{ fontSize: 11 }}>
-                {row.wins}
-              </span>
-            </div>
-            <div className="px-0.5 py-1.5 text-center shrink-0" style={{ width: 24 }}>
-              <span className="text-[#52525B]" style={{ fontSize: 11 }}>
-                {row.draws}
-              </span>
-            </div>
-            <div className="px-0.5 py-1.5 text-center shrink-0" style={{ width: 24 }}>
-              <span className="text-[#52525B]" style={{ fontSize: 11 }}>
-                {row.losses}
-              </span>
-            </div>
-            <div className="px-0.5 py-1.5 text-center shrink-0" style={{ width: 32 }}>
-              <span className="text-[#2F6C00]" style={{ fontSize: 11 }}>
-                {formatScoreDiff(row.score_diff)}
-              </span>
-            </div>
+          return (
             <div
-              className="px-0.5 py-1.5 text-center shrink-0 pr-2"
-              style={{ width: 32 }}
+              key={`${row.rank}-${rowKey}`}
+              className="flex items-center min-w-[440px]"
+              style={{
+                borderTop: idx > 0 ? "1px solid #FAFAFA" : "none",
+              }}
             >
-              <span className="font-semibold text-[#18181B]" style={{ fontSize: 11 }}>
-                {row.total_points}
-              </span>
+              <div
+                className="flex items-center gap-0.5 py-1.5 pl-2 pr-0.5 shrink-0"
+                style={{ width: "40px" }}
+              >
+                <span
+                  className="font-semibold text-[#18181B]"
+                  style={{ fontSize: 11 }}
+                >
+                  {row.rank}
+                </span>
+                {row.rank <= 3 ? (
+                  <svg width="10" height="10" viewBox="0 0 12 12" fill="none">
+                    <path
+                      d="M6 1L7.5 4.5L11 5L8.5 7.5L9 11L6 9.5L3 11L3.5 7.5L1 5L4.5 4.5L6 1Z"
+                      fill={
+                        row.rank === 1
+                          ? "#EAB308"
+                          : row.rank === 2
+                            ? "#A1A1AA"
+                            : "#FB923C"
+                      }
+                    />
+                  </svg>
+                ) : null}
+              </div>
+
+              <div className="flex items-center gap-1.5 py-1.5 min-w-0 flex-1 pl-1 pr-0">
+                {avatarPlayer ? (
+                  <PlayerAvatar player={avatarPlayer} size="sm" />
+                ) : null}
+                <div className="flex flex-col min-w-0">
+                  <span
+                    className="font-normal text-[#18181B] truncate"
+                    style={{ fontSize: 11 }}
+                  >
+                    {displayName}
+                  </span>
+                  {subtitle ? (
+                    <span
+                      className="text-[#71717A] truncate"
+                      style={{ fontSize: 9, lineHeight: "11px" }}
+                    >
+                      {subtitle}
+                    </span>
+                  ) : null}
+                </div>
+              </div>
+
+              <div
+                className="px-0.5 py-1.5 text-center shrink-0"
+                style={{ width: 24 }}
+              >
+                <span className="text-[#52525B]" style={{ fontSize: 11 }}>
+                  {row.matches_played}
+                </span>
+              </div>
+              <div
+                className="px-0.5 py-1.5 text-center shrink-0"
+                style={{ width: 24 }}
+              >
+                <span className="text-[#52525B]" style={{ fontSize: 11 }}>
+                  {row.wins}
+                </span>
+              </div>
+              <div
+                className="px-0.5 py-1.5 text-center shrink-0"
+                style={{ width: 24 }}
+              >
+                <span className="text-[#52525B]" style={{ fontSize: 11 }}>
+                  {row.draws}
+                </span>
+              </div>
+              <div
+                className="px-0.5 py-1.5 text-center shrink-0"
+                style={{ width: 24 }}
+              >
+                <span className="text-[#52525B]" style={{ fontSize: 11 }}>
+                  {row.losses}
+                </span>
+              </div>
+              <div
+                className="px-0.5 py-1.5 text-center shrink-0"
+                style={{ width: 32 }}
+              >
+                <span className="text-[#2F6C00]" style={{ fontSize: 11 }}>
+                  {formatScoreDiff(row.score_diff)}
+                </span>
+              </div>
+              <div
+                className="px-0.5 py-1.5 text-center shrink-0 pr-2"
+                style={{ width: 32 }}
+              >
+                <span
+                  className="font-semibold text-[#18181B]"
+                  style={{ fontSize: 11 }}
+                >
+                  {row.total_points ?? 0}
+                </span>
+              </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );

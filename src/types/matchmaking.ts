@@ -113,6 +113,7 @@ export type MatchmakingSessionMatchSide =
 
 export interface MatchmakingSessionTeam {
   guid: string;
+  team_name?: string | null;
   player1?: MatchmakingSessionPlayer | null;
   player2?: MatchmakingSessionPlayer | null;
   total_points: number;

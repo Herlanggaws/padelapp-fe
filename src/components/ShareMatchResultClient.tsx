@@ -5,11 +5,12 @@ import { useRouter } from "next/navigation";
 import { useSnackbar } from "@/context/SnackbarContext";
 import { usePhotoTransform } from "@/hooks/usePhotoTransform";
 import { fetchEventDetail, fetchEventStandings } from "@/services/eventService";
-import type {
-  EventStandingRow,
-  EventStandingsType,
-  FetchEventDetailErrorResponse,
-  FetchEventStandingsErrorResponse,
+import {
+  getEventStandingDisplayName,
+  type EventStandingRow,
+  type EventStandingsType,
+  type FetchEventDetailErrorResponse,
+  type FetchEventStandingsErrorResponse,
 } from "@/types/event";
 import {
   captureElementAsPng,
@@ -38,7 +39,7 @@ function formatWinRate(wins: number, matchesPlayed: number) {
 function mapToShareRows(rows: EventStandingRow[]): ShareStandingRow[] {
   return rows.map((row) => ({
     rank: row.rank,
-    name: row.user.name.trim() || row.user.email,
+    name: getEventStandingDisplayName(row),
     mp: row.matches_played,
     wins: row.wins,
     scoreDiff: row.score_diff,

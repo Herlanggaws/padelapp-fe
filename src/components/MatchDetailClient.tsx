@@ -43,14 +43,15 @@ import type {
   SubmitMatchmakingMatchScoreErrorResponse,
   UpdateMatchmakingPairsErrorResponse,
 } from "@/types/matchmaking";
-import type {
-  Event,
-  EventStandingRow,
-  EventStandingsType,
-  FetchEventStandingsErrorResponse,
-  FetchPlayerEventSummaryErrorResponse,
-  FinishEventErrorResponse,
-  PlayerEventSummary,
+import {
+  getEventStandingDisplayName,
+  type Event,
+  type EventStandingRow,
+  type EventStandingsType,
+  type FetchEventStandingsErrorResponse,
+  type FetchPlayerEventSummaryErrorResponse,
+  type FinishEventErrorResponse,
+  type PlayerEventSummary,
 } from "@/types/event";
 
 type TabType = "Matches" | "Standings" | "My Report";
@@ -136,6 +137,8 @@ interface StandingRow {
   name: string;
   mp: number;
   wins: number;
+  ties: number;
+  losses: number;
   scoreDiff: number;
   winPct: string;
   isPlaceholder?: boolean;
@@ -430,9 +433,11 @@ function formatScoreDiff(value: number) {
 function mapEventStandingsToRows(rows: EventStandingRow[]): StandingRow[] {
   return rows.map((row) => ({
     rank: row.rank,
-    name: row.user.name.trim() || row.user.email,
+    name: getEventStandingDisplayName(row),
     mp: row.matches_played,
     wins: row.wins,
+    ties: row.draws ?? 0,
+    losses: row.losses ?? 0,
     scoreDiff: row.score_diff,
     winPct: formatWinRate(row.wins, row.matches_played),
     total_points: row.total_points,
@@ -1268,7 +1273,7 @@ function StandingsTab({
             className="flex items-center"
             style={{ background: "rgba(250,250,250,0.5)" }}
           >
-            <div className="pl-3 pr-0.5 py-3" style={{ width: "52px" }}>
+            <div className="pl-3 pr-0.5 py-3 shrink-0" style={{ width: "44px" }}>
               <span
                 className="text-xs uppercase text-[#A1A1AA]"
                 style={{ lineHeight: "12px" }}
@@ -1276,7 +1281,7 @@ function StandingsTab({
                 RK
               </span>
             </div>
-            <div className="flex-1 pl-1 pr-0 py-3 min-w-0">
+            <div className="flex-1 pl-1 pr-1 py-3 min-w-0">
               <span
                 className="text-xs uppercase text-[#A1A1AA]"
                 style={{ lineHeight: "12px" }}
@@ -1284,181 +1289,217 @@ function StandingsTab({
                 PLAYER
               </span>
             </div>
-            <div className="px-0.5 py-3 text-center" style={{ width: "36px" }}>
-              <span
-                className="text-xs uppercase text-[#A1A1AA]"
-                style={{ lineHeight: "12px" }}
-              >
-                MP
-              </span>
-            </div>
-            {standingsType === "wins" ? (
-              <>
                 <div
                   className="px-0.5 py-3 text-center"
-                  style={{ width: "28px" }}
+                  style={{ width: "36px" }}
                 >
                   <span
                     className="text-xs uppercase text-[#A1A1AA]"
                     style={{ lineHeight: "12px" }}
                   >
-                    W
+                    MP
                   </span>
                 </div>
-                <div
-                  className="px-0.5 py-3 text-center"
-                  style={{ width: "40px" }}
-                >
-                  <span
-                    className="text-xs uppercase text-[#A1A1AA]"
-                    style={{ lineHeight: "12px" }}
-                  >
-                    +/-
-                  </span>
-                </div>
-                <div
-                  className="px-0.5 py-3 text-center"
-                  style={{ width: "40px" }}
-                >
-                  <span
-                    className="text-xs uppercase text-[#A1A1AA]"
-                    style={{ lineHeight: "12px" }}
-                  >
-                    W%
-                  </span>
-                </div>
-              </>
-            ) : (
-              <div
-                className="px-0.5 py-3 text-center"
-                style={{ width: "40px" }}
-              >
-                <span
-                  className="text-xs uppercase text-[#A1A1AA]"
-                  style={{ lineHeight: "12px" }}
-                >
-                  P
-                </span>
-              </div>
-            )}
-          </div>
-
-          {/* Table body */}
-          <div className="flex flex-col" style={{ gap: "-1px" }}>
-            {standings.map((row, idx) => {
-              const isPlaceholder = row.isPlaceholder;
-              return (
-                <div
-                  key={`${row.rank}-${row.name}`}
-                  className="flex items-center"
-                  style={{
-                    background: "transparent",
-                    borderTop: idx > 0 ? "1px solid #FAFAFA" : "none",
-                    opacity: isPlaceholder ? 0.6 : 1,
-                  }}
-                >
-                  {/* Rank cell */}
-                  <div
-                    className="flex items-center gap-0.5 py-4 pl-3 pr-0.5 shrink-0"
-                    style={{ width: "52px" }}
-                  >
-                    <span
-                      className="text-xs font-semibold"
-                      style={{
-                        lineHeight: "12px",
-                        color: isPlaceholder ? "#71717A" : "#18181B",
-                      }}
-                    >
-                      {row.rank}
-                    </span>
-                    {row.rank <= 3 && (
-                      <svg
-                        width="12"
-                        height="12"
-                        viewBox="0 0 12 12"
-                        fill="none"
-                      >
-                        <path
-                          d="M6 1L7.5 4.5L11 5L8.5 7.5L9 11L6 9.5L3 11L3.5 7.5L1 5L4.5 4.5L6 1Z"
-                          fill={
-                            row.rank === 1
-                              ? "#EAB308"
-                              : row.rank === 2
-                                ? "#A1A1AA"
-                                : "#FB923C"
-                          }
-                        />
-                      </svg>
-                    )}
-                  </div>
-
-                  {/* Player cell */}
-                  <div className="flex items-center py-3 min-w-0 flex-1 pl-1 pr-0">
-                    <span
-                      className="text-xs font-normal wrap-break-word leading-snug"
-                      style={{ color: "#18181B" }}
-                    >
-                      {row.name}
-                    </span>
-                  </div>
-
-                  {/* MP */}
-                  <div
-                    className="px-0.5 py-4 text-center shrink-0"
-                    style={{ width: "36px" }}
-                  >
-                    <span className="text-xs font-normal text-[#52525B] leading-snug">
-                      {row.mp}
-                    </span>
-                  </div>
-
-                  {standingsType === "wins" ? (
-                    <>
-                      {/* W */}
-                      <div
-                        className="px-0.5 py-4 text-center shrink-0"
-                        style={{ width: "28px" }}
-                      >
-                        <span className="text-xs font-normal text-[#52525B] leading-snug">
-                          {row.wins}
-                        </span>
-                      </div>
-
-                      {/* Score difference */}
-                      <div
-                        className="px-0.5 py-4 text-center shrink-0"
-                        style={{ width: "40px" }}
-                      >
-                        <span className="text-xs font-normal text-[#2F6C00] leading-snug">
-                          {formatScoreDiff(row.scoreDiff)}
-                        </span>
-                      </div>
-
-                      {/* W% */}
-                      <div
-                        className="px-0.5 py-4 text-center shrink-0"
-                        style={{ width: "40px" }}
-                      >
-                        <span className="text-xs font-normal text-[#52525B] leading-snug">
-                          {row.winPct}
-                        </span>
-                      </div>
-                    </>
-                  ) : (
-                    /* P */
+                {standingsType === "wins" ? (
+                  <>
                     <div
-                      className="px-0.5 py-4 text-center shrink-0"
-                      style={{ width: "40px" }}
+                      className="px-0.5 py-3 text-center"
+                      style={{ width: "28px" }}
                     >
-                      <span className="text-xs font-normal text-[#2F6C00] leading-snug">
-                        {row.total_points}
+                      <span
+                        className="text-xs uppercase text-[#A1A1AA]"
+                        style={{ lineHeight: "12px" }}
+                      >
+                        W
                       </span>
                     </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
+                    <div
+                      className="px-0.5 py-3 text-center"
+                      style={{ width: "36px" }}
+                    >
+                      <span
+                        className="text-xs uppercase text-[#A1A1AA]"
+                        style={{ lineHeight: "12px" }}
+                      >
+                        T
+                      </span>
+                    </div>
+                    <div
+                      className="px-0.5 py-3 text-center"
+                      style={{ width: "28px" }}
+                    >
+                      <span
+                        className="text-xs uppercase text-[#A1A1AA]"
+                        style={{ lineHeight: "12px" }}
+                      >
+                        L
+                      </span>
+                    </div>
+                    <div
+                      className="px-0.5 py-3 text-center"
+                      style={{ width: "40px" }}
+                    >
+                      <span
+                        className="text-xs uppercase text-[#A1A1AA]"
+                        style={{ lineHeight: "12px" }}
+                      >
+                        +/-
+                      </span>
+                    </div>
+                    <div
+                      className="px-0.5 py-3 text-center"
+                      style={{ width: "40px" }}
+                    >
+                      <span
+                        className="text-xs uppercase text-[#A1A1AA]"
+                        style={{ lineHeight: "12px" }}
+                      >
+                        W%
+                      </span>
+                    </div>
+                  </>
+                ) : (
+                  <div
+                    className="px-0.5 py-3 text-center"
+                    style={{ width: "40px" }}
+                  >
+                    <span
+                      className="text-xs uppercase text-[#A1A1AA]"
+                      style={{ lineHeight: "12px" }}
+                    >
+                      P
+                    </span>
+                  </div>
+                )}
+              </div>
+
+              {/* Table body */}
+              <div className="flex flex-col" style={{ gap: "-1px" }}>
+                {standings.map((row, idx) => {
+                  const isPlaceholder = row.isPlaceholder;
+                  return (
+                    <div
+                      key={`${row.rank}-${row.name}`}
+                      className="flex items-center"
+                      style={{
+                        background: "transparent",
+                        borderTop: idx > 0 ? "1px solid #FAFAFA" : "none",
+                        opacity: isPlaceholder ? 0.6 : 1,
+                      }}
+                    >
+                      <div
+                        className="flex items-center gap-0.5 py-4 pl-3 pr-0.5 shrink-0"
+                        style={{ width: "44px" }}
+                      >
+                        <span
+                          className="text-xs font-semibold"
+                          style={{
+                            lineHeight: "12px",
+                            color: isPlaceholder ? "#71717A" : "#18181B",
+                          }}
+                        >
+                          {row.rank}
+                        </span>
+                        {row.rank <= 3 && (
+                          <svg
+                            width="12"
+                            height="12"
+                            viewBox="0 0 12 12"
+                            fill="none"
+                          >
+                            <path
+                              d="M6 1L7.5 4.5L11 5L8.5 7.5L9 11L6 9.5L3 11L3.5 7.5L1 5L4.5 4.5L6 1Z"
+                              fill={
+                                row.rank === 1
+                                  ? "#EAB308"
+                                  : row.rank === 2
+                                    ? "#A1A1AA"
+                                    : "#FB923C"
+                              }
+                            />
+                          </svg>
+                        )}
+                      </div>
+
+                      <div className="flex items-center py-3 min-w-0 flex-1 pl-1 pr-1">
+                        <span
+                          className="text-xs font-normal truncate leading-snug"
+                          style={{ color: "#18181B" }}
+                        >
+                          {row.name}
+                        </span>
+                      </div>
+
+                      <div
+                        className="px-0.5 py-4 text-center shrink-0"
+                        style={{ width: "36px" }}
+                      >
+                        <span className="text-xs font-normal text-[#52525B] leading-snug">
+                          {row.mp}
+                        </span>
+                      </div>
+
+                      {standingsType === "wins" ? (
+                        <>
+                          <div
+                            className="px-0.5 py-4 text-center shrink-0"
+                            style={{ width: "28px" }}
+                          >
+                            <span className="text-xs font-normal text-[#52525B] leading-snug">
+                              {row.wins}
+                            </span>
+                          </div>
+
+                          <div
+                            className="px-0.5 py-4 text-center shrink-0"
+                            style={{ width: "36px" }}
+                          >
+                            <span className="text-xs font-normal text-[#52525B] leading-snug">
+                              {row.ties}
+                            </span>
+                          </div>
+
+                          <div
+                            className="px-0.5 py-4 text-center shrink-0"
+                            style={{ width: "28px" }}
+                          >
+                            <span className="text-xs font-normal text-[#52525B] leading-snug">
+                              {row.losses}
+                            </span>
+                          </div>
+
+                          <div
+                            className="px-0.5 py-4 text-center shrink-0"
+                            style={{ width: "40px" }}
+                          >
+                            <span className="text-xs font-normal text-[#2F6C00] leading-snug">
+                              {formatScoreDiff(row.scoreDiff)}
+                            </span>
+                          </div>
+
+                          <div
+                            className="px-0.5 py-4 text-center shrink-0"
+                            style={{ width: "40px" }}
+                          >
+                            <span className="text-xs font-normal text-[#52525B] leading-snug">
+                              {row.winPct}
+                            </span>
+                          </div>
+                        </>
+                      ) : (
+                        <div
+                          className="px-0.5 py-4 text-center shrink-0"
+                          style={{ width: "40px" }}
+                        >
+                          <span className="text-xs font-normal text-[#2F6C00] leading-snug">
+                            {row.total_points}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
 
           <div className="px-4 py-4" style={{ background: "#FAFAFA" }}>
             <div

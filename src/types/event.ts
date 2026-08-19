@@ -30,12 +30,31 @@ export interface EventStandingUser {
 }
 
 export interface EventStandingRow {
-  user: EventStandingUser;
   rank: number;
   wins: number;
+  draws?: number;
+  losses?: number;
   matches_played: number;
   score_diff: number;
   total_points: number;
+  user?: EventStandingUser;
+  team_name?: string;
+  player1?: EventStandingUser;
+  player2?: EventStandingUser;
+}
+
+export function getEventStandingDisplayName(row: EventStandingRow): string {
+  const teamName = row.team_name?.trim();
+  if (teamName) return teamName;
+
+  if (row.user) {
+    return row.user.name?.trim() || row.user.email || "—";
+  }
+
+  const player1Name = row.player1?.name?.trim();
+  const player2Name = row.player2?.name?.trim();
+  if (player1Name && player2Name) return `${player1Name} & ${player2Name}`;
+  return player1Name || player2Name || "—";
 }
 
 export interface EventStandingsData {

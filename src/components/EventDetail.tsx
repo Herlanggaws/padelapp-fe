@@ -20,6 +20,7 @@ import {
   rejectParticipant,
   addOutsiderParticipant,
   deleteEvent,
+  duplicateEvent,
 } from "@/services/eventService";
 import type { Event, PendingRequest } from "@/types/event";
 import { useSnackbar } from "@/context/SnackbarContext";
@@ -239,6 +240,8 @@ function EventDetailContent({
   onAddOutsider,
   onDelete,
   isDeleting,
+  onDuplicate,
+  isDuplicating,
   onParticipantRemoved,
 }: {
   event: Event;
@@ -253,6 +256,8 @@ function EventDetailContent({
   onAddOutsider: (name: string) => Promise<void>;
   onDelete: () => void | Promise<void>;
   isDeleting: boolean;
+  onDuplicate: () => void | Promise<void>;
+  isDuplicating: boolean;
   onParticipantRemoved: () => void | Promise<void>;
 }) {
   const router = useRouter();
@@ -636,6 +641,8 @@ function EventDetailContent({
         <BottomSheetEventSettings
           onClose={() => setShowHostSettings(false)}
           onEdit={() => router.push(`/events/${event.guid}/edit`)}
+          onDuplicate={onDuplicate}
+          isDuplicating={isDuplicating}
           onDelete={() => setShowDeleteConfirm(true)}
         />
       )}
@@ -739,6 +746,7 @@ export default function EventDetail({ id }: { id: string }) {
   const [isJoining, setIsJoining] = useState(false);
   const [isLeaving, setIsLeaving] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isDuplicating, setIsDuplicating] = useState(false);
   const [actingGuid, setActingGuid] = useState<string | null>(null);
   const { showSnackbar } = useSnackbar();
 
@@ -828,6 +836,18 @@ export default function EventDetail({ id }: { id: string }) {
     }
   };
 
+  const handleDuplicate = async () => {
+    if (!event) return;
+    setIsDuplicating(true);
+    try {
+      const res = await duplicateEvent(event.guid);
+      showSnackbar(res.message);
+      router.push(`/events/${res.data.guid}`);
+    } finally {
+      setIsDuplicating(false);
+    }
+  };
+
   if (!event) {
     return (
       <div className="min-h-screen bg-white max-w-[448px] mx-auto flex items-center justify-center">
@@ -859,6 +879,8 @@ export default function EventDetail({ id }: { id: string }) {
       onAddOutsider={handleAddOutsider}
       onDelete={handleDelete}
       isDeleting={isDeleting}
+      onDuplicate={handleDuplicate}
+      isDuplicating={isDuplicating}
       onParticipantRemoved={async () => {
         await loadEvent();
       }}

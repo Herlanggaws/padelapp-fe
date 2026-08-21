@@ -40,6 +40,9 @@ import type {
   UpdateEventErrorResponse,
   DeleteEventSuccessResponse,
   DeleteEventErrorResponse,
+  DuplicateEventSuccessData,
+  DuplicateEventSuccessResponse,
+  DuplicateEventErrorResponse,
 } from "@/types/event";
 import apiClient from "@/lib/apiClient";
 
@@ -85,6 +88,9 @@ export type {
   UpdateEventErrorResponse,
   DeleteEventSuccessResponse,
   DeleteEventErrorResponse,
+  DuplicateEventSuccessData,
+  DuplicateEventSuccessResponse,
+  DuplicateEventErrorResponse,
 };
 
 export async function fetchUpcomingEvents(
@@ -263,6 +269,15 @@ export async function finishEvent(
 ): Promise<FinishEventSuccessResponse> {
   const { data } = await apiClient.put<FinishEventSuccessResponse>(
     `/padel/event/${eventGuid}/finish`,
+  );
+  return data;
+}
+
+export async function duplicateEvent(
+  guid: string,
+): Promise<DuplicateEventSuccessResponse> {
+  const { data } = await apiClient.post<DuplicateEventSuccessResponse>(
+    `/padel/event/${guid}/duplicate`,
   );
   return data;
 }

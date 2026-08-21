@@ -125,10 +125,20 @@ function isMexicanoSession(detail: MatchmakingSessionDetail): boolean {
   return detail.format === "mexicano";
 }
 
+function isAmericanoSession(detail: MatchmakingSessionDetail): boolean {
+  return detail.format === "americano";
+}
+
 function canGenerateMexicanoRound(rounds: Round[]): boolean {
   if (rounds.length === 0) return true;
   const latest = rounds[rounds.length - 1];
   return normalizeRoundStatusKey(latest?.status) === "completed";
+}
+
+/** Americano next batch: every existing round must be completed. */
+function canGenerateAmericanoRound(rounds: Round[]): boolean {
+  if (rounds.length === 0) return true;
+  return rounds.every((round) => isRoundCompletedStatus(round.status));
 }
 
 interface StandingRow {
@@ -879,7 +889,6 @@ function MatchesTab({
   rounds,
   canManageEvent,
   isEventFinished,
-  isMexicano,
   canGenerateRound,
   onGenerateRoundClick,
   isGeneratingRound,
@@ -901,7 +910,6 @@ function MatchesTab({
   /** Host-only edits while the event is not finished. */
   canManageEvent: boolean;
   isEventFinished: boolean;
-  isMexicano: boolean;
   canGenerateRound: boolean;
   onGenerateRoundClick: () => void;
   isGeneratingRound: boolean;
@@ -923,9 +931,9 @@ function MatchesTab({
     playerName: string,
   ) => void;
 }) {
-  const showGenerateRound = isMexicano && canManageEvent && canGenerateRound;
+  const showGenerateRound = canManageEvent && canGenerateRound;
   const generateLabel =
-    rounds.length === 0 ? "Generate Round" : "Generate Next Round";
+    rounds.length === 0 ? "Generate Round" : "Generate More";
 
   if (rounds.length === 0) {
     return (
@@ -1106,6 +1114,14 @@ function MatchesTab({
           </div>
         );
       })}
+
+      {showGenerateRound ? (
+        <GenerateRoundButton
+          label={isGeneratingRound ? "Generating…" : generateLabel}
+          onClick={onGenerateRoundClick}
+          disabled={isGeneratingRound}
+        />
+      ) : null}
     </div>
   );
 }
@@ -1802,14 +1818,15 @@ export default function MatchDetailClient({
   const headerTitle = detail?.event.name ?? (isLoading ? "Loading…" : "Match");
   const rounds = detail ? mapDetailToRounds(detail) : [];
   const isMexicano = detail ? isMexicanoSession(detail) : false;
+  const isAmericano = detail ? isAmericanoSession(detail) : false;
   const isRaceMode = Boolean(
     detail &&
       detail.total_set_points == null &&
       detail.race_to_points != null,
   );
-  const canGenerateNextRound = isMexicano && canGenerateMexicanoRound(rounds);
-  const generateRoundLabel =
-    rounds.length === 0 ? "Generate Round" : "Generate Next Round";
+  const canGenerateNextRound =
+    (isMexicano && canGenerateMexicanoRound(rounds)) ||
+    (isAmericano && canGenerateAmericanoRound(rounds));
   const minParticipantsForRound = Math.max(
     4,
     (detail?.number_of_courts ?? 1) * 4,
@@ -2210,12 +2227,8 @@ export default function MatchDetailClient({
 
   const footerHeight = (() => {
     if (!showFinishFooter) return 0;
-    // py-4 (16px top) + pb-8 (32px bottom) + 56px button = 104px base
-    // two-button cases add gap-3 (12px) + another 56px button = +68px
-    // two stacked buttons only when not finished and both generate + finish are shown
-    const hasStackedTwoButtons =
-      !isEventFinished && canManageEvent && canGenerateNextRound;
-    return hasStackedTwoButtons ? 172 : 104;
+    // py-4 (16px top) + pb-8 (32px bottom) + 56px button = 104px
+    return 104;
   })();
 
   const saveConfirmScores =
@@ -2327,7 +2340,6 @@ export default function MatchDetailClient({
                   rounds={rounds}
                   canManageEvent={canManageEvent}
                   isEventFinished={isEventFinished}
-                  isMexicano={isMexicano}
                   canGenerateRound={canGenerateNextRound}
                   onGenerateRoundClick={() => setShowSelectPlayers(true)}
                   isGeneratingRound={isGeneratingRound}
@@ -2517,24 +2529,15 @@ export default function MatchDetailClient({
               </button>
             )
           ) : (
-            <div className="flex flex-col gap-3">
-              {canManageEvent && canGenerateNextRound && !isEventFinished && (
-                <GenerateRoundButton
-                  label={isGeneratingRound ? "Generating…" : generateRoundLabel}
-                  onClick={() => setShowSelectPlayers(true)}
-                  disabled={isGeneratingRound}
-                />
-              )}
-              <button
-                type="button"
-                onClick={() => setShowFinishConfirm(true)}
-                disabled={isFinishing || !canManageEvent}
-                className="w-full text-base font-semibold text-[#121212] rounded-full disabled:opacity-50 disabled:cursor-not-allowed"
-                style={{ background: "#9FE870", height: "56px" }}
-              >
-                {isFinishing ? "Finishing…" : "Finish"}
-              </button>
-            </div>
+            <button
+              type="button"
+              onClick={() => setShowFinishConfirm(true)}
+              disabled={isFinishing || !canManageEvent}
+              className="w-full text-base font-semibold text-[#121212] rounded-full disabled:opacity-50 disabled:cursor-not-allowed"
+              style={{ background: "#9FE870", height: "56px" }}
+            >
+              {isFinishing ? "Finishing…" : "Finish"}
+            </button>
           )}
         </div>
       ) : null}

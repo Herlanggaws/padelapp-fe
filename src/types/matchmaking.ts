@@ -204,7 +204,8 @@ export interface CancelMatchmakingRoundErrorResponse {
 }
 
 export interface GenerateMatchmakingRoundPayload {
-  participant_guids: string[];
+  /** Present players only; omit to include all event participants. */
+  participant_guids?: string[];
 }
 
 export interface GenerateMatchmakingRoundSuccessResponse {

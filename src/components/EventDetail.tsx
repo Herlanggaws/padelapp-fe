@@ -266,6 +266,8 @@ function EventDetailContent({
   const [showSeeAllPlayers, setShowSeeAllPlayers] = useState(false);
   const [showSetPairs, setShowSetPairs] = useState(false);
   const [showGenerateConfirm, setShowGenerateConfirm] = useState(false);
+  const [showUnpairedPlayersDialog, setShowUnpairedPlayersDialog] =
+    useState(false);
   const [eventPairs, setEventPairsState] = useState<EventPair[]>([]);
   const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
   const [showHostSettings, setShowHostSettings] = useState(false);
@@ -288,6 +290,13 @@ function EventDetailContent({
     setEventPairsState(pairs);
   }, [event.guid]);
 
+  const unpairedPlayerCount = Math.max(
+    0,
+    event.number_of_participants - eventPairs.length * 2,
+  );
+  const hasIncompletePairs =
+    eventPairs.length > 0 && unpairedPlayerCount > 0;
+
   const handleClearPairs = () => {
     clearEventPairs();
     setEventPairsState([]);
@@ -295,10 +304,20 @@ function EventDetailContent({
   };
 
   const handleGenerateMatchClick = () => {
+    if (hasIncompletePairs) {
+      setShowUnpairedPlayersDialog(true);
+      return;
+    }
     setShowGenerateConfirm(true);
   };
 
   const handleConfirmGenerateMatch = async () => {
+    if (hasIncompletePairs) {
+      setShowGenerateConfirm(false);
+      setShowUnpairedPlayersDialog(true);
+      return;
+    }
+
     setShowGenerateConfirm(false);
 
     if (eventPairs.length > 0) {
@@ -566,14 +585,12 @@ function EventDetailContent({
                   {event.number_of_players})
                 </span>
 
-                {event.is_host && (
-                  <button
-                    className="text-xs font-semibold text-[#2F6C00] cursor-pointer"
-                    onClick={() => setShowSeeAllPlayers(true)}
-                  >
-                    See More
-                  </button>
-                )}
+                <button
+                  className="text-xs font-semibold text-[#2F6C00] cursor-pointer"
+                  onClick={() => setShowSeeAllPlayers(true)}
+                >
+                  See More
+                </button>
               </div>
 
               {event.is_host && (
@@ -608,8 +625,8 @@ function EventDetailContent({
             />
           </div>
 
-          {/* Pairs Section (host) */}
-          {event.is_host && !event.session_guid && (
+          {/* Pairs Section */}
+          {!event.session_guid && (
             <div
               className="flex flex-col gap-3 pt-4"
               style={{ borderTop: "1px solid #FAFAFA" }}
@@ -621,33 +638,43 @@ function EventDetailContent({
                 >
                   PAIRS ({eventPairs.length})
                 </span>
-                <div className="flex items-center gap-3">
-                  {eventPairs.length > 0 && (
+                {event.is_host && (
+                  <div className="flex items-center gap-3">
+                    {eventPairs.length > 0 && (
+                      <button
+                        type="button"
+                        className="text-xs font-semibold text-[#BA1A1A] cursor-pointer"
+                        onClick={handleClearPairs}
+                      >
+                        Clear Pairs
+                      </button>
+                    )}
                     <button
                       type="button"
-                      className="text-xs font-semibold text-[#BA1A1A] cursor-pointer"
-                      onClick={handleClearPairs}
+                      className="text-xs font-semibold text-[#2F6C00] cursor-pointer"
+                      onClick={() => setShowSetPairs(true)}
                     >
-                      Clear Pairs
+                      {eventPairs.length > 0 ? "Edit Pairs" : "Set Pairs"}
                     </button>
-                  )}
-                  <button
-                    type="button"
-                    className="text-xs font-semibold text-[#2F6C00] cursor-pointer"
-                    onClick={() => setShowSetPairs(true)}
-                  >
-                    {eventPairs.length > 0 ? "Edit Pairs" : "Set Pairs"}
-                  </button>
-                </div>
+                  </div>
+                )}
               </div>
 
               {eventPairs.length === 0 ? (
                 <p className="text-sm text-[#A1A1AA]">
-                  Optional. Leave empty for Random teams, or set pairs for
-                  Organizer Set.
+                  {event.is_host
+                    ? "Optional. Leave empty for Random teams, or set pairs for Organizer Set."
+                    : "No pairs set yet"}
                 </p>
               ) : (
                 <div className="flex flex-col gap-2">
+                  {event.is_host && hasIncompletePairs && (
+                    <p className="text-sm text-[#BA1A1A]">
+                      {unpairedPlayerCount} player
+                      {unpairedPlayerCount !== 1 ? "s" : ""} not paired yet.
+                      Pair everyone or clear pairs before generating a match.
+                    </p>
+                  )}
                   {eventPairs.map((pair) => (
                     <div
                       key={pair.id}
@@ -860,6 +887,42 @@ function EventDetailContent({
             );
           }}
         />
+      )}
+
+      {/* Unpaired Players Dialog */}
+      {showUnpairedPlayersDialog && (
+        <div className="fixed inset-0 z-60 flex items-center justify-center bg-black/40 px-6">
+          <div className="w-full max-w-sm bg-white rounded-2xl p-6 flex flex-col gap-4">
+            <h3 className="text-lg font-semibold text-[#151C27]">
+              Complete pairs first
+            </h3>
+            <p className="text-sm text-[#41493A]">
+              {unpairedPlayerCount} player
+              {unpairedPlayerCount !== 1 ? "s are" : " is"} not in a pair yet.
+              Pair every player, or clear pairs to use Random teams, before
+              generating a match.
+            </p>
+            <div className="flex gap-3 mt-2">
+              <button
+                type="button"
+                onClick={() => setShowUnpairedPlayersDialog(false)}
+                className="flex-1 py-3 rounded-full text-base text-[#18181B] bg-[#F4F4F5]"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowUnpairedPlayersDialog(false);
+                  setShowSetPairs(true);
+                }}
+                className="flex-1 py-3 rounded-full text-base font-semibold text-[#121212] bg-[#9FE870]"
+              >
+                Set Pairs
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Generate Match Confirmation */}

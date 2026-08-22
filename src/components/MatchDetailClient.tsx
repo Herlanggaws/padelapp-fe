@@ -72,6 +72,8 @@ interface MatchCard {
   isFeatured?: boolean;
   teamA: MatchPlayer[];
   teamB: MatchPlayer[];
+  teamAName: string | null;
+  teamBName: string | null;
   scoreA: string;
   scoreB: string;
   round?: string;
@@ -239,9 +241,31 @@ function mergeTeamWithSession(
   return {
     ...full,
     ...partial,
+    team_name: partial.team_name?.trim() || full.team_name,
     player1: pickPlayer(partial.player1, full.player1),
     player2: pickPlayer(partial.player2, full.player2),
   };
+}
+
+function resolveMatchSideTeam(
+  m: MatchmakingSessionMatch,
+  side: "a" | "b",
+  teamsByGuid: Map<string, MatchmakingSessionTeam>,
+): MatchmakingSessionTeam | null {
+  const raw = side === "a" ? m.team_a : m.team_b;
+  if (isParticipantArray(raw)) return null;
+
+  const info = side === "a" ? m.team_a_info : m.team_b_info;
+  const teamRaw = info ?? (raw && !Array.isArray(raw) ? raw : null);
+  const guidOnly = (side === "a" ? m.team_a_guid : m.team_b_guid)?.trim();
+
+  if (teamRaw) {
+    return mergeTeamWithSession(teamRaw, teamsByGuid);
+  }
+  if (guidOnly) {
+    return teamsByGuid.get(guidOnly) ?? null;
+  }
+  return null;
 }
 
 function resolveMatchSidePlayers(
@@ -252,21 +276,21 @@ function resolveMatchSidePlayers(
   const raw = side === "a" ? m.team_a : m.team_b;
   if (isParticipantArray(raw)) return raw as MatchmakingSessionPlayer[];
 
-  const info = side === "a" ? m.team_a_info : m.team_b_info;
-  const teamRaw = info ?? (raw && !Array.isArray(raw) ? raw : null);
-  const guidOnly = (side === "a" ? m.team_a_guid : m.team_b_guid)?.trim();
-
-  let team: MatchmakingSessionTeam | null = null;
-  if (teamRaw) {
-    team = mergeTeamWithSession(teamRaw, teamsByGuid);
-  } else if (guidOnly) {
-    team = teamsByGuid.get(guidOnly) ?? null;
-  }
-
+  const team = resolveMatchSideTeam(m, side, teamsByGuid);
   if (!team) return [];
   return [team.player1, team.player2].filter(
     (p): p is MatchmakingSessionPlayer => Boolean(p),
   );
+}
+
+function resolveMatchSideTeamName(
+  m: MatchmakingSessionMatch,
+  side: "a" | "b",
+  teamsByGuid: Map<string, MatchmakingSessionTeam>,
+): string | null {
+  const team = resolveMatchSideTeam(m, side, teamsByGuid);
+  const name = team?.team_name?.trim();
+  return name || null;
 }
 
 function patchMatchScores(
@@ -390,6 +414,8 @@ function mapMatchToCard(
       resolveMatchSidePlayers(m, "b", teamsByGuid),
       "right",
     ),
+    teamAName: resolveMatchSideTeamName(m, "a", teamsByGuid),
+    teamBName: resolveMatchSideTeamName(m, "b", teamsByGuid),
     scoreA: m.team_a_score == null ? "—" : String(m.team_a_score),
     scoreB: m.team_b_score == null ? "—" : String(m.team_b_score),
   };
@@ -707,19 +733,29 @@ function MatchCardComponent({
         </div>
       ) : (
         <div className="flex items-center gap-2">
-          <div className="flex-1 flex flex-col gap-3">
-            {match.teamA.map((p) => (
-              <PlayerRow
-                key={`${p.avatarSeed}-a`}
-                player={p}
-                isFeatured={isFeatured}
-                onPress={
-                  p.participantGuid && onPlayerPress
-                    ? () => onPlayerPress(p.participantGuid!, p.name)
-                    : undefined
-                }
-              />
-            ))}
+          <div className="flex-1 flex flex-col gap-2 min-w-0">
+            {match.teamAName && (
+              <span
+                className={`text-xs font-semibold truncate ${isFeatured ? "text-[#18181B]" : "text-[#151C27]"}`}
+                style={{ lineHeight: "14px" }}
+              >
+                {match.teamAName}
+              </span>
+            )}
+            <div className="flex flex-col gap-3">
+              {match.teamA.map((p) => (
+                <PlayerRow
+                  key={`${p.avatarSeed}-a`}
+                  player={p}
+                  isFeatured={isFeatured}
+                  onPress={
+                    p.participantGuid && onPlayerPress
+                      ? () => onPlayerPress(p.participantGuid!, p.name)
+                      : undefined
+                  }
+                />
+              ))}
+            </div>
           </div>
 
           <div className="flex items-center gap-2 shrink-0">
@@ -765,19 +801,29 @@ function MatchCardComponent({
             </button>
           </div>
 
-          <div className="flex-1 flex flex-col gap-3 items-end">
-            {match.teamB.map((p) => (
-              <PlayerRow
-                key={`${p.avatarSeed}-b`}
-                player={p}
-                isFeatured={isFeatured}
-                onPress={
-                  p.participantGuid && onPlayerPress
-                    ? () => onPlayerPress(p.participantGuid!, p.name)
-                    : undefined
-                }
-              />
-            ))}
+          <div className="flex-1 flex flex-col gap-2 items-end min-w-0">
+            {match.teamBName && (
+              <span
+                className={`text-xs font-semibold truncate text-right ${isFeatured ? "text-[#18181B]" : "text-[#151C27]"}`}
+                style={{ lineHeight: "14px" }}
+              >
+                {match.teamBName}
+              </span>
+            )}
+            <div className="flex flex-col gap-3 items-end w-full">
+              {match.teamB.map((p) => (
+                <PlayerRow
+                  key={`${p.avatarSeed}-b`}
+                  player={p}
+                  isFeatured={isFeatured}
+                  onPress={
+                    p.participantGuid && onPlayerPress
+                      ? () => onPlayerPress(p.participantGuid!, p.name)
+                      : undefined
+                  }
+                />
+              ))}
+            </div>
           </div>
         </div>
       )}

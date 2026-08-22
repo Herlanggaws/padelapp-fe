@@ -11,6 +11,23 @@ export interface MatchConfigPlayersPayload {
   players: MatchConfigSelectedPlayer[];
 }
 
+/** Local draft for Organizer Set pairing (no API yet) */
+export interface MatchOrganizerSetCourtSlot {
+  courtNumber: number;
+  teamA: [string | null, string | null];
+  teamB: [string | null, string | null];
+}
+
+export interface MatchOrganizerSetDraft {
+  event_guid: string;
+  format: MatchmakingSessionFormatApi;
+  number_of_courts: number;
+  total_set_points: number | null;
+  race_to_points: number | null;
+  players: MatchConfigSelectedPlayer[];
+  courts: MatchOrganizerSetCourtSlot[];
+}
+
 /** Values sent to POST /padel/matchmaking/session */
 export type MatchmakingSessionFormatApi =
   | "mexicano"
@@ -24,6 +41,7 @@ export type MatchmakingPairingVariantApi = "smart" | string;
 export interface CreateMatchmakingSessionTeam {
   player1_guid: string;
   player2_guid: string;
+  team_name?: string;
 }
 
 export interface CreateMatchmakingSessionPayload {
@@ -95,6 +113,7 @@ export type MatchmakingSessionMatchSide =
 
 export interface MatchmakingSessionTeam {
   guid: string;
+  team_name?: string | null;
   player1?: MatchmakingSessionPlayer | null;
   player2?: MatchmakingSessionPlayer | null;
   total_points: number;

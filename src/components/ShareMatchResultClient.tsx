@@ -44,7 +44,7 @@ function mapToShareRows(rows: EventStandingRow[]): ShareStandingRow[] {
     wins: row.wins,
     scoreDiff: row.score_diff,
     winPct: formatWinRate(row.wins, row.matches_played),
-    total_points: row.total_points,
+    total_points: row.total_points ?? 0,
   }));
 }
 

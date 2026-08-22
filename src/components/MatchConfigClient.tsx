@@ -7,14 +7,20 @@ import {
   clearMatchConfigPlayers,
   getMatchConfigPlayers,
 } from "@/lib/matchConfigPlayersStorage";
+import {
+  eventPairsToTeams,
+  getEventPairs,
+} from "@/lib/eventPairsStorage";
 import { createMatchmakingSession } from "@/services/matchmakingService";
 import type {
   CreateMatchmakingSessionErrorResponse,
   MatchConfigSelectedPlayer,
   MatchmakingSessionFormatApi,
+  MatchmakingTeamAssignmentApi,
 } from "@/types/matchmaking";
 
 type GameFormat = "Mexicano" | "Americano" | "Team Americano";
+type TeamAssignment = "Random" | "Organizer Set";
 type ScoreType = "Total Set Point" | "Race to X Point";
 
 const totalSetPointRows: number[][] = [
@@ -35,6 +41,12 @@ function uiFormatToApi(value: GameFormat): MatchmakingSessionFormatApi {
   }
 }
 
+function uiTeamAssignmentToApi(
+  value: TeamAssignment,
+): MatchmakingTeamAssignmentApi {
+  return value === "Organizer Set" ? "organizer_set" : "random";
+}
+
 export default function MatchConfigClient({
   eventGuid,
 }: {
@@ -53,6 +65,9 @@ export default function MatchConfigClient({
     MatchConfigSelectedPlayer[]
   >([]);
   const [showGenerateConfirm, setShowGenerateConfirm] = useState(false);
+  const [eventPairs, setEventPairs] = useState<
+    NonNullable<ReturnType<typeof getEventPairs>>
+  >([]);
 
   useEffect(() => {
     if (!eventGuid.trim()) return;
@@ -61,6 +76,7 @@ export default function MatchConfigClient({
       setSelectedPlayers(players);
       clearMatchConfigPlayers();
     }
+    setEventPairs(getEventPairs(eventGuid) ?? []);
   }, [eventGuid]);
 
   const showModal = (title: string, message: string) => {
@@ -88,6 +104,10 @@ export default function MatchConfigClient({
 
   const pointOptionRows =
     scoreType === "Total Set Point" ? totalSetPointRows : raceToXPointRows;
+  const hasPairs = eventPairs.length > 0;
+  const teamAssignment: TeamAssignment = hasPairs
+    ? "Organizer Set"
+    : "Random";
 
   const handleScoreTypeChange = (option: ScoreType) => {
     if (option === scoreType) return;
@@ -103,10 +123,10 @@ export default function MatchConfigClient({
       );
       return;
     }
-    if (selectedPlayers.length === 0) {
+    if (selectedPlayers.length === 0 && eventPairs.length === 0) {
       showModal(
-        "No players selected",
-        "Go back to the event page and select players before generating a match.",
+        "No players",
+        "Go back to the event page and add participants before generating a match.",
       );
       return;
     }
@@ -116,18 +136,27 @@ export default function MatchConfigClient({
   const handleGenerateMatch = async () => {
     setIsSubmitting(true);
     try {
+      const pairs = getEventPairs(eventGuid) ?? eventPairs;
+      const teams = pairs.length > 0 ? eventPairsToTeams(pairs) : [];
+      const participantGuids =
+        selectedPlayers.length > 0
+          ? selectedPlayers.map((p) => p.participant_guid)
+          : pairs.flatMap((pair) => [
+              pair.player1.participant_guid,
+              pair.player2.participant_guid,
+            ]);
       const result = await createMatchmakingSession({
         event_guid: eventGuid,
         format: uiFormatToApi(selectedFormat),
         number_of_courts: courts,
-        team_assignment: "random",
+        team_assignment: uiTeamAssignmentToApi(teamAssignment),
         total_set_points:
           scoreType === "Total Set Point" ? selectedPoints : null,
         race_to_points:
           scoreType === "Race to X Point" ? selectedPoints : null,
         pairing_variant: "smart",
-        teams: [],
-        participant_guids: selectedPlayers.map((p) => p.participant_guid),
+        teams,
+        participant_guids: participantGuids,
       });
       router.push(
         `/matches/${result.data.guid}?event_guid=${encodeURIComponent(eventGuid)}`,
@@ -151,7 +180,7 @@ export default function MatchConfigClient({
 
       {showGenerateConfirm && (
         <div className="fixed inset-0 z-60 flex items-center justify-center bg-black/40 px-6">
-          <div className="w-full max-w-sm bg-white rounded-2xl p-6 flex flex-col gap-4">
+          <div className="w-full max-w-sm bg-white rounded-2xl p-6 flex flex-col gap-4 max-h-[80vh]">
             <h3 className="text-lg font-semibold text-[#151C27]">
               Generate Match
             </h3>
@@ -162,18 +191,33 @@ export default function MatchConfigClient({
               {courts !== 1 ? "s" : ""}, and{" "}
               <span className="font-semibold">{selectedPoints}</span>{" "}
               {scoreType === "Total Set Point" ? "set points" : "race to points"}
-              {selectedPlayers.length > 0 && (
+              {eventPairs.length > 0 && (
                 <>
                   {" "}
                   for{" "}
-                  <span className="font-semibold">
-                    {selectedPlayers.length}
-                  </span>{" "}
-                  player{selectedPlayers.length !== 1 ? "s" : ""}
+                  <span className="font-semibold">{eventPairs.length}</span>{" "}
+                  pair{eventPairs.length !== 1 ? "s" : ""}
                 </>
               )}
               ?
             </p>
+            {eventPairs.length > 0 && (
+              <div className="flex flex-col gap-2 overflow-y-auto max-h-48">
+                {eventPairs.map((pair) => (
+                  <div
+                    key={pair.id}
+                    className="flex flex-col gap-1 p-3 rounded-2xl border border-[#F4F4F5] bg-[#FAFAFA]"
+                  >
+                    <span className="text-sm font-semibold text-[#151C27]">
+                      {pair.team_name || "Team"}
+                    </span>
+                    <span className="text-xs text-[#71717A]">
+                      {pair.player1.name} & {pair.player2.name}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
             <div className="flex gap-3 mt-2">
               <button
                 type="button"
@@ -322,6 +366,48 @@ export default function MatchConfigClient({
               />
             </svg>
           </button>
+        </div>
+      </section>
+
+      {/* Team Assignment Section */}
+      <section className="flex flex-col gap-2">
+        <h2
+          className="text-xl font-normal text-[#151C27]"
+          style={{ lineHeight: "26px" }}
+        >
+          Team Assignment
+        </h2>
+        <div className="flex items-center gap-3 px-4 py-4 border border-[#F4F4F5] bg-[#FAFAFA] rounded-[24px]">
+          <div
+            className="w-10 h-10 rounded-full flex items-center justify-center shrink-0"
+            style={{ background: hasPairs ? "#9FE870" : "#F0F3FF" }}
+          >
+            {hasPairs ? (
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                <path
+                  d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5s-3 1.34-3 3 1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5C15 14.17 10.33 13 8 13zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"
+                  fill="#2E6900"
+                />
+              </svg>
+            ) : (
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                <path
+                  d="M12 4V1L8 5l4 4V6c3.31 0 6 2.69 6 6 0 1.01-.25 1.97-.7 2.8l1.46 1.46A7.93 7.93 0 0 0 20 12c0-4.42-3.58-8-8-8zm0 14c-3.31 0-6-2.69-6-6 0-1.01.25-1.97.7-2.8L5.24 7.74A7.93 7.93 0 0 0 4 12c0 4.42 3.58 8 8 8v3l4-4-4-4v3z"
+                  fill="#5F5E5E"
+                />
+              </svg>
+            )}
+          </div>
+          <div className="flex flex-col gap-0.5 min-w-0">
+            <span className="text-sm font-semibold text-[#151C27]">
+              {teamAssignment}
+            </span>
+            <span className="text-xs text-[#71717A]">
+              {hasPairs
+                ? `Using ${eventPairs.length} pair${eventPairs.length !== 1 ? "s" : ""} from the event`
+                : "Pairs will be assigned automatically"}
+            </span>
+          </div>
         </div>
       </section>
 

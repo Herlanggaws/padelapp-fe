@@ -8,8 +8,13 @@ import TopAppBar from "@/components/TopAppBar";
 import BottomSheetAddOutsider from "@/components/BottomSheetAddOutsider";
 import BottomSheetEventSettings from "@/components/BottomSheetEventSettings";
 import BottomSheetSeeAllPlayers from "@/components/BottomSheetSeeAllPlayers";
-import BottomSheetSelectPlayers from "@/components/BottomSheetSelectPlayers";
+import BottomSheetSetPairs from "@/components/BottomSheetSetPairs";
 import { setMatchConfigPlayers } from "@/lib/matchConfigPlayersStorage";
+import {
+  clearEventPairs,
+  getEventPairs,
+  type EventPair,
+} from "@/lib/eventPairsStorage";
 import type { MatchConfigSelectedPlayer } from "@/types/matchmaking";
 import {
   fetchEventDetail,
@@ -256,20 +261,128 @@ function EventDetailContent({
   onParticipantRemoved: () => void | Promise<void>;
 }) {
   const router = useRouter();
+  const { showSnackbar } = useSnackbar();
   const [showAddOutsider, setShowAddOutsider] = useState(false);
   const [showSeeAllPlayers, setShowSeeAllPlayers] = useState(false);
-  const [showSelectPlayers, setShowSelectPlayers] = useState(false);
+  const [showSetPairs, setShowSetPairs] = useState(false);
+  const [showGenerateConfirm, setShowGenerateConfirm] = useState(false);
+  const [showUnpairedPlayersDialog, setShowUnpairedPlayersDialog] =
+    useState(false);
+  const [eventPairs, setEventPairsState] = useState<EventPair[]>([]);
   const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
   const [showHostSettings, setShowHostSettings] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const pendingRequests = event.pending_requests ?? [];
 
-  const handleSelectPlayersNext = (players: MatchConfigSelectedPlayer[]) => {
-    setMatchConfigPlayers({ event_guid: event.guid, players });
-    setShowSelectPlayers(false);
-    router.push(
-      `/matches/configure?event_guid=${encodeURIComponent(event.guid)}`,
-    );
+  useEffect(() => {
+    const pairs = (getEventPairs(event.guid) ?? []).map((pair, index) => ({
+      ...pair,
+      team_name: pair.team_name?.trim() || `Team ${index + 1}`,
+      player1: {
+        ...pair.player1,
+        user_guid: pair.player1.user_guid ?? "",
+      },
+      player2: {
+        ...pair.player2,
+        user_guid: pair.player2.user_guid ?? "",
+      },
+    }));
+    setEventPairsState(pairs);
+  }, [event.guid]);
+
+  const unpairedPlayerCount = Math.max(
+    0,
+    event.number_of_participants - eventPairs.length * 2,
+  );
+  const hasIncompletePairs =
+    eventPairs.length > 0 && unpairedPlayerCount > 0;
+
+  const handleClearPairs = () => {
+    clearEventPairs();
+    setEventPairsState([]);
+    showSnackbar("Pairs cleared. Team assignment is Random again.");
+  };
+
+  const handleGenerateMatchClick = () => {
+    if (hasIncompletePairs) {
+      setShowUnpairedPlayersDialog(true);
+      return;
+    }
+    setShowGenerateConfirm(true);
+  };
+
+  const handleConfirmGenerateMatch = async () => {
+    if (hasIncompletePairs) {
+      setShowGenerateConfirm(false);
+      setShowUnpairedPlayersDialog(true);
+      return;
+    }
+
+    setShowGenerateConfirm(false);
+
+    if (eventPairs.length > 0) {
+      const players: MatchConfigSelectedPlayer[] = [];
+      const seen = new Set<string>();
+      for (const pair of eventPairs) {
+        for (const player of [pair.player1, pair.player2]) {
+          if (seen.has(player.participant_guid)) continue;
+          seen.add(player.participant_guid);
+          players.push({
+            participant_guid: player.participant_guid,
+            user_guid: player.user_guid || "",
+            name: player.name,
+            email: "",
+            profile_photo: player.profile_photo,
+          });
+        }
+      }
+      setMatchConfigPlayers({ event_guid: event.guid, players });
+      router.push(
+        `/matches/configure?event_guid=${encodeURIComponent(event.guid)}`,
+      );
+      return;
+    }
+
+    try {
+      const first = await fetchEventParticipants({
+        event_guid: event.guid,
+        limit: 50,
+      });
+      const totalPages = first.paginate.total_page;
+      const rest =
+        totalPages > 1
+          ? await Promise.all(
+              Array.from({ length: totalPages - 1 }, (_, i) =>
+                fetchEventParticipants({
+                  event_guid: event.guid,
+                  page: i + 2,
+                  limit: 50,
+                }),
+              ),
+            )
+          : [];
+      const participants = [
+        ...first.data,
+        ...rest.flatMap((res) => res.data),
+      ];
+      const players: MatchConfigSelectedPlayer[] = participants.map((p) => ({
+        participant_guid: p.guid,
+        user_guid: p.user_guid || p.user.guid || "",
+        name: p.user.name,
+        email: p.user.email ?? "",
+        profile_photo: p.user.profile_photo,
+      }));
+      if (players.length === 0) {
+        showSnackbar("Add participants before generating a match");
+        return;
+      }
+      setMatchConfigPlayers({ event_guid: event.guid, players });
+      router.push(
+        `/matches/configure?event_guid=${encodeURIComponent(event.guid)}`,
+      );
+    } catch {
+      showSnackbar("Could not load participants");
+    }
   };
 
   const handleJoinLeaveClick = () => {
@@ -472,14 +585,12 @@ function EventDetailContent({
                   {event.number_of_players})
                 </span>
 
-                {event.is_host && (
-                  <button
-                    className="text-xs font-semibold text-[#2F6C00] cursor-pointer"
-                    onClick={() => setShowSeeAllPlayers(true)}
-                  >
-                    See More
-                  </button>
-                )}
+                <button
+                  className="text-xs font-semibold text-[#2F6C00] cursor-pointer"
+                  onClick={() => setShowSeeAllPlayers(true)}
+                >
+                  See More
+                </button>
               </div>
 
               {event.is_host && (
@@ -513,6 +624,112 @@ function EventDetailContent({
               participantAvatars={participantAvatars}
             />
           </div>
+
+          {/* Pairs Section */}
+          {!event.session_guid && (
+            <div
+              className="flex flex-col gap-3 pt-4"
+              style={{ borderTop: "1px solid #FAFAFA" }}
+            >
+              <div className="flex items-center justify-between">
+                <span
+                  className="text-[10px] font-bold text-[#71717A] uppercase tracking-[5%]"
+                  style={{ lineHeight: "15px" }}
+                >
+                  PAIRS ({eventPairs.length})
+                </span>
+                {event.is_host && (
+                  <div className="flex items-center gap-3">
+                    {eventPairs.length > 0 && (
+                      <button
+                        type="button"
+                        className="text-xs font-semibold text-[#BA1A1A] cursor-pointer"
+                        onClick={handleClearPairs}
+                      >
+                        Clear Pairs
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      className="text-xs font-semibold text-[#2F6C00] cursor-pointer"
+                      onClick={() => setShowSetPairs(true)}
+                    >
+                      {eventPairs.length > 0 ? "Edit Pairs" : "Set Pairs"}
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {eventPairs.length === 0 ? (
+                <p className="text-sm text-[#A1A1AA]">
+                  {event.is_host
+                    ? "Optional. Leave empty for Random teams, or set pairs for Organizer Set."
+                    : "No pairs set yet"}
+                </p>
+              ) : (
+                <div className="flex flex-col gap-2">
+                  {event.is_host && hasIncompletePairs && (
+                    <p className="text-sm text-[#BA1A1A]">
+                      {unpairedPlayerCount} player
+                      {unpairedPlayerCount !== 1 ? "s" : ""} not paired yet.
+                      Pair everyone or clear pairs before generating a match.
+                    </p>
+                  )}
+                  {eventPairs.map((pair) => (
+                    <div
+                      key={pair.id}
+                      className="flex flex-col gap-2 p-3 rounded-2xl bg-white border border-[#F4F4F5]"
+                    >
+                      <span className="text-sm font-semibold text-[#151C27]">
+                        {pair.team_name || "Team"}
+                      </span>
+                      <div className="flex items-center gap-2 min-w-0">
+                        <div className="w-8 h-8 rounded-full overflow-hidden bg-gray-200 shrink-0 flex items-center justify-center">
+                          {pair.player1.profile_photo?.trim() ? (
+                            <Image
+                              src={pair.player1.profile_photo}
+                              alt={pair.player1.name}
+                              width={32}
+                              height={32}
+                              className="w-full h-full object-cover"
+                            />
+                          ) : (
+                            <span className="text-xs font-semibold text-gray-600">
+                              {pair.player1.name.charAt(0).toUpperCase()}
+                            </span>
+                          )}
+                        </div>
+                        <span className="text-sm font-medium text-[#151C27] truncate">
+                          {pair.player1.name}
+                        </span>
+                        <span className="text-xs text-[#A1A1AA] shrink-0">
+                          &
+                        </span>
+                        <div className="w-8 h-8 rounded-full overflow-hidden bg-gray-200 shrink-0 flex items-center justify-center">
+                          {pair.player2.profile_photo?.trim() ? (
+                            <Image
+                              src={pair.player2.profile_photo}
+                              alt={pair.player2.name}
+                              width={32}
+                              height={32}
+                              className="w-full h-full object-cover"
+                            />
+                          ) : (
+                            <span className="text-xs font-semibold text-gray-600">
+                              {pair.player2.name.charAt(0).toUpperCase()}
+                            </span>
+                          )}
+                        </div>
+                        <span className="text-sm font-medium text-[#151C27] truncate">
+                          {pair.player2.name}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Join Requests Section */}
@@ -569,7 +786,7 @@ function EventDetailContent({
             ) : (
               <button
                 type="button"
-                onClick={() => setShowSelectPlayers(true)}
+                onClick={handleGenerateMatchClick}
                 className="flex-1 flex items-center justify-center gap-2 text-base font-semibold text-[#121212] rounded-full"
                 style={{ background: "#9FE870", height: "56px" }}
               >
@@ -658,13 +875,111 @@ function EventDetailContent({
         />
       )}
 
-      {/* Bottom Sheet: Select Players for Match */}
-      {showSelectPlayers && (
-        <BottomSheetSelectPlayers
+      {/* Bottom Sheet: Set Pairs */}
+      {showSetPairs && (
+        <BottomSheetSetPairs
           eventGuid={event.guid}
-          onClose={() => setShowSelectPlayers(false)}
-          onNext={handleSelectPlayersNext}
+          onClose={() => setShowSetPairs(false)}
+          onSaved={(pairs) => {
+            setEventPairsState(pairs);
+            showSnackbar(
+              `Saved ${pairs.length} pair${pairs.length !== 1 ? "s" : ""}`,
+            );
+          }}
         />
+      )}
+
+      {/* Unpaired Players Dialog */}
+      {showUnpairedPlayersDialog && (
+        <div className="fixed inset-0 z-60 flex items-center justify-center bg-black/40 px-6">
+          <div className="w-full max-w-sm bg-white rounded-2xl p-6 flex flex-col gap-4">
+            <h3 className="text-lg font-semibold text-[#151C27]">
+              Complete pairs first
+            </h3>
+            <p className="text-sm text-[#41493A]">
+              {unpairedPlayerCount} player
+              {unpairedPlayerCount !== 1 ? "s are" : " is"} not in a pair yet.
+              Pair every player, or clear pairs to use Random teams, before
+              generating a match.
+            </p>
+            <div className="flex gap-3 mt-2">
+              <button
+                type="button"
+                onClick={() => setShowUnpairedPlayersDialog(false)}
+                className="flex-1 py-3 rounded-full text-base text-[#18181B] bg-[#F4F4F5]"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowUnpairedPlayersDialog(false);
+                  setShowSetPairs(true);
+                }}
+                className="flex-1 py-3 rounded-full text-base font-semibold text-[#121212] bg-[#9FE870]"
+              >
+                Set Pairs
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Generate Match Confirmation */}
+      {showGenerateConfirm && (
+        <div className="fixed inset-0 z-60 flex items-center justify-center bg-black/40 px-6">
+          <div className="w-full max-w-sm bg-white rounded-2xl p-6 flex flex-col gap-4 max-h-[80vh]">
+            <h3 className="text-lg font-semibold text-[#151C27]">
+              Generate Match
+            </h3>
+            {eventPairs.length > 0 ? (
+              <>
+                <p className="text-sm text-[#41493A]">
+                  Generate a match with these{" "}
+                  <span className="font-semibold">{eventPairs.length}</span>{" "}
+                  pair{eventPairs.length !== 1 ? "s" : ""}?
+                </p>
+                <div className="flex flex-col gap-2 overflow-y-auto max-h-60">
+                  {eventPairs.map((pair) => (
+                    <div
+                      key={pair.id}
+                      className="flex flex-col gap-1 p-3 rounded-2xl border border-[#F4F4F5] bg-[#FAFAFA]"
+                    >
+                      <span className="text-sm font-semibold text-[#151C27]">
+                        {pair.team_name || "Team"}
+                      </span>
+                      <span className="text-xs text-[#71717A]">
+                        {pair.player1.name} & {pair.player2.name}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </>
+            ) : (
+              <p className="text-sm text-[#41493A]">
+                No pairs set. Teams will be assigned{" "}
+                <span className="font-semibold">Random</span>. Continue to
+                configure the match?
+              </p>
+            )}
+            <div className="flex gap-3 mt-2">
+              <button
+                type="button"
+                onClick={() => setShowGenerateConfirm(false)}
+                className="flex-1 py-3 rounded-full text-base text-[#18181B] bg-[#F4F4F5]"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmGenerateMatch}
+                className="flex-1 py-3 rounded-full text-base font-semibold text-[#121212] bg-[#9FE870]"
+              >
+                Continue
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Delete Confirmation Dialog */}

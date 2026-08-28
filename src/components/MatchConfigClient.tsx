@@ -16,12 +16,14 @@ import type {
   CreateMatchmakingSessionErrorResponse,
   MatchConfigSelectedPlayer,
   MatchmakingSessionFormatApi,
+  MatchmakingSortByApi,
   MatchmakingTeamAssignmentApi,
 } from "@/types/matchmaking";
 
-type GameFormat = "Mexicano" | "Americano" | "Team Americano";
+type GameFormat = "Mexicano" | "Americano";
 type TeamAssignment = "Random" | "Organizer Set";
 type ScoreType = "Total Set Point" | "Race to X Point";
+type SortBy = "Wins" | "Points";
 
 const totalSetPointRows: number[][] = [
   [4, 8, 12, 16],
@@ -36,8 +38,6 @@ function uiFormatToApi(value: GameFormat): MatchmakingSessionFormatApi {
       return "mexicano";
     case "Americano":
       return "americano";
-    case "Team Americano":
-      return "team_americano";
   }
 }
 
@@ -47,6 +47,10 @@ function uiTeamAssignmentToApi(
   return value === "Organizer Set" ? "organizer_set" : "random";
 }
 
+function uiSortByToApi(value: SortBy): MatchmakingSortByApi {
+  return value === "Wins" ? "wins" : "points";
+}
+
 export default function MatchConfigClient({
   eventGuid,
 }: {
@@ -54,6 +58,7 @@ export default function MatchConfigClient({
 }) {
   const router = useRouter();
   const [selectedFormat, setSelectedFormat] = useState<GameFormat>("Americano");
+  const [selectedSortBy, setSelectedSortBy] = useState<SortBy>("Wins");
   const [courts, setCourts] = useState(2);
   const [scoreType, setScoreType] = useState<ScoreType>("Total Set Point");
   const [selectedPoints, setSelectedPoints] = useState<number>(21);
@@ -95,11 +100,6 @@ export default function MatchConfigClient({
       description: "Individual performance focus",
     },
     { value: "Americano", description: "Round robin system" },
-    {
-      value: "Team Americano",
-      description: "Fixed duo bracket",
-      disabled: true,
-    },
   ];
 
   const pointOptionRows =
@@ -157,6 +157,9 @@ export default function MatchConfigClient({
         pairing_variant: "smart",
         teams,
         participant_guids: participantGuids,
+        ...(selectedFormat === "Mexicano" && {
+          sort_by: uiSortByToApi(selectedSortBy),
+        }),
       });
       router.push(
         `/matches/${result.data.guid}?event_guid=${encodeURIComponent(eventGuid)}`,
@@ -191,6 +194,14 @@ export default function MatchConfigClient({
               {courts !== 1 ? "s" : ""}, and{" "}
               <span className="font-semibold">{selectedPoints}</span>{" "}
               {scoreType === "Total Set Point" ? "set points" : "race to points"}
+              {selectedFormat === "Mexicano" && (
+                <>
+                  , sorted by{" "}
+                  <span className="font-semibold">
+                    {selectedSortBy.toLowerCase()}
+                  </span>
+                </>
+              )}
               {eventPairs.length > 0 && (
                 <>
                   {" "}
@@ -308,6 +319,46 @@ export default function MatchConfigClient({
           })}
         </div>
       </section>
+
+      {selectedFormat === "Mexicano" && (
+        <section className="flex flex-col gap-2">
+          <h2
+            className="text-xl font-normal text-[#151C27]"
+            style={{ lineHeight: "26px" }}
+          >
+            Sort By
+          </h2>
+          <div
+            className="flex items-center p-1 bg-[#F0F3FF]"
+            style={{ borderRadius: "9999px" }}
+          >
+            {(["Wins", "Points"] as SortBy[]).map((option) => {
+              const isActive = selectedSortBy === option;
+              return (
+                <button
+                  key={option}
+                  type="button"
+                  onClick={() => setSelectedSortBy(option)}
+                  className="flex-1 py-3 text-center transition-all"
+                  style={{
+                    borderRadius: "9999px",
+                    background: isActive ? "#FFFFFF" : "transparent",
+                    boxShadow: isActive
+                      ? "0px 1px 2px 0px rgba(0,0,0,0.05)"
+                      : "none",
+                    color: isActive ? "#151C27" : "#71717A",
+                    fontSize: "12px",
+                    fontWeight: isActive ? 600 : 400,
+                    lineHeight: "12px",
+                  }}
+                >
+                  {option}
+                </button>
+              );
+            })}
+          </div>
+        </section>
+      )}
 
       {/* Number of Courts Section */}
       <section className="flex flex-col gap-2">

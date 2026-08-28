@@ -1183,16 +1183,18 @@ function StandingsTab({
   yourRank,
   onStandingsTypeChange,
   isLoading,
+  showStandingsTypeControl,
 }: {
   standings: StandingRow[];
   standingsType: EventStandingsType;
   yourRank: string | null;
   onStandingsTypeChange: (type: EventStandingsType) => void;
   isLoading: boolean;
+  showStandingsTypeControl: boolean;
 }) {
   const standingsTypeLabel =
     standingsType === "wins" ? "Most Wins" : "Point Difference";
-  const typeControl = (
+  const typeControl = showStandingsTypeControl ? (
     <div className="px-4 pt-4">
       <label className="flex flex-col gap-2">
         <span
@@ -1215,7 +1217,7 @@ function StandingsTab({
         </select>
       </label>
     </div>
-  );
+  ) : null;
 
   if (isLoading) {
     return (
@@ -1837,6 +1839,8 @@ export default function MatchDetailClient({
 
 
   const isEventFinished = eventDetail?.is_finished === true;
+  const effectiveStandingsType: EventStandingsType =
+    detail?.sort_by ?? standingsType;
 
   useEffect(() => {
     const shouldLoadStandings =
@@ -1851,7 +1855,7 @@ export default function MatchDetailClient({
       try {
         const res = await fetchEventStandings({
           event_guid: eventGuid!,
-          type: standingsType,
+          type: effectiveStandingsType,
         });
         if (!cancelled) {
           setStandings(mapEventStandingsToRows(res.data.standings));
@@ -1871,7 +1875,7 @@ export default function MatchDetailClient({
     return () => {
       cancelled = true;
     };
-  }, [activeTab, eventGuid, standingsType, isEventFinished]);
+  }, [activeTab, eventGuid, effectiveStandingsType, isEventFinished]);
 
   useEffect(() => {
     const shouldLoadMyReport =
@@ -2232,7 +2236,7 @@ export default function MatchDetailClient({
 
     const res = await fetchEventStandings({
       event_guid: eventGuid,
-      type: standingsType,
+      type: effectiveStandingsType,
     });
     const rows = mapEventStandingsToRows(res.data.standings);
     const rank = res.data.your_rank || null;
@@ -2266,7 +2270,7 @@ export default function MatchDetailClient({
       }
 
       router.push(
-        `/matches/${sessionGuid}/share-match-result?event_guid=${encodeURIComponent(eventGuid)}&standings_type=${standingsType}`,
+        `/matches/${sessionGuid}/share-match-result?event_guid=${encodeURIComponent(eventGuid)}&standings_type=${effectiveStandingsType}`,
       );
     } catch (e) {
       const err = e as FetchEventStandingsErrorResponse | Error;
@@ -2447,10 +2451,11 @@ export default function MatchDetailClient({
               ) : activeTab === "Standings" ? (
                 <StandingsTab
                   standings={standings}
-                  standingsType={standingsType}
+                  standingsType={effectiveStandingsType}
                   yourRank={yourRank}
                   onStandingsTypeChange={setStandingsType}
                   isLoading={isStandingsLoading}
+                  showStandingsTypeControl={!detail?.sort_by}
                 />
               ) : (
                 <MyReportTab

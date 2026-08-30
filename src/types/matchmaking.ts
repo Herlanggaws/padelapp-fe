@@ -229,6 +229,8 @@ export interface CancelMatchmakingRoundErrorResponse {
 export interface GenerateMatchmakingRoundPayload {
   /** Present players only; omit to include all event participants. */
   participant_guids?: string[];
+  /** Fixed-partner sessions; send instead of participant_guids. */
+  team_guids?: string[];
 }
 
 export interface GenerateMatchmakingRoundSuccessResponse {
@@ -272,5 +274,40 @@ export interface UpdateMatchmakingPairsSuccessResponse {
 }
 
 export interface UpdateMatchmakingPairsErrorResponse {
+  message: string;
+}
+
+/** Team shape for POST/GET /padel/matchmaking/pairs */
+export interface EventMatchmakingPairTeam {
+  player1_guid: string;
+  player2_guid: string;
+  team_name: string;
+}
+
+export interface SaveEventMatchmakingPairsPayload {
+  event_guid: string;
+  teams: EventMatchmakingPairTeam[];
+}
+
+export interface EventMatchmakingPairsData {
+  event_guid: string;
+  teams: EventMatchmakingPairTeam[];
+}
+
+export interface SaveEventMatchmakingPairsSuccessResponse {
+  data: EventMatchmakingPairsData;
+  message: string;
+}
+
+export interface SaveEventMatchmakingPairsErrorResponse {
+  message: string;
+}
+
+export interface FetchEventMatchmakingPairsSuccessResponse {
+  data: EventMatchmakingPairsData;
+  message: string;
+}
+
+export interface FetchEventMatchmakingPairsErrorResponse {
   message: string;
 }

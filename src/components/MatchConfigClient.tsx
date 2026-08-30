@@ -8,10 +8,15 @@ import {
   getMatchConfigPlayers,
 } from "@/lib/matchConfigPlayersStorage";
 import {
+  apiTeamsToEventPairs,
   eventPairsToTeams,
-  getEventPairs,
+  type EventPair,
 } from "@/lib/eventPairsStorage";
-import { createMatchmakingSession } from "@/services/matchmakingService";
+import { fetchEventParticipants } from "@/services/eventService";
+import {
+  createMatchmakingSession,
+  fetchEventMatchmakingPairs,
+} from "@/services/matchmakingService";
 import type {
   CreateMatchmakingSessionErrorResponse,
   MatchConfigSelectedPlayer,
@@ -70,9 +75,7 @@ export default function MatchConfigClient({
     MatchConfigSelectedPlayer[]
   >([]);
   const [showGenerateConfirm, setShowGenerateConfirm] = useState(false);
-  const [eventPairs, setEventPairs] = useState<
-    NonNullable<ReturnType<typeof getEventPairs>>
-  >([]);
+  const [eventPairs, setEventPairs] = useState<EventPair[]>([]);
 
   useEffect(() => {
     if (!eventGuid.trim()) return;
@@ -81,7 +84,44 @@ export default function MatchConfigClient({
       setSelectedPlayers(players);
       clearMatchConfigPlayers();
     }
-    setEventPairs(getEventPairs(eventGuid) ?? []);
+
+    let cancelled = false;
+    (async () => {
+      try {
+        const [pairsRes, first] = await Promise.all([
+          fetchEventMatchmakingPairs(eventGuid),
+          fetchEventParticipants({
+            event_guid: eventGuid,
+            page: 1,
+            limit: 50,
+          }),
+        ]);
+        let participants = [...first.data];
+        if (first.paginate.total_page > 1) {
+          const rest = await Promise.all(
+            Array.from({ length: first.paginate.total_page - 1 }, (_, i) =>
+              fetchEventParticipants({
+                event_guid: eventGuid,
+                page: i + 2,
+                limit: 50,
+              }),
+            ),
+          );
+          for (const res of rest) participants.push(...res.data);
+        }
+        if (!cancelled) {
+          setEventPairs(
+            apiTeamsToEventPairs(pairsRes.data.teams ?? [], participants),
+          );
+        }
+      } catch {
+        if (!cancelled) setEventPairs([]);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
   }, [eventGuid]);
 
   const showModal = (title: string, message: string) => {
@@ -136,12 +176,12 @@ export default function MatchConfigClient({
   const handleGenerateMatch = async () => {
     setIsSubmitting(true);
     try {
-      const pairs = getEventPairs(eventGuid) ?? eventPairs;
-      const teams = pairs.length > 0 ? eventPairsToTeams(pairs) : [];
+      const teams =
+        eventPairs.length > 0 ? eventPairsToTeams(eventPairs) : [];
       const participantGuids =
         selectedPlayers.length > 0
           ? selectedPlayers.map((p) => p.participant_guid)
-          : pairs.flatMap((pair) => [
+          : eventPairs.flatMap((pair) => [
               pair.player1.participant_guid,
               pair.player2.participant_guid,
             ]);

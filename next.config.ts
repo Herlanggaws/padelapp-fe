@@ -32,6 +32,10 @@ const nextConfig: NextConfig = {
         protocol: "https",
         hostname: "api.rallyrank.id",
       },
+      {
+        protocol: "https",
+        hostname: "api-stg.rallyrank.id",
+      },
     ],
   },
 };

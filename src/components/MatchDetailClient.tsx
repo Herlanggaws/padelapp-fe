@@ -8,6 +8,7 @@ import Modal from "@/components/Modal";
 import TopAppBar from "@/components/TopAppBar";
 import ScoreKeyboardSheet from "@/components/ScoreKeyboardSheet";
 import BottomSheetSelectPlayers from "@/components/BottomSheetSelectPlayers";
+import BottomSheetSelectTeams from "@/components/BottomSheetSelectTeams";
 import BottomSheetChangePlayer from "@/components/BottomSheetChangePlayer";
 import { useSnackbar } from "@/context/SnackbarContext";
 import { getUserProfileCache } from "@/lib/userProfileCache";
@@ -1774,6 +1775,7 @@ export default function MatchDetailClient({
   const [eventDetail, setEventDetail] = useState<Event | null>(null);
   const [currentUserGuid] = useState<string | null>(() => getUserProfileCache()?.guid ?? null);
   const [showSelectPlayers, setShowSelectPlayers] = useState(false);
+  const [showSelectTeams, setShowSelectTeams] = useState(false);
   const [isGeneratingRound, setIsGeneratingRound] = useState(false);
   const [playerChangeSheet, setPlayerChangeSheet] = useState<{
     matchGuid: string;
@@ -1922,6 +1924,10 @@ export default function MatchDetailClient({
     4,
     (detail?.number_of_courts ?? 1) * 4,
   );
+  const sessionTeams = detail ? asTeamList(detail.teams) : [];
+  const hasFixedTeams =
+    detail?.team_assignment === "organizer_set" && sessionTeams.length > 0;
+  const minTeamsForRound = Math.max(2, (detail?.number_of_courts ?? 1) * 2);
 
   const isSessionCreator = Boolean(
     currentUserGuid && detail?.created_by?.guid === currentUserGuid,
@@ -2154,6 +2160,28 @@ export default function MatchDetailClient({
       setDetail(refreshed.data);
       setSavedMatchIds((prev) => mergeSavedMatchGuids(prev, refreshed.data));
       setShowSelectPlayers(false);
+    } catch (e) {
+      const err = e as
+        | GenerateMatchmakingRoundErrorResponse
+        | GetMatchmakingSessionErrorResponse;
+      showSnackbar(err?.message ?? "Could not generate round.");
+    } finally {
+      setIsGeneratingRound(false);
+    }
+  };
+
+  const handleGenerateRoundWithTeams = async (teamGuids: string[]) => {
+    if (!canManageEvent || !canGenerateNextRound) return;
+    setIsGeneratingRound(true);
+    try {
+      const res = await generateMatchmakingRound(sessionGuid, {
+        team_guids: teamGuids,
+      });
+      showSnackbar(res.message);
+      const refreshed = await fetchMatchmakingSession(sessionGuid);
+      setDetail(refreshed.data);
+      setSavedMatchIds((prev) => mergeSavedMatchGuids(prev, refreshed.data));
+      setShowSelectTeams(false);
     } catch (e) {
       const err = e as
         | GenerateMatchmakingRoundErrorResponse
@@ -2432,7 +2460,13 @@ export default function MatchDetailClient({
                   canManageEvent={canManageEvent}
                   isEventFinished={isEventFinished}
                   canGenerateRound={canGenerateNextRound}
-                  onGenerateRoundClick={() => setShowSelectPlayers(true)}
+                  onGenerateRoundClick={() => {
+                    if (hasFixedTeams) {
+                      setShowSelectTeams(true);
+                    } else {
+                      setShowSelectPlayers(true);
+                    }
+                  }}
                   isGeneratingRound={isGeneratingRound}
                   onScoreSidePress={openScoreEditor}
                   pendingSaveMatchIds={pendingSaveMatchIds}
@@ -2644,6 +2678,17 @@ export default function MatchDetailClient({
           onNext={(players) => {
             handleGenerateRound(players.map((p) => p.participant_guid));
           }}
+        />
+      )}
+
+      {showSelectTeams && (
+        <BottomSheetSelectTeams
+          teams={sessionTeams}
+          confirmLabel="Generate"
+          minSelection={minTeamsForRound}
+          isSubmitting={isGeneratingRound}
+          onClose={() => setShowSelectTeams(false)}
+          onConfirm={handleGenerateRoundWithTeams}
         />
       )}
 

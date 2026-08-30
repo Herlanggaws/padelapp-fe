@@ -22,6 +22,11 @@ import type {
   UpdateMatchmakingPairsPayload,
   UpdateMatchmakingPairsSuccessResponse,
   UpdateMatchmakingPairsErrorResponse,
+  SaveEventMatchmakingPairsPayload,
+  SaveEventMatchmakingPairsSuccessResponse,
+  SaveEventMatchmakingPairsErrorResponse,
+  FetchEventMatchmakingPairsSuccessResponse,
+  FetchEventMatchmakingPairsErrorResponse,
 } from "@/types/matchmaking";
 import apiClient from "@/lib/apiClient";
 
@@ -49,6 +54,11 @@ export type {
   UpdateMatchmakingPairsPayload,
   UpdateMatchmakingPairsSuccessResponse,
   UpdateMatchmakingPairsErrorResponse,
+  SaveEventMatchmakingPairsPayload,
+  SaveEventMatchmakingPairsSuccessResponse,
+  SaveEventMatchmakingPairsErrorResponse,
+  FetchEventMatchmakingPairsSuccessResponse,
+  FetchEventMatchmakingPairsErrorResponse,
 };
 
 export async function createMatchmakingSession(
@@ -145,5 +155,26 @@ export async function updateMatchmakingPairs(
     `/padel/matchmaking/match/${matchGuid}/pairs`,
     payload,
   );
+  return data;
+}
+
+export async function saveEventMatchmakingPairs(
+  payload: SaveEventMatchmakingPairsPayload,
+): Promise<SaveEventMatchmakingPairsSuccessResponse> {
+  const { data } =
+    await apiClient.post<SaveEventMatchmakingPairsSuccessResponse>(
+      "/padel/matchmaking/pairs",
+      payload,
+    );
+  return data;
+}
+
+export async function fetchEventMatchmakingPairs(
+  eventGuid: string,
+): Promise<FetchEventMatchmakingPairsSuccessResponse> {
+  const { data } =
+    await apiClient.get<FetchEventMatchmakingPairsSuccessResponse>(
+      `/padel/matchmaking/pairs/${eventGuid}`,
+    );
   return data;
 }

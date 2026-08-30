@@ -3,10 +3,15 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
 import { fetchEventParticipants } from "@/services/eventService";
-import type { EventParticipant } from "@/types/event";
 import {
-  getEventPairs,
-  setEventPairs,
+  fetchEventMatchmakingPairs,
+  saveEventMatchmakingPairs,
+} from "@/services/matchmakingService";
+import type { EventParticipant } from "@/types/event";
+import type { SaveEventMatchmakingPairsErrorResponse } from "@/types/matchmaking";
+import {
+  apiTeamsToEventPairs,
+  eventPairsToTeams,
   type EventPair,
   type EventPairPlayer,
 } from "@/lib/eventPairsStorage";
@@ -30,26 +35,6 @@ function toPairPlayer(participant: EventParticipant): EventPairPlayer {
 
 function defaultTeamName(index: number) {
   return `Team ${index + 1}`;
-}
-
-function normalizeStoredPairs(
-  stored: EventPair[],
-  playerByGuid: Map<string, EventPairPlayer>,
-): EventPair[] {
-  return stored
-    .filter(
-      (pair) =>
-        playerByGuid.has(pair.player1.participant_guid) &&
-        playerByGuid.has(pair.player2.participant_guid),
-    )
-    .map((pair, index) => ({
-      ...pair,
-      team_name: pair.team_name?.trim() || defaultTeamName(index),
-      player1:
-        playerByGuid.get(pair.player1.participant_guid) ?? pair.player1,
-      player2:
-        playerByGuid.get(pair.player2.participant_guid) ?? pair.player2,
-    }));
 }
 
 function PlayerChip({
@@ -132,10 +117,11 @@ export default function BottomSheetSetPairs({
     setTimeout(onClose, 300);
   };
 
-  const loadParticipants = async () => {
+  const loadParticipantsAndPairs = async () => {
     if (isFetchingRef.current) return;
     isFetchingRef.current = true;
     setIsLoading(true);
+    setError(null);
     try {
       const first = await fetchEventParticipants({
         event_guid: eventGuidRef.current,
@@ -157,15 +143,17 @@ export default function BottomSheetSetPairs({
       }
       setParticipants(all);
 
-      const stored = getEventPairs(eventGuidRef.current) ?? [];
-      const map = new Map<string, EventPairPlayer>();
-      for (const p of all) {
-        map.set(p.guid, toPairPlayer(p));
+      try {
+        const pairsRes = await fetchEventMatchmakingPairs(eventGuidRef.current);
+        setPairs(apiTeamsToEventPairs(pairsRes.data.teams ?? [], all));
+      } catch {
+        setPairs([]);
       }
-      setPairs(normalizeStoredPairs(stored, map));
-    } catch {
+    } catch (err) {
+      const apiError = err as { message?: string };
       setParticipants([]);
       setPairs([]);
+      setError(apiError?.message ?? "Could not load players.");
     } finally {
       setIsLoading(false);
       isFetchingRef.current = false;
@@ -175,7 +163,7 @@ export default function BottomSheetSetPairs({
   useEffect(() => {
     eventGuidRef.current = eventGuid;
     isFetchingRef.current = false;
-    loadParticipants();
+    loadParticipantsAndPairs();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [eventGuid]);
 
@@ -245,7 +233,7 @@ export default function BottomSheetSetPairs({
     );
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (pairs.length === 0) {
       setError("Create at least one pair before saving.");
       return;
@@ -255,18 +243,26 @@ export default function BottomSheetSetPairs({
       setError("Every team needs a name.");
       return;
     }
+
     setIsSubmitting(true);
+    setError(null);
     try {
       const normalized = pairs.map((pair) => ({
         ...pair,
         team_name: pair.team_name.trim(),
       }));
-      setEventPairs({ event_guid: eventGuid, pairs: normalized });
+      await saveEventMatchmakingPairs({
+        event_guid: eventGuid,
+        teams: eventPairsToTeams(normalized),
+      });
       setIsVisible(false);
       setTimeout(() => {
         onSaved(normalized);
         onClose();
       }, 300);
+    } catch (err) {
+      const apiError = err as SaveEventMatchmakingPairsErrorResponse;
+      setError(apiError?.message ?? "Could not save pairs.");
     } finally {
       setIsSubmitting(false);
     }

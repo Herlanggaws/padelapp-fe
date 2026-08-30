@@ -11,11 +11,13 @@ import BottomSheetSeeAllPlayers from "@/components/BottomSheetSeeAllPlayers";
 import BottomSheetSetPairs from "@/components/BottomSheetSetPairs";
 import { setMatchConfigPlayers } from "@/lib/matchConfigPlayersStorage";
 import {
-  clearEventPairs,
-  getEventPairs,
+  apiTeamsToEventPairs,
   type EventPair,
 } from "@/lib/eventPairsStorage";
-import type { MatchConfigSelectedPlayer } from "@/types/matchmaking";
+import type {
+  MatchConfigSelectedPlayer,
+  SaveEventMatchmakingPairsErrorResponse,
+} from "@/types/matchmaking";
 import {
   fetchEventDetail,
   fetchEventParticipants,
@@ -27,6 +29,10 @@ import {
   deleteEvent,
   duplicateEvent,
 } from "@/services/eventService";
+import {
+  fetchEventMatchmakingPairs,
+  saveEventMatchmakingPairs,
+} from "@/services/matchmakingService";
 import type { Event, PendingRequest } from "@/types/event";
 import { useSnackbar } from "@/context/SnackbarContext";
 
@@ -274,26 +280,46 @@ function EventDetailContent({
   const [showUnpairedPlayersDialog, setShowUnpairedPlayersDialog] =
     useState(false);
   const [eventPairs, setEventPairsState] = useState<EventPair[]>([]);
+  const [isClearingPairs, setIsClearingPairs] = useState(false);
   const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
   const [showHostSettings, setShowHostSettings] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const pendingRequests = event.pending_requests ?? [];
 
-  useEffect(() => {
-    const pairs = (getEventPairs(event.guid) ?? []).map((pair, index) => ({
-      ...pair,
-      team_name: pair.team_name?.trim() || `Team ${index + 1}`,
-      player1: {
-        ...pair.player1,
-        user_guid: pair.player1.user_guid ?? "",
-      },
-      player2: {
-        ...pair.player2,
-        user_guid: pair.player2.user_guid ?? "",
-      },
-    }));
-    setEventPairsState(pairs);
+  const loadEventPairs = useCallback(async () => {
+    try {
+      const [pairsRes, first] = await Promise.all([
+        fetchEventMatchmakingPairs(event.guid),
+        fetchEventParticipants({
+          event_guid: event.guid,
+          page: 1,
+          limit: 50,
+        }),
+      ]);
+      let participants = [...first.data];
+      if (first.paginate.total_page > 1) {
+        const rest = await Promise.all(
+          Array.from({ length: first.paginate.total_page - 1 }, (_, i) =>
+            fetchEventParticipants({
+              event_guid: event.guid,
+              page: i + 2,
+              limit: 50,
+            }),
+          ),
+        );
+        for (const res of rest) participants.push(...res.data);
+      }
+      setEventPairsState(
+        apiTeamsToEventPairs(pairsRes.data.teams ?? [], participants),
+      );
+    } catch {
+      setEventPairsState([]);
+    }
   }, [event.guid]);
+
+  useEffect(() => {
+    loadEventPairs();
+  }, [loadEventPairs, event.number_of_participants]);
 
   const unpairedPlayerCount = Math.max(
     0,
@@ -302,10 +328,22 @@ function EventDetailContent({
   const hasIncompletePairs =
     eventPairs.length > 0 && unpairedPlayerCount > 0;
 
-  const handleClearPairs = () => {
-    clearEventPairs();
-    setEventPairsState([]);
-    showSnackbar("Pairs cleared. Team assignment is Random again.");
+  const handleClearPairs = async () => {
+    if (isClearingPairs) return;
+    setIsClearingPairs(true);
+    try {
+      await saveEventMatchmakingPairs({
+        event_guid: event.guid,
+        teams: [],
+      });
+      setEventPairsState([]);
+      showSnackbar("Pairs cleared. Team assignment is Random again.");
+    } catch (err) {
+      const apiError = err as SaveEventMatchmakingPairsErrorResponse;
+      showSnackbar(apiError?.message ?? "Could not clear pairs.");
+    } finally {
+      setIsClearingPairs(false);
+    }
   };
 
   const handleGenerateMatchClick = () => {
@@ -648,16 +686,18 @@ function EventDetailContent({
                     {eventPairs.length > 0 && (
                       <button
                         type="button"
-                        className="text-xs font-semibold text-[#BA1A1A] cursor-pointer"
+                        className="text-xs font-semibold text-[#BA1A1A] cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                         onClick={handleClearPairs}
+                        disabled={isClearingPairs}
                       >
-                        Clear Pairs
+                        {isClearingPairs ? "Clearing..." : "Clear Pairs"}
                       </button>
                     )}
                     <button
                       type="button"
-                      className="text-xs font-semibold text-[#2F6C00] cursor-pointer"
+                      className="text-xs font-semibold text-[#2F6C00] cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                       onClick={() => setShowSetPairs(true)}
+                      disabled={isClearingPairs}
                     >
                       {eventPairs.length > 0 ? "Edit Pairs" : "Set Pairs"}
                     </button>

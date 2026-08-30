@@ -1,4 +1,5 @@
-import type { CreateMatchmakingSessionTeam } from "@/types/matchmaking";
+import type { EventParticipant } from "@/types/event";
+import type { EventMatchmakingPairTeam } from "@/types/matchmaking";
 
 export interface EventPairPlayer {
   participant_guid: string;
@@ -14,39 +15,47 @@ export interface EventPair {
   player2: EventPairPlayer;
 }
 
-export interface EventPairsPayload {
-  event_guid: string;
-  pairs: EventPair[];
+function defaultTeamName(index: number) {
+  return `Team ${index + 1}`;
 }
 
-const STORAGE_KEY = "event_pairs";
-
-export function setEventPairs(payload: EventPairsPayload): void {
-  if (typeof window === "undefined") return;
-  sessionStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
+function toPairPlayer(participant: EventParticipant): EventPairPlayer {
+  return {
+    participant_guid: participant.guid,
+    user_guid: participant.user_guid,
+    name: participant.user.name,
+    profile_photo: participant.user.profile_photo,
+  };
 }
 
-export function getEventPairs(eventGuid: string): EventPair[] | null {
-  if (typeof window === "undefined") return null;
-  try {
-    const raw = sessionStorage.getItem(STORAGE_KEY);
-    if (!raw) return null;
-    const payload = JSON.parse(raw) as EventPairsPayload;
-    if (payload.event_guid !== eventGuid) return null;
-    return payload.pairs;
-  } catch {
-    return null;
+export function apiTeamsToEventPairs(
+  teams: EventMatchmakingPairTeam[],
+  participants: EventParticipant[],
+): EventPair[] {
+  const playerByGuid = new Map<string, EventPairPlayer>();
+  for (const participant of participants) {
+    playerByGuid.set(participant.guid, toPairPlayer(participant));
   }
-}
 
-export function clearEventPairs(): void {
-  if (typeof window === "undefined") return;
-  sessionStorage.removeItem(STORAGE_KEY);
+  return teams
+    .map((team, index) => {
+      const player1 = playerByGuid.get(team.player1_guid);
+      const player2 = playerByGuid.get(team.player2_guid);
+      if (!player1 || !player2) return null;
+
+      return {
+        id: `${team.player1_guid}-${team.player2_guid}-${index}`,
+        team_name: team.team_name?.trim() || defaultTeamName(index),
+        player1,
+        player2,
+      } satisfies EventPair;
+    })
+    .filter((pair): pair is EventPair => pair !== null);
 }
 
 export function eventPairsToTeams(
   pairs: EventPair[],
-): CreateMatchmakingSessionTeam[] {
+): EventMatchmakingPairTeam[] {
   return pairs.map((pair) => ({
     player1_guid: pair.player1.participant_guid,
     player2_guid: pair.player2.participant_guid,

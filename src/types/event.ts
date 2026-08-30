@@ -351,3 +351,16 @@ export interface DeleteEventSuccessResponse {
 export interface DeleteEventErrorResponse {
   message: string;
 }
+
+export interface DuplicateEventSuccessData {
+  guid: string;
+}
+
+export interface DuplicateEventSuccessResponse {
+  data: DuplicateEventSuccessData;
+  message: string;
+}
+
+export interface DuplicateEventErrorResponse {
+  message: string;
+}

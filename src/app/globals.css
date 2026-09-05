@@ -33,7 +33,7 @@ body {
 }
 
 .live-scoreboard-marquee {
-  animation: live-scoreboard-marquee 40s linear infinite;
+  animation: live-scoreboard-marquee 70s linear infinite;
 }
 
 .live-scoreboard-marquee:hover {

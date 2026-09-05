@@ -5,7 +5,6 @@ import { useLiveScoreboard } from "@/hooks/useLiveScoreboard";
 import {
   getLiveStandingDisplayName,
   getLiveStandingSubtitle,
-  getLiveTeamDisplayLabel,
   getLiveTeamName,
   getLiveTeamPlayers,
   isLiveTeamStanding,
@@ -418,69 +417,96 @@ function HistoricalMatchCard({
   roundNumber: number;
   match: LiveScoreboardMatch;
 }) {
-  const teamA = getLiveTeamDisplayLabel(match.team_a);
-  const teamB = getLiveTeamDisplayLabel(match.team_b);
-  const teamAPlayers = getLiveTeamPlayers(match.team_a)
-    .map((player) => player.name?.trim())
-    .filter(Boolean)
-    .join(" & ");
-  const teamBPlayers = getLiveTeamPlayers(match.team_b)
-    .map((player) => player.name?.trim())
-    .filter(Boolean)
-    .join(" & ");
-  const teamATitle = getLiveTeamName(match.team_a)
-    ? `${teamA}${teamAPlayers ? ` · ${teamAPlayers}` : ""}`
-    : teamA;
-  const teamBTitle = getLiveTeamName(match.team_b)
-    ? `${teamB}${teamBPlayers ? ` · ${teamBPlayers}` : ""}`
-    : teamB;
+  const teamA = getLiveTeamPlayers(match.team_a);
+  const teamB = getLiveTeamPlayers(match.team_b);
+  const teamAName = getLiveTeamName(match.team_a);
+  const teamBName = getLiveTeamName(match.team_b);
 
   return (
     <div
-      className="inline-flex flex-col gap-1 shrink-0 px-2.5 py-2"
+      className="inline-flex flex-col gap-2.5 shrink-0 p-3"
       style={{
-        minWidth: 180,
-        maxWidth: 220,
+        width: 280,
         background: "#FFFFFF",
         border: "1px solid #E4E4E7",
-        borderRadius: "12px",
+        borderRadius: "16px",
       }}
     >
       <div className="flex items-center justify-between gap-2">
         <span
           className="font-semibold text-[#18181B]"
-          style={{ fontSize: 10, lineHeight: "12px" }}
+          style={{ fontSize: 11, lineHeight: "13px" }}
         >
           R{roundNumber}
         </span>
         <span
           className="text-[#71717A]"
-          style={{ fontSize: 9, lineHeight: "11px" }}
+          style={{ fontSize: 11, lineHeight: "13px" }}
         >
           Court {match.court_number}
         </span>
       </div>
-      <div className="flex items-center gap-1.5">
-        <span
-          className="flex-1 min-w-0 truncate text-[#18181B] text-left font-medium"
-          style={{ fontSize: 11, lineHeight: "14px" }}
-          title={teamATitle}
-        >
-          {teamA}
-        </span>
-        <span
-          className="shrink-0 font-semibold tabular-nums text-[#18181B]"
-          style={{ fontSize: 11, lineHeight: "14px" }}
-        >
-          {formatScore(match.team_a_score)}-{formatScore(match.team_b_score)}
-        </span>
-        <span
-          className="flex-1 min-w-0 truncate text-[#18181B] text-right font-medium"
-          style={{ fontSize: 11, lineHeight: "14px" }}
-          title={teamBTitle}
-        >
-          {teamB}
-        </span>
+
+      <div className="flex items-center gap-2">
+        <div className="flex-1 flex flex-col gap-1.5 min-w-0">
+          {teamAName ? (
+            <span
+              className="font-semibold truncate text-[#151C27]"
+              style={{ fontSize: 11, lineHeight: "13px" }}
+            >
+              {teamAName}
+            </span>
+          ) : null}
+          {teamA.map((player, idx) => (
+            <PlayerNameRow
+              key={`${match.guid}-hist-a-${player.guid || idx}`}
+              player={player}
+              align="left"
+              size="sm"
+            />
+          ))}
+        </div>
+
+        <div className="flex items-center gap-1 shrink-0">
+          <div
+            className="w-8 h-9 flex items-center justify-center"
+            style={{ background: "#F0F3FF", borderRadius: "4px" }}
+          >
+            <span className="font-normal text-[#18181B]" style={{ fontSize: 13 }}>
+              {formatScore(match.team_a_score)}
+            </span>
+          </div>
+          <span className="font-bold text-[#D4D4D8]" style={{ fontSize: 12 }}>
+            -
+          </span>
+          <div
+            className="w-8 h-9 flex items-center justify-center"
+            style={{ background: "#F0F3FF", borderRadius: "4px" }}
+          >
+            <span className="font-normal text-[#18181B]" style={{ fontSize: 13 }}>
+              {formatScore(match.team_b_score)}
+            </span>
+          </div>
+        </div>
+
+        <div className="flex-1 flex flex-col gap-1.5 items-end min-w-0">
+          {teamBName ? (
+            <span
+              className="font-semibold truncate text-right text-[#151C27]"
+              style={{ fontSize: 11, lineHeight: "13px" }}
+            >
+              {teamBName}
+            </span>
+          ) : null}
+          {teamB.map((player, idx) => (
+            <PlayerNameRow
+              key={`${match.guid}-hist-b-${player.guid || idx}`}
+              player={player}
+              align="right"
+              size="sm"
+            />
+          ))}
+        </div>
       </div>
     </div>
   );
@@ -513,7 +539,7 @@ function HistoricalRoundsMarquee({
       >
         <div className="live-scoreboard-marquee flex w-max py-1">
           {[0, 1].map((copy) => (
-            <div key={`hist-copy-${copy}`} className="flex gap-2 pr-2">
+            <div key={`hist-copy-${copy}`} className="flex gap-3 pr-3">
               {items.map((item) => (
                 <HistoricalMatchCard
                   key={`${copy}-${item.key}`}

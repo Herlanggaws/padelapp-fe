@@ -8,6 +8,9 @@ import type {
   FetchEventsParams,
   FetchEventsSuccessResponse,
   FetchEventsErrorResponse,
+  FetchPlayedEventsParams,
+  FetchPlayedEventsSuccessResponse,
+  FetchPlayedEventsErrorResponse,
   FetchClubEventsParams,
   FetchClubEventsSuccessResponse,
   FetchClubEventsErrorResponse,
@@ -56,6 +59,9 @@ export type {
   FetchEventsParams,
   FetchEventsSuccessResponse,
   FetchEventsErrorResponse,
+  FetchPlayedEventsParams,
+  FetchPlayedEventsSuccessResponse,
+  FetchPlayedEventsErrorResponse,
   FetchClubEventsParams,
   FetchClubEventsSuccessResponse,
   FetchClubEventsErrorResponse,
@@ -110,6 +116,17 @@ export async function fetchEvents(
   const { page = 1, limit = 10 } = params;
   const { data } = await apiClient.get<FetchEventsSuccessResponse>(
     "/padel/event",
+    { params: { page, limit } },
+  );
+  return data;
+}
+
+export async function fetchPlayedEvents(
+  params: FetchPlayedEventsParams = {},
+): Promise<FetchPlayedEventsSuccessResponse> {
+  const { page = 1, limit = 10 } = params;
+  const { data } = await apiClient.get<FetchPlayedEventsSuccessResponse>(
+    "/padel/event/played",
     { params: { page, limit } },
   );
   return data;

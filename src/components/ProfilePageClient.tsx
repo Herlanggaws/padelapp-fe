@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import Link from "next/link";
 import { useEffect, useState } from "react";
 
 function getInitials(name: string | undefined | null): string {
@@ -116,7 +117,10 @@ export default function ProfilePageClient() {
         </section>
 
         <section className="w-full">
-          <div className="border border-[#F2F2F2] rounded-2xl overflow-hidden bg-white p-4 flex flex-col gap-2">
+          <Link
+            href="/profile/matches"
+            className="border border-[#F2F2F2] rounded-2xl overflow-hidden bg-white p-4 flex flex-col gap-2"
+          >
             <div className="flex items-center gap-2">
               <svg
                 width="16"
@@ -136,7 +140,7 @@ export default function ProfilePageClient() {
             <span className="font-semibold text-xl text-[#151C27]">
               {profile?.events_played ?? "—"}
             </span>
-          </div>
+          </Link>
         </section>
 
         {profile && (

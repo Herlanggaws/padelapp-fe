@@ -364,3 +364,76 @@ export interface DuplicateEventSuccessResponse {
 export interface DuplicateEventErrorResponse {
   message: string;
 }
+
+export interface PlayedEventSummary {
+  guid: string;
+  name: string;
+  date_time: string;
+  club_guid: string;
+  club_name: string;
+  is_finished: boolean;
+  format: string;
+}
+
+export interface PlayedEventRankPoints {
+  rank: number;
+  base_points: number;
+  session_tier: string;
+  multiplier: number;
+  final_points: number;
+}
+
+export interface PlayedEventPlayer {
+  guid: string;
+  name: string;
+  profile_photo: string;
+}
+
+export interface PlayedEventTeam {
+  players: PlayedEventPlayer[];
+}
+
+export type PlayedEventViewerSide = "a" | "b";
+
+export interface PlayedEventMatch {
+  guid: string;
+  court_number: number;
+  team_a: PlayedEventTeam;
+  team_b: PlayedEventTeam;
+  team_a_score: number;
+  team_b_score: number;
+  viewer_side: PlayedEventViewerSide;
+}
+
+export interface PlayedEventRound {
+  round_number: number;
+  round_guid: string;
+  status: string;
+  match: PlayedEventMatch | null;
+}
+
+export interface PlayedEvent {
+  event: PlayedEventSummary;
+  rank_points: PlayedEventRankPoints;
+  rounds: PlayedEventRound[];
+}
+
+export interface FetchPlayedEventsParams {
+  page?: number;
+  limit?: number;
+}
+
+export interface FetchPlayedEventsSuccessResponse {
+  data: PlayedEvent[];
+  message: string;
+  paginate: {
+    current_page: number;
+    per_page: number;
+    total_page: number;
+    total_data: number;
+  };
+}
+
+export interface FetchPlayedEventsErrorResponse {
+  message: string;
+}

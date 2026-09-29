@@ -126,6 +126,8 @@ function PlayedRoundRow({ round }: { round: PlayedEventRound }) {
 
 function PlayedEventCard({ played }: { played: PlayedEvent }) {
   const { event, rank_points: rankPoints, rounds } = played;
+  const [areRoundsVisible, setAreRoundsVisible] = useState(false);
+  const roundCountLabel = `${rounds.length} ${rounds.length === 1 ? "round" : "rounds"}`;
 
   return (
     <article className="border border-[#F2F2F2] rounded-2xl bg-white p-4 flex flex-col gap-3">
@@ -153,9 +155,36 @@ function PlayedEventCard({ played }: { played: PlayedEvent }) {
           </span>
         </div>
       </div>
-      {rounds.map((round) => (
-        <PlayedRoundRow key={round.round_guid} round={round} />
-      ))}
+      {rounds.length > 0 && (
+        <button
+          type="button"
+          aria-expanded={areRoundsVisible}
+          onClick={() => setAreRoundsVisible((visible) => !visible)}
+          className="flex items-center justify-between border-t border-[#F2F2F2] pt-3 text-xs font-medium text-[#5F5E5E]"
+        >
+          <span>{roundCountLabel}</span>
+          <span className="flex items-center gap-1">
+            {areRoundsVisible ? "Hide" : "Show"}
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className={areRoundsVisible ? "rotate-180" : undefined}
+            >
+              <path d="m6 9 6 6 6-6" />
+            </svg>
+          </span>
+        </button>
+      )}
+      {areRoundsVisible &&
+        rounds.map((round) => (
+          <PlayedRoundRow key={round.round_guid} round={round} />
+        ))}
     </article>
   );
 }

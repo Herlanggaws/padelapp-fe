@@ -31,8 +31,8 @@ type ScoreType = "Total Set Point" | "Race to X Point";
 type SortBy = "Wins" | "Points";
 
 const totalSetPointRows: number[][] = [
-  [4, 8, 12, 16],
-  [21, 24, 32],
+  [4, 5, 8, 12],
+  [16, 21, 24, 32],
 ];
 
 const raceToXPointRows: number[][] = [[3, 4, 5, 6, 7]];

@@ -1,8 +1,11 @@
+import type { Sport, SportScope } from "@/types/sport";
+
 export interface CreateClubPayload {
   name: string;
   description?: string;
   cover_photo?: string;
   logo?: string;
+  sport_type?: SportScope;
 }
 
 export interface CreateClubSuccessResponse {
@@ -12,6 +15,7 @@ export interface CreateClubSuccessResponse {
 
 export interface CreateClubErrorResponse {
   message: string;
+  error?: Record<string, string>;
 }
 
 export interface UpdateClubPayload {
@@ -19,6 +23,7 @@ export interface UpdateClubPayload {
   description?: string;
   cover_photo?: string;
   logo?: string;
+  sport_type?: SportScope;
 }
 
 export interface UpdateClubSuccessResponse {
@@ -28,6 +33,7 @@ export interface UpdateClubSuccessResponse {
 
 export interface UpdateClubErrorResponse {
   message: string;
+  error?: Record<string, string>;
 }
 
 // Explore Clubs types
@@ -40,6 +46,7 @@ export interface Club {
   is_active: boolean;
   number_of_members?: number;
   rating?: number;
+  sport_type?: SportScope;
   is_joined?: boolean;
   is_member?: boolean;
   is_host?: boolean;
@@ -64,6 +71,7 @@ export interface FetchClubsParams {
   direction?: "asc" | "desc";
   page?: number;
   limit?: number;
+  sport?: SportScope;
 }
 
 export interface FetchClubsPaginate {
@@ -126,6 +134,7 @@ export interface FetchClubMembersParams {
   direction?: "asc" | "desc";
   page?: number;
   limit?: number;
+  sport?: Sport;
 }
 
 export interface FetchClubMembersPaginate {

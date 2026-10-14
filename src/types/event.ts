@@ -1,3 +1,5 @@
+import type { Sport } from "@/types/sport";
+
 export interface PendingRequestUser {
   guid: string;
   name: string;
@@ -104,6 +106,7 @@ export interface CreateEventPayload {
   number_of_players: number;
   min_level: number;
   max_level: number;
+  sport?: Sport;
 }
 
 export interface CreateEventSuccessResponse {
@@ -113,6 +116,7 @@ export interface CreateEventSuccessResponse {
 
 export interface CreateEventErrorResponse {
   message: string;
+  error?: Record<string, string>;
 }
 
 export interface UpdateEventPayload {
@@ -123,6 +127,7 @@ export interface UpdateEventPayload {
   number_of_players: number;
   min_level: number;
   max_level: number;
+  sport?: Sport;
 }
 
 export interface UpdateEventSuccessResponse {
@@ -132,6 +137,7 @@ export interface UpdateEventSuccessResponse {
 
 export interface UpdateEventErrorResponse {
   message: string;
+  error?: Record<string, string>;
 }
 
 export interface Event {
@@ -144,6 +150,7 @@ export interface Event {
   number_of_participants: number;
   min_level: number;
   max_level: number;
+  sport?: Sport;
   is_active: boolean;
   is_finished: boolean;
   is_joined: boolean;
@@ -168,6 +175,7 @@ export interface UpcomingEvent {
   number_of_participants: number;
   min_level: number;
   max_level: number;
+  sport?: Sport;
   is_active: boolean;
   is_joined: boolean;
   is_host: boolean;
@@ -180,6 +188,7 @@ export interface UpcomingEvent {
 export interface FetchUpcomingEventsParams {
   page?: number;
   limit?: number;
+  sport?: Sport;
 }
 
 export interface FetchUpcomingEventsSuccessResponse {
@@ -200,6 +209,7 @@ export interface FetchUpcomingEventsErrorResponse {
 export interface FetchEventsParams {
   page?: number;
   limit?: number;
+  sport?: Sport;
 }
 
 export interface FetchEventsSuccessResponse {
@@ -223,6 +233,7 @@ export interface FetchClubEventsParams {
   direction?: string;
   page?: number;
   limit?: number;
+  sport?: Sport;
 }
 
 export interface FetchClubEventsSuccessResponse {
@@ -373,6 +384,7 @@ export interface PlayedEventSummary {
   club_name: string;
   is_finished: boolean;
   format: string;
+  sport?: Sport;
 }
 
 export interface PlayedEventRankPoints {
@@ -421,6 +433,7 @@ export interface PlayedEvent {
 export interface FetchPlayedEventsParams {
   page?: number;
   limit?: number;
+  sport?: Sport;
 }
 
 export interface FetchPlayedEventsSuccessResponse {

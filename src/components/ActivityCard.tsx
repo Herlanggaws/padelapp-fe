@@ -1,6 +1,8 @@
 "use client";
 
 import Link from "next/link";
+import SportBadge from "@/components/SportBadge";
+import type { Sport } from "@/types/sport";
 
 interface ActivityCardProps {
   day: string;
@@ -8,6 +10,7 @@ interface ActivityCardProps {
   title: string;
   subtitle?: string;
   link?: string;
+  sport?: Sport;
   onJoin?: () => void;
 }
 
@@ -17,6 +20,7 @@ export default function ActivityCard({
   title,
   subtitle,
   link,
+  sport,
   onJoin,
 }: ActivityCardProps) {
   const card = (
@@ -40,12 +44,15 @@ export default function ActivityCard({
           </span>
         </div>
         <div className="flex flex-col gap-1">
-          <span
-            className="text-base text-[#151C27]"
-            style={{ lineHeight: "24px" }}
-          >
-            {title}
-          </span>
+          <div className="flex items-center gap-2">
+            <span
+              className="text-base text-[#151C27]"
+              style={{ lineHeight: "24px" }}
+            >
+              {title}
+            </span>
+            {sport && <SportBadge sport={sport} />}
+          </div>
           {subtitle && (
             <span
               className="text-xs text-[#41493A]"

@@ -7,10 +7,10 @@ const gaMeasurementId = process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID;
 
 export const metadata: Metadata = {
   title: {
-    template: "Padel App | %s",
-    default: "Padel App",
+    template: "RallyRank | %s",
+    default: "RallyRank",
   },
-  description: "Book courts and join padel matches",
+  description: "Matchmaking, events and rankings for padel and tennis",
 };
 
 export default function RootLayout({

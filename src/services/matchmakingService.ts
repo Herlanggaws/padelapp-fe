@@ -1,4 +1,5 @@
 import type {
+  MatchmakingMatchType,
   CreateMatchmakingSessionPayload,
   CreateMatchmakingSessionSuccessResponse,
   CreateMatchmakingSessionErrorResponse,
@@ -31,6 +32,7 @@ import type {
 import apiClient from "@/lib/apiClient";
 
 export type {
+  MatchmakingMatchType,
   CreateMatchmakingSessionPayload,
   CreateMatchmakingSessionSuccessResponse,
   CreateMatchmakingSessionErrorResponse,

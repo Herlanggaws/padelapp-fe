@@ -107,7 +107,7 @@ export default function LoginForm() {
                 className="font-semibold text-[28px] text-[#151C27] text-center uppercase tracking-tight"
                 style={{ lineHeight: "33.6px" }}
               >
-                PADEL
+                RALLYRANK
               </h1>
             </div>
             {/* Subtitle */}

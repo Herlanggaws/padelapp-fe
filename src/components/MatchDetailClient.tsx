@@ -372,6 +372,7 @@ function parseScoreDisplay(display: string): number | null {
 function playersToMatchPlayers(
   players: MatchmakingSessionPlayer[],
   side: "left" | "right",
+  isSingles = false,
 ): MatchPlayer[] {
   const slot = (
     player: MatchmakingSessionPlayer | null | undefined,
@@ -387,6 +388,12 @@ function playersToMatchPlayers(
       participantGuid: guid,
     };
   };
+  if (isSingles) {
+    if (players.length === 0) {
+      return [{ name: "TBD", avatarSeed: `tbd-${side}-1`, side }];
+    }
+    return [slot(players[0], 1)];
+  }
   if (players.length === 0) {
     return [
       { name: "TBD", avatarSeed: `tbd-${side}-1`, side },
@@ -398,7 +405,7 @@ function playersToMatchPlayers(
 
 function mapMatchToCard(
   m: MatchmakingSessionMatch,
-  opts: { timeLabel: string; isLive: boolean; isFeatured: boolean },
+  opts: { timeLabel: string; isLive: boolean; isFeatured: boolean; isSingles?: boolean },
   teamsByGuid: Map<string, MatchmakingSessionTeam>,
 ): MatchCard {
   return {
@@ -410,10 +417,12 @@ function mapMatchToCard(
     teamA: playersToMatchPlayers(
       resolveMatchSidePlayers(m, "a", teamsByGuid),
       "left",
+      opts.isSingles,
     ),
     teamB: playersToMatchPlayers(
       resolveMatchSidePlayers(m, "b", teamsByGuid),
       "right",
+      opts.isSingles,
     ),
     teamAName: resolveMatchSideTeamName(m, "a", teamsByGuid),
     teamBName: resolveMatchSideTeamName(m, "b", teamsByGuid),
@@ -445,6 +454,7 @@ function mapDetailToRounds(detail: MatchmakingSessionDetail): Round[] {
             timeLabel,
             isLive: isRoundLive,
             isFeatured: false,
+            isSingles: detail.match_type === "singles",
           },
           teamsByGuid,
         ),

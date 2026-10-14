@@ -1,24 +1,57 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import TopAppBar from "@/components/TopAppBar";
 import LevelRangeSlider from "@/components/LevelRangeSlider";
 import { createEvent } from "@/services/eventService";
+import { fetchClubDetail } from "@/services/clubService";
 import type { CreateEventErrorResponse } from "@/types/event";
+import type { Sport, SportScope } from "@/types/sport";
 import { useSnackbar } from "@/context/SnackbarContext";
+
+const EVENT_SPORT_OPTIONS: { value: Sport; label: string }[] = [
+  { value: "padel", label: "Padel" },
+  { value: "tennis", label: "Tennis" },
+];
 
 interface CreateEventFormProps {
   clubGuid: string;
   clubId: string;
+  clubSportType?: SportScope;
 }
 
 export default function CreateEventForm({
   clubGuid,
   clubId,
+  clubSportType,
 }: CreateEventFormProps) {
   const router = useRouter();
   const { showSnackbar } = useSnackbar();
+
+  const [resolvedClubSportType, setResolvedClubSportType] =
+    useState<SportScope | null>(clubSportType ?? null);
+
+  useEffect(() => {
+    if (clubSportType) return;
+    fetchClubDetail(clubGuid)
+      .then((res) => {
+        setResolvedClubSportType(res.data.sport_type ?? "padel");
+      })
+      .catch(() => {
+        setResolvedClubSportType("padel");
+      });
+  }, [clubGuid, clubSportType]);
+
+  const effectiveClubSportType = clubSportType ?? resolvedClubSportType;
+
+  const [userSelectedSport, setUserSelectedSport] = useState<Sport | null>(null);
+  const selectedSport: Sport =
+    effectiveClubSportType === "tennis"
+      ? "tennis"
+      : effectiveClubSportType === "padel"
+        ? "padel"
+        : userSelectedSport ?? "padel";
 
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
@@ -34,6 +67,14 @@ export default function CreateEventForm({
 
     setIsSubmitting(true);
     setErrorMessage(null);
+
+    const finalSport: Sport =
+      effectiveClubSportType === "tennis"
+        ? "tennis"
+        : effectiveClubSportType === "padel"
+          ? "padel"
+          : selectedSport;
+
     try {
       await createEvent({
         club_guid: clubGuid,
@@ -43,12 +84,15 @@ export default function CreateEventForm({
         number_of_players: Number(numberOfPlayers),
         min_level: minLevel,
         max_level: maxLevel,
+        sport: finalSport,
       });
       showSnackbar("Event created successfully");
       router.push(`/clubs/${clubId}`);
     } catch (err) {
       const e = err as CreateEventErrorResponse;
-      setErrorMessage(e?.message ?? "Failed to create event.");
+      setErrorMessage(
+        e?.error?.sport ?? e?.message ?? "Failed to create event.",
+      );
     } finally {
       setIsSubmitting(false);
     }
@@ -79,6 +123,45 @@ export default function CreateEventForm({
 
         <div className="flex flex-col gap-6 px-4">
           <div className="flex flex-col gap-4">
+            {/* Sport Selector - only shown when club offers "both" */}
+            {effectiveClubSportType === "both" && (
+              <div className="flex flex-col gap-2">
+                <div className="pl-1">
+                  <label
+                    className="text-xs text-[#151C27]"
+                    style={{ lineHeight: "12px" }}
+                  >
+                    Sport
+                  </label>
+                </div>
+                <div
+                  role="radiogroup"
+                  aria-label="Sport"
+                  className="grid grid-cols-2 gap-2 pt-2"
+                >
+                  {EVENT_SPORT_OPTIONS.map((opt) => {
+                    const isSelected = selectedSport === opt.value;
+                    return (
+                      <button
+                        key={opt.value}
+                        type="button"
+                        role="radio"
+                        aria-checked={isSelected}
+                        onClick={() => setUserSelectedSport(opt.value)}
+                        className={`flex items-center justify-center py-3 px-4 rounded-xl text-sm font-semibold border transition-all ${
+                          isSelected
+                            ? "bg-[#18181B] text-[#9FE870] border-[#18181B] shadow-sm"
+                            : "bg-[#F0F3FF] text-[#151C27] border-[#C1CAB5] hover:border-[#18181B]"
+                        }`}
+                      >
+                        {opt.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
             {/* Event Name */}
             <div className="flex flex-col gap-2">
               <div className="pl-1">

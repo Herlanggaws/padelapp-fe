@@ -1,3 +1,5 @@
+import type { Sport, SportScope } from "@/types/sport";
+
 export interface RefreshTokenPayload {
   refresh_token: string;
 }
@@ -23,6 +25,7 @@ export interface RegisterPayload {
   email: string;
   password: string;
   user_agent: string;
+  preferred_sports?: SportScope;
 }
 
 export interface RegisterErrorResponse {
@@ -100,6 +103,11 @@ export interface ChangePasswordErrorResponse {
   error?: Record<string, string>;
 }
 
+export interface SportRankPoints {
+  rank_points: number;
+  events_played: number;
+}
+
 export interface UserProfile {
   guid: string;
   name: string;
@@ -111,10 +119,33 @@ export interface UserProfile {
   active_by: string | null;
   rank_points: number;
   events_played: number;
+  preferred_sports?: SportScope | null;
+  rank_points_by_sport?: Record<Sport, SportRankPoints>;
   created_at: string;
   created_by: string | null;
   updated_at: string | null;
   updated_by: string | null;
+}
+
+export interface UpdateUserProfilePayload {
+  name?: string;
+  email?: string;
+  password?: string;
+  preferred_sports?: SportScope;
+}
+
+export interface UpdatePreferredSportsPayload {
+  preferred_sports: SportScope;
+}
+
+export interface UpdateUserProfileSuccessResponse {
+  data: null | UserProfile;
+  message: string;
+}
+
+export interface UpdateUserProfileErrorResponse {
+  message: string;
+  error?: Record<string, string>;
 }
 
 export interface GetUserProfileSuccessResponse {

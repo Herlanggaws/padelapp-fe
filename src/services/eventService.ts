@@ -102,10 +102,14 @@ export type {
 export async function fetchUpcomingEvents(
   params: FetchUpcomingEventsParams = {},
 ): Promise<FetchUpcomingEventsSuccessResponse> {
-  const { page = 1, limit = 10 } = params;
+  const { page = 1, limit = 10, sport } = params;
+  const queryParams: Record<string, unknown> = { page, limit };
+  if (sport && (sport as string) !== "all") {
+    queryParams.sport = sport;
+  }
   const { data } = await apiClient.get<FetchUpcomingEventsSuccessResponse>(
     "/padel/event/upcoming",
-    { params: { page, limit } },
+    { params: queryParams },
   );
   return data;
 }
@@ -113,10 +117,14 @@ export async function fetchUpcomingEvents(
 export async function fetchEvents(
   params: FetchEventsParams = {},
 ): Promise<FetchEventsSuccessResponse> {
-  const { page = 1, limit = 10 } = params;
+  const { page = 1, limit = 10, sport } = params;
+  const queryParams: Record<string, unknown> = { page, limit };
+  if (sport && (sport as string) !== "all") {
+    queryParams.sport = sport;
+  }
   const { data } = await apiClient.get<FetchEventsSuccessResponse>(
     "/padel/event",
-    { params: { page, limit } },
+    { params: queryParams },
   );
   return data;
 }
@@ -124,10 +132,14 @@ export async function fetchEvents(
 export async function fetchPlayedEvents(
   params: FetchPlayedEventsParams = {},
 ): Promise<FetchPlayedEventsSuccessResponse> {
-  const { page = 1, limit = 10 } = params;
+  const { page = 1, limit = 10, sport } = params;
+  const queryParams: Record<string, unknown> = { page, limit };
+  if (sport && (sport as string) !== "all") {
+    queryParams.sport = sport;
+  }
   const { data } = await apiClient.get<FetchPlayedEventsSuccessResponse>(
     "/padel/event/played",
-    { params: { page, limit } },
+    { params: queryParams },
   );
   return data;
 }
@@ -141,10 +153,21 @@ export async function fetchClubEvents(
     direction = "ASC",
     page = 1,
     limit = 10,
+    sport,
   } = params;
+  const queryParams: Record<string, unknown> = {
+    club_guid,
+    sort,
+    direction,
+    page,
+    limit,
+  };
+  if (sport && (sport as string) !== "all") {
+    queryParams.sport = sport;
+  }
   const { data } = await apiClient.get<FetchClubEventsSuccessResponse>(
     "/padel/event",
-    { params: { club_guid, sort, direction, page, limit } },
+    { params: queryParams },
   );
   return data;
 }

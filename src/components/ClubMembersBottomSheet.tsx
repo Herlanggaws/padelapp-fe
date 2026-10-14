@@ -4,8 +4,12 @@ import { useState, useEffect, useRef } from "react";
 import { fetchClubMembers } from "@/services/clubService";
 import type { ClubMember } from "@/types/club";
 
+import type { SportScope, Sport } from "@/types/sport";
+import SportFilterChips from "@/components/SportFilterChips";
+
 interface ClubMembersBottomSheetProps {
   clubGuid: string;
+  sportType?: SportScope;
   onClose: () => void;
 }
 
@@ -13,16 +17,19 @@ const PAGE_SIZE = 5;
 
 export default function ClubMembersBottomSheet({
   clubGuid,
+  sportType,
   onClose,
 }: ClubMembersBottomSheetProps) {
   const [members, setMembers] = useState<ClubMember[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [hasMore, setHasMore] = useState(true);
   const [isVisible, setIsVisible] = useState(false);
+  const [selectedSport, setSelectedSport] = useState<Sport | "all">("all");
   const sentinelRef = useRef<HTMLDivElement | null>(null);
   const pageRef = useRef(1);
   const isFetchingRef = useRef(false);
   const clubGuidRef = useRef(clubGuid);
+  const sportRef = useRef(selectedSport);
 
   // Animate in on mount + lock body scroll
   useEffect(() => {
@@ -50,6 +57,7 @@ export default function ClubMembersBottomSheet({
         club_guid: clubGuidRef.current,
         page: currentPage,
         limit: PAGE_SIZE,
+        sport: sportRef.current === "all" ? undefined : (sportRef.current as Sport),
       });
       const newMembers = res.data;
       if (reset) {
@@ -66,6 +74,15 @@ export default function ClubMembersBottomSheet({
       setIsLoading(false);
       isFetchingRef.current = false;
     }
+  };
+
+  const handleSportChange = (sport: string) => {
+    const s = sport as Sport | "all";
+    setSelectedSport(s);
+    sportRef.current = s;
+    pageRef.current = 1;
+    isFetchingRef.current = false;
+    loadNextPage(true);
   };
 
   // Initial load when clubGuid changes
@@ -152,6 +169,17 @@ export default function ClubMembersBottomSheet({
             </svg>
           </button>
         </div>
+
+        {/* Sport toggle for both clubs */}
+        {sportType === "both" && (
+          <div className="px-6 pt-3 pb-1">
+            <SportFilterChips
+              options={["all", "padel", "tennis"]}
+              selected={selectedSport}
+              onChange={handleSportChange}
+            />
+          </div>
+        )}
 
         {/* Scrollable Member List */}
         <div className="flex flex-col overflow-y-auto overscroll-contain px-6 py-4">

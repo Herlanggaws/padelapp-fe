@@ -51,3 +51,14 @@ All TypeScript `interface` and `type` declarations must live in `src/types/` —
   import type { LoginErrorResponse } from "@/types/auth";
   ```
 - **Re-export from service when needed** — if consumers currently import a type via the service path, the service may re-export it from `@/types/` for backwards compatibility, but the source of truth is always `src/types/`.
+
+<!-- CODEGRAPH_START -->
+## CodeGraph
+
+In repositories indexed by CodeGraph (a `.codegraph/` directory exists at the repo root), reach for it BEFORE grep/find or reading files when you need to understand or locate code:
+
+- **MCP tool** (when available): `codegraph_explore` answers most code questions in one call — the relevant symbols' verbatim source plus the call paths between them, including dynamic-dispatch hops grep can't follow. Name a file or symbol in the query to read its current line-numbered source. If it's listed but deferred, load it by name via tool search.
+- **Shell** (always works): `codegraph explore "<symbol names or question>"` prints the same output.
+
+If there is no `.codegraph/` directory, skip CodeGraph entirely — indexing is the user's decision.
+<!-- CODEGRAPH_END -->

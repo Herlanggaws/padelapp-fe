@@ -5,13 +5,23 @@ import Image from "next/image";
 import Link from "next/link";
 import TopAppBar from "@/components/TopAppBar";
 import BottomNavBar from "@/components/BottomNavBar";
+import SportFilterChips, {
+  type SportFilterOption,
+} from "@/components/SportFilterChips";
+import SportBadge from "@/components/SportBadge";
 import { fetchClubs } from "@/services/clubService";
+import { defaultClubFilter } from "@/lib/sport";
+import { getUserProfileCache } from "@/lib/userProfileCache";
 import type { Club } from "@/types/club";
+import type { SportScope } from "@/types/sport";
 
 const PAGE_LIMIT = 10;
 
 export default function ExploreClubsClient() {
   const [searchQuery, setSearchQuery] = useState("");
+  const [selectedSport, setSelectedSport] = useState<SportFilterOption>(() =>
+    defaultClubFilter(getUserProfileCache()?.preferred_sports ?? null),
+  );
   const [clubs, setClubs] = useState<Club[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
@@ -20,44 +30,54 @@ export default function ExploreClubsClient() {
   const sentinelRef = useRef<HTMLDivElement>(null);
   const pageRef = useRef(1);
   const activeSearchRef = useRef(searchQuery);
+  const activeSportRef = useRef(selectedSport);
 
-  const loadClubs = useCallback(async (search: string, pageNum: number) => {
-    if (pageNum === 1) setIsLoading(true);
-    else setIsLoadingMore(true);
-    setError(null);
-    try {
-      const result = await fetchClubs({
-        ...(search ? { search } : {}),
-        page: pageNum,
-        limit: PAGE_LIMIT,
-      });
-      const incoming = result.data ?? [];
-      setClubs((prev) => (pageNum === 1 ? incoming : [...prev, ...incoming]));
-      const paginate = result.paginate;
-      setHasMore(
-        paginate
-          ? pageNum < paginate.total_page
-          : incoming.length === PAGE_LIMIT,
-      );
-    } catch {
-      setError("Failed to load clubs. Please try again.");
-    } finally {
-      if (pageNum === 1) setIsLoading(false);
-      else setIsLoadingMore(false);
-    }
-  }, []);
+  const loadClubs = useCallback(
+    async (search: string, pageNum: number, sport: SportFilterOption) => {
+      if (pageNum === 1) setIsLoading(true);
+      else setIsLoadingMore(true);
+      setError(null);
+      try {
+        const result = await fetchClubs({
+          ...(search ? { search } : {}),
+          page: pageNum,
+          limit: PAGE_LIMIT,
+          sport: sport === "all" ? undefined : (sport as SportScope),
+        });
+        const incoming = result.data ?? [];
+        setClubs((prev) => (pageNum === 1 ? incoming : [...prev, ...incoming]));
+        const paginate = result.paginate;
+        setHasMore(
+          paginate
+            ? pageNum < paginate.total_page
+            : incoming.length === PAGE_LIMIT,
+        );
+      } catch {
+        setError("Failed to load clubs. Please try again.");
+      } finally {
+        if (pageNum === 1) setIsLoading(false);
+        else setIsLoadingMore(false);
+      }
+    },
+    [],
+  );
+
+  const handleSportChange = (sport: SportFilterOption) => {
+    setSelectedSport(sport);
+    activeSportRef.current = sport;
+    pageRef.current = 1;
+    loadClubs(activeSearchRef.current, 1, sport);
+  };
 
   // Reset and search when query changes (debounced)
   useEffect(() => {
     activeSearchRef.current = searchQuery;
     const timer = setTimeout(() => {
       pageRef.current = 1;
-      loadClubs(searchQuery, 1);
+      loadClubs(searchQuery, 1, activeSportRef.current);
     }, 400);
     return () => clearTimeout(timer);
-    // loadClubs is stable (useCallback with no deps), safe to omit
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchQuery]);
+  }, [searchQuery, loadClubs]);
 
   // IntersectionObserver triggers page increment
   useEffect(() => {
@@ -73,7 +93,7 @@ export default function ExploreClubsClient() {
         ) {
           const next = pageRef.current + 1;
           pageRef.current = next;
-          loadClubs(activeSearchRef.current, next);
+          loadClubs(activeSearchRef.current, next, activeSportRef.current);
         }
       },
       { threshold: 0.1 },
@@ -116,28 +136,14 @@ export default function ExploreClubsClient() {
               style={{ boxShadow: "0px 1px 2px 0px rgba(0,0,0,0.05)" }}
             />
           </div>
-          {/* Filter icon */}
-          {/* <button
-            className="flex items-center justify-center w-12 h-12 rounded-full border border-[#F4F4F5] bg-white flex-shrink-0"
-            style={{ boxShadow: "0px 1px 2px 0px rgba(0,0,0,0.05)" }}
-            aria-label="Filter"
-          >
-            <svg
-              width="20"
-              height="20"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="#18181B"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <line x1="4" y1="6" x2="20" y2="6" />
-              <line x1="8" y1="12" x2="16" y2="12" />
-              <line x1="11" y1="18" x2="13" y2="18" />
-            </svg>
-          </button> */}
         </div>
+
+        {/* Sport Filter Chips */}
+        <SportFilterChips
+          options={["all", "padel", "tennis", "both"]}
+          selected={selectedSport}
+          onChange={handleSportChange}
+        />
 
         {/* Club List */}
         <div className="flex flex-col gap-4 pt-2">
@@ -160,7 +166,7 @@ export default function ExploreClubsClient() {
             <div className="flex flex-col items-center justify-center py-16 text-center">
               <p className="text-[#A1A1AA] text-base">{error}</p>
               <button
-                onClick={() => loadClubs(searchQuery, 1)}
+                onClick={() => loadClubs(searchQuery, 1, activeSportRef.current)}
                 className="mt-4 px-6 py-2 bg-[#9FE870] text-[#18181B] rounded-full text-sm font-semibold"
               >
                 Retry
@@ -277,14 +283,15 @@ function ClubCard({ club }: ClubCardProps) {
 
       {/* Card Body */}
       <div className="flex flex-col gap-2 p-4">
-        {/* Club Name */}
-        <div>
+        {/* Club Name & SportBadge */}
+        <div className="flex items-center justify-between gap-2">
           <h3
             className="text-base text-[#18181B]"
             style={{ lineHeight: "24px" }}
           >
             {club.name}
           </h3>
+          <SportBadge sportType={club.sport_type} />
         </div>
 
         {/* Members row */}

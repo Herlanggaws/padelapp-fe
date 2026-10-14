@@ -2,12 +2,19 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import TopAppBar from "@/components/TopAppBar";
+import SportBadge from "@/components/SportBadge";
+import SportFilterChips, {
+  type SportFilterOption,
+} from "@/components/SportFilterChips";
 import { fetchPlayedEvents } from "@/services/eventService";
+import { defaultEventFilter } from "@/lib/sport";
+import { getUserProfileCache } from "@/lib/userProfileCache";
 import type {
   PlayedEvent,
   PlayedEventPlayer,
   PlayedEventRound,
 } from "@/types/event";
+import type { Sport } from "@/types/sport";
 
 const PAGE_LIMIT = 10;
 
@@ -133,9 +140,12 @@ function PlayedEventCard({ played }: { played: PlayedEvent }) {
     <article className="border border-[#F2F2F2] rounded-2xl bg-white p-4 flex flex-col gap-3">
       <div className="flex items-start justify-between gap-3">
         <div className="flex flex-col gap-1 min-w-0">
-          <span className="text-[10px] font-normal text-[#A1A1AA] tracking-[0.1em] uppercase">
-            {formatToken(event.format)}
-          </span>
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="text-[10px] font-normal text-[#A1A1AA] tracking-[0.1em] uppercase">
+              {formatToken(event.format)}
+            </span>
+            <SportBadge sport={event.sport} />
+          </div>
           <h2 className="text-base font-semibold text-[#151C27] leading-6">
             {event.name}
           </h2>
@@ -190,6 +200,9 @@ function PlayedEventCard({ played }: { played: PlayedEvent }) {
 }
 
 export default function MatchHistoryClient() {
+  const [selectedSport, setSelectedSport] = useState<SportFilterOption>(() =>
+    defaultEventFilter(getUserProfileCache()?.preferred_sports ?? null),
+  );
   const [events, setEvents] = useState<PlayedEvent[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
@@ -197,29 +210,44 @@ export default function MatchHistoryClient() {
   const [hasMore, setHasMore] = useState(false);
   const sentinelRef = useRef<HTMLDivElement>(null);
   const pageRef = useRef(1);
+  const activeSportRef = useRef(selectedSport);
 
-  const loadEvents = useCallback(async (pageNum: number) => {
-    if (pageNum === 1) setIsLoading(true);
-    else setIsLoadingMore(true);
-    setError(null);
-    try {
-      const result = await fetchPlayedEvents({ page: pageNum, limit: PAGE_LIMIT });
-      const incoming = result.data ?? [];
-      setEvents((prev) => (pageNum === 1 ? incoming : [...prev, ...incoming]));
-      setHasMore(pageNum < (result.paginate?.total_page ?? 1));
-    } catch {
-      if (pageNum === 1) setEvents([]);
-      else pageRef.current = pageNum - 1;
-      setError("Failed to load match history. Please try again.");
-    } finally {
-      if (pageNum === 1) setIsLoading(false);
-      else setIsLoadingMore(false);
-    }
-  }, []);
+  const loadEvents = useCallback(
+    async (pageNum: number, sport: SportFilterOption) => {
+      if (pageNum === 1) setIsLoading(true);
+      else setIsLoadingMore(true);
+      setError(null);
+      try {
+        const result = await fetchPlayedEvents({
+          page: pageNum,
+          limit: PAGE_LIMIT,
+          sport: sport === "all" ? undefined : (sport as Sport),
+        });
+        const incoming = result.data ?? [];
+        setEvents((prev) => (pageNum === 1 ? incoming : [...prev, ...incoming]));
+        setHasMore(pageNum < (result.paginate?.total_page ?? 1));
+      } catch {
+        if (pageNum === 1) setEvents([]);
+        else pageRef.current = pageNum - 1;
+        setError("Failed to load match history. Please try again.");
+      } finally {
+        if (pageNum === 1) setIsLoading(false);
+        else setIsLoadingMore(false);
+      }
+    },
+    [],
+  );
+
+  const handleSportChange = (sport: SportFilterOption) => {
+    setSelectedSport(sport);
+    activeSportRef.current = sport;
+    pageRef.current = 1;
+    loadEvents(1, sport);
+  };
 
   useEffect(() => {
     pageRef.current = 1;
-    loadEvents(1);
+    loadEvents(1, activeSportRef.current);
   }, [loadEvents]);
 
   useEffect(() => {
@@ -236,7 +264,7 @@ export default function MatchHistoryClient() {
         ) {
           const next = pageRef.current + 1;
           pageRef.current = next;
-          loadEvents(next);
+          loadEvents(next, activeSportRef.current);
         }
       },
       { threshold: 0.1 },
@@ -247,7 +275,7 @@ export default function MatchHistoryClient() {
 
   function retry() {
     pageRef.current = 1;
-    loadEvents(1);
+    loadEvents(1, activeSportRef.current);
   }
 
   return (
@@ -260,6 +288,12 @@ export default function MatchHistoryClient() {
       />
 
       <main className="flex flex-col gap-4 px-4 pt-24 pb-10">
+        <SportFilterChips
+          options={["all", "padel", "tennis"]}
+          selected={selectedSport}
+          onChange={handleSportChange}
+        />
+
         {isLoading ? (
           Array.from({ length: 3 }).map((_, index) => (
             <PlayedEventCardSkeleton key={index} />
@@ -277,7 +311,13 @@ export default function MatchHistoryClient() {
           </div>
         ) : events.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16 text-center">
-            <p className="text-base text-[#151C27]">No matches played yet</p>
+            <p className="text-base text-[#151C27]">
+              {selectedSport === "tennis"
+                ? "No tennis events yet"
+                : selectedSport === "padel"
+                  ? "No padel events yet"
+                  : "No matches played yet"}
+            </p>
           </div>
         ) : (
           events.map((played) => (

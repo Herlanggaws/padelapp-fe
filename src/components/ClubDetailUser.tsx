@@ -7,6 +7,12 @@ import ActivityCard from "@/components/ActivityCard";
 import ClubPopupMenu from "@/components/ClubPopupMenu";
 import ClubMembersBottomSheet from "@/components/ClubMembersBottomSheet";
 import TopAppBar from "@/components/TopAppBar";
+import SportBadge from "@/components/SportBadge";
+import SportFilterChips, {
+  type SportFilterOption,
+} from "@/components/SportFilterChips";
+import { defaultEventFilter } from "@/lib/sport";
+import { getUserProfileCache } from "@/lib/userProfileCache";
 import { useSnackbar } from "@/context/SnackbarContext";
 import {
   fetchClubDetail,
@@ -22,6 +28,7 @@ import type {
   LeaveClubErrorResponse,
 } from "@/types/club";
 import type { Event } from "@/types/event";
+import type { Sport } from "@/types/sport";
 
 function ActivityCardSkeleton() {
   return (
@@ -49,34 +56,51 @@ export default function ClubDetailUser() {
   const [eventsPage, setEventsPage] = useState(1);
   const [eventsTotalPage, setEventsTotalPage] = useState(1);
   const [eventsLoading, setEventsLoading] = useState(true);
+  const [selectedEventSport, setSelectedEventSport] = useState<SportFilterOption>(() =>
+    defaultEventFilter(getUserProfileCache()?.preferred_sports ?? null),
+  );
   const sentinelRef = useRef<HTMLDivElement>(null);
   const loadingEventsRef = useRef(false);
   const clubGuidRef = useRef<string | null>(null);
+  const activeEventSportRef = useRef(selectedEventSport);
   const [isJoining, setIsJoining] = useState(false);
   const [isLeaving, setIsLeaving] = useState(false);
   const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
 
-  const loadEvents = useCallback(async (clubGuid: string, page: number) => {
-    if (loadingEventsRef.current) return;
-    loadingEventsRef.current = true;
-    setEventsLoading(true);
-    try {
-      const res = await fetchClubEvents({
-        club_guid: clubGuid,
-        sort: "created_at",
-        direction: "DESC",
-        page,
-        limit: 10,
-      });
-      setEvents((prev) => (page === 1 ? res.data : [...prev, ...res.data]));
-      setEventsTotalPage(res.paginate.total_page);
-    } catch {
-      // keep existing list on error
-    } finally {
-      setEventsLoading(false);
-      loadingEventsRef.current = false;
+  const loadEvents = useCallback(
+    async (clubGuid: string, page: number, sport: SportFilterOption) => {
+      if (loadingEventsRef.current) return;
+      loadingEventsRef.current = true;
+      setEventsLoading(true);
+      try {
+        const res = await fetchClubEvents({
+          club_guid: clubGuid,
+          sort: "created_at",
+          direction: "DESC",
+          page,
+          limit: 10,
+          sport: sport === "all" ? undefined : (sport as Sport),
+        });
+        setEvents((prev) => (page === 1 ? res.data : [...prev, ...res.data]));
+        setEventsTotalPage(res.paginate.total_page);
+      } catch {
+        // keep existing list on error
+      } finally {
+        setEventsLoading(false);
+        loadingEventsRef.current = false;
+      }
+    },
+    [],
+  );
+
+  const handleEventSportChange = (sport: SportFilterOption) => {
+    setSelectedEventSport(sport);
+    activeEventSportRef.current = sport;
+    setEventsPage(1);
+    if (clubGuidRef.current) {
+      loadEvents(clubGuidRef.current, 1, sport);
     }
-  }, []);
+  };
 
   const loadMembers = async (clubGuid: string) => {
     setMembersLoading(true);
@@ -134,7 +158,7 @@ export default function ClubDetailUser() {
         setClub(res.data);
         clubGuidRef.current = res.data.guid;
         loadMembers(res.data.guid);
-        loadEvents(res.data.guid, 1);
+        loadEvents(res.data.guid, 1, activeEventSportRef.current);
       })
       .catch(() => router.replace("/not-found"));
   }, [id, router, loadEvents]);
@@ -154,7 +178,7 @@ export default function ClubDetailUser() {
           setEventsPage((prev) => {
             const next = prev + 1;
             if (next <= eventsTotalPage) {
-              loadEvents(clubGuidRef.current!, next);
+              loadEvents(clubGuidRef.current!, next, activeEventSportRef.current);
               return next;
             }
             return prev;
@@ -238,12 +262,15 @@ export default function ClubDetailUser() {
         <div className="flex flex-col gap-4 px-6 pt-16 pb-0">
           <div className="flex flex-col gap-1">
             <div className="flex items-center justify-between">
-              <h2
-                className="font-semibold text-[28px] text-[#151C27]"
-                style={{ lineHeight: "33.6px", letterSpacing: "-1%" }}
-              >
-                {club.name}
-              </h2>
+              <div className="flex items-center gap-2 flex-wrap">
+                <h2
+                  className="font-semibold text-[28px] text-[#151C27]"
+                  style={{ lineHeight: "33.6px", letterSpacing: "-1%" }}
+                >
+                  {club.name}
+                </h2>
+                <SportBadge sportType={club.sport_type} />
+              </div>
             </div>
             {/* <div className="flex items-center gap-1">
               <svg
@@ -374,46 +401,61 @@ export default function ClubDetailUser() {
         )}
 
         {/* Upcoming Activities Section */}
-        {(eventsLoading || events.length > 0) && (
-          <div className="flex flex-col gap-4 px-6 mt-8">
-            <h3
-              className="text-xl text-[#151C27]"
-              style={{ lineHeight: "26px" }}
-            >
-              Upcoming Activities
-            </h3>
+        <div className="flex flex-col gap-4 px-6 mt-8">
+          <h3
+            className="text-xl text-[#151C27]"
+            style={{ lineHeight: "26px" }}
+          >
+            Upcoming Activities
+          </h3>
 
-            <div className="flex flex-col gap-4">
-              {eventsLoading && events.length === 0
-                ? Array.from({ length: 3 }).map((_, i) => (
-                    <ActivityCardSkeleton key={i} />
-                  ))
-                : events.map((event) => {
-                    const dt = new Date(event.date_time);
-                    return (
-                      <ActivityCard
-                        key={event.guid}
-                        day={String(dt.getUTCDate()).padStart(2, "0")}
-                        month={dt
-                          .toLocaleString("en-US", {
-                            month: "short",
-                            timeZone: "UTC",
-                          })
-                          .toUpperCase()}
-                        title={event.name}
-                        link={`/events/${event.guid}`}
-                      />
-                    );
-                  })}
+          <SportFilterChips
+            options={["all", "padel", "tennis"]}
+            selected={selectedEventSport}
+            onChange={handleEventSportChange}
+          />
 
-              {/* Inline skeleton rows while fetching next page */}
-              {eventsLoading && events.length > 0 && <ActivityCardSkeleton />}
+          <div className="flex flex-col gap-4">
+            {eventsLoading && events.length === 0 ? (
+              Array.from({ length: 3 }).map((_, i) => (
+                <ActivityCardSkeleton key={i} />
+              ))
+            ) : events.length === 0 ? (
+              <p className="text-center text-sm text-[#A1A1AA] py-6">
+                {selectedEventSport === "tennis"
+                  ? "No tennis events yet"
+                  : selectedEventSport === "padel"
+                    ? "No padel events yet"
+                    : "No upcoming activities yet"}
+              </p>
+            ) : (
+              events.map((event) => {
+                const dt = new Date(event.date_time);
+                return (
+                  <ActivityCard
+                    key={event.guid}
+                    day={String(dt.getUTCDate()).padStart(2, "0")}
+                    month={dt
+                      .toLocaleString("en-US", {
+                        month: "short",
+                        timeZone: "UTC",
+                      })
+                      .toUpperCase()}
+                    title={event.name}
+                    sport={event.sport}
+                    link={`/events/${event.guid}`}
+                  />
+                );
+              })
+            )}
 
-              {/* Sentinel div — triggers next page load when scrolled into view */}
-              {hasMoreEvents && <div ref={sentinelRef} className="h-1" />}
-            </div>
+            {/* Inline skeleton rows while fetching next page */}
+            {eventsLoading && events.length > 0 && <ActivityCardSkeleton />}
+
+            {/* Sentinel div — triggers next page load when scrolled into view */}
+            {hasMoreEvents && <div ref={sentinelRef} className="h-1" />}
           </div>
-        )}
+        </div>
 
         {/* FAB Button */}
         {club.is_joined && (
@@ -454,6 +496,7 @@ export default function ClubDetailUser() {
       {showMembersSheet && (
         <ClubMembersBottomSheet
           clubGuid={club.guid}
+          sportType={club.sport_type}
           onClose={() => setShowMembersSheet(false)}
         />
       )}

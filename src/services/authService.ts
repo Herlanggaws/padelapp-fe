@@ -20,6 +20,10 @@ import type {
   ResetPasswordPayload,
   ResetPasswordSuccessResponse,
   ResetPasswordErrorResponse,
+  UpdateUserProfilePayload,
+  UpdatePreferredSportsPayload,
+  UpdateUserProfileSuccessResponse,
+  UpdateUserProfileErrorResponse,
 } from "@/types/auth";
 import apiClient from "@/lib/apiClient";
 
@@ -45,6 +49,10 @@ export type {
   ResetPasswordPayload,
   ResetPasswordSuccessResponse,
   ResetPasswordErrorResponse,
+  UpdateUserProfilePayload,
+  UpdatePreferredSportsPayload,
+  UpdateUserProfileSuccessResponse,
+  UpdateUserProfileErrorResponse,
 };
 
 export async function loginUser(
@@ -114,6 +122,26 @@ export async function changePassword(
 ): Promise<ChangePasswordSuccessResponse> {
   const { data } = await apiClient.put<ChangePasswordSuccessResponse>(
     "/auth/profile/change-password",
+    payload,
+  );
+  return data;
+}
+
+export async function updateUserProfile(
+  payload: UpdateUserProfilePayload,
+): Promise<UpdateUserProfileSuccessResponse> {
+  const { data } = await apiClient.put<UpdateUserProfileSuccessResponse>(
+    "/auth/profile",
+    payload,
+  );
+  return data;
+}
+
+export async function updatePreferredSports(
+  payload: UpdatePreferredSportsPayload,
+): Promise<UpdateUserProfileSuccessResponse> {
+  const { data } = await apiClient.put<UpdateUserProfileSuccessResponse>(
+    "/auth/profile",
     payload,
   );
   return data;

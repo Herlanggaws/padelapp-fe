@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
 import TopAppBar from "@/components/TopAppBar";
+import SportBadge from "@/components/SportBadge";
 import BottomSheetAddOutsider from "@/components/BottomSheetAddOutsider";
 import BottomSheetEventSettings from "@/components/BottomSheetEventSettings";
 import BottomSheetSeeAllPlayers from "@/components/BottomSheetSeeAllPlayers";
@@ -501,12 +502,15 @@ function EventDetailContent({
         >
           {/* Event Title & Level */}
           <div className="flex flex-col gap-2">
-            <h2
-              className="font-normal text-[28px] text-[#18181B]"
-              style={{ lineHeight: "33.6px", letterSpacing: "-1%" }}
-            >
-              {event.name}
-            </h2>
+            <div className="flex items-center gap-3 flex-wrap">
+              <h2
+                className="font-normal text-[28px] text-[#18181B]"
+                style={{ lineHeight: "33.6px", letterSpacing: "-1%" }}
+              >
+                {event.name}
+              </h2>
+              <SportBadge sport={event.sport} />
+            </div>
             <div className="flex items-center gap-2">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
                 <path

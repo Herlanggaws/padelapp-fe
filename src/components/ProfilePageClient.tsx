@@ -108,10 +108,35 @@ export default function ProfilePageClient() {
             >
               {profile?.name ?? "—"}
             </h1>
-            <div className="flex items-center gap-2">
-              <span className="bg-[#2F6C00] text-white text-xs font-semibold rounded-full px-3 py-1 tracking-[0.05em] uppercase">
-                Rating {profile?.rank_points ?? "—"}
-              </span>
+            <div className="flex items-center gap-2 flex-wrap justify-center">
+              {profile?.rank_points_by_sport ? (
+                (() => {
+                  const sportsToShow = new Set<"padel" | "tennis">();
+                  const pref = profile.preferred_sports;
+                  if (pref === "padel" || pref === "both") sportsToShow.add("padel");
+                  if (pref === "tennis" || pref === "both") sportsToShow.add("tennis");
+                  if (profile.rank_points_by_sport.padel?.events_played > 0) sportsToShow.add("padel");
+                  if (profile.rank_points_by_sport.tennis?.events_played > 0) sportsToShow.add("tennis");
+                  if (sportsToShow.size === 0) sportsToShow.add("padel");
+
+                  return Array.from(sportsToShow).map((sport) => {
+                    const stats = profile.rank_points_by_sport?.[sport];
+                    const label = sport === "tennis" ? "Tennis" : "Padel";
+                    return (
+                      <span
+                        key={sport}
+                        className="bg-[#2F6C00] text-white text-xs font-semibold rounded-full px-3 py-1 tracking-[0.05em] uppercase"
+                      >
+                        {label} {stats?.rank_points ?? 1.0}
+                      </span>
+                    );
+                  });
+                })()
+              ) : (
+                <span className="bg-[#2F6C00] text-white text-xs font-semibold rounded-full px-3 py-1 tracking-[0.05em] uppercase">
+                  Padel {profile?.rank_points ?? "—"}
+                </span>
+              )}
             </div>
           </div>
         </section>

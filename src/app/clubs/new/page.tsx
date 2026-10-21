@@ -43,8 +43,7 @@ export default function ClubFormPage() {
             Create Club
           </h2>
           <p className="text-sm text-[#41493A]" style={{ lineHeight: "21px" }}>
-            Register your Padel facility to start managing matches and court
-            bookings.
+            Register your club to start managing matches and court bookings.
           </p>
         </div>
 

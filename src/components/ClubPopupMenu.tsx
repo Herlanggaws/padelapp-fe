@@ -97,7 +97,7 @@ export default function ClubPopupMenu({
                 className="text-sm text-[#A1A1AA]"
                 style={{ lineHeight: "20px" }}
               >
-                Share this club with your padel partners
+                Share this club with your playing partners
               </span>
             </div>
             <svg

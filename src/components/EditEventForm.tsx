@@ -6,7 +6,13 @@ import TopAppBar from "@/components/TopAppBar";
 import LevelRangeSlider from "@/components/LevelRangeSlider";
 import { updateEvent } from "@/services/eventService";
 import type { Event, UpdateEventErrorResponse } from "@/types/event";
+import type { Sport } from "@/types/sport";
 import { useSnackbar } from "@/context/SnackbarContext";
+
+const EVENT_SPORT_OPTIONS: { value: Sport; label: string }[] = [
+  { value: "padel", label: "Padel" },
+  { value: "tennis", label: "Tennis" },
+];
 
 function toDatetimeLocalValue(isoString: string): string {
   const d = new Date(isoString);
@@ -16,12 +22,21 @@ function toDatetimeLocalValue(isoString: string): string {
 
 interface EditEventFormProps {
   event: Event;
+  hasSession?: boolean;
 }
 
-export default function EditEventForm({ event }: EditEventFormProps) {
+export default function EditEventForm({
+  event,
+  hasSession,
+}: EditEventFormProps) {
   const router = useRouter();
   const { showSnackbar } = useSnackbar();
 
+  const isSportLocked =
+    hasSession ??
+    (Boolean(event.session_guid) || Boolean(event.is_locked));
+
+  const [sport, setSport] = useState<Sport>(event.sport ?? "padel");
   const [name, setName] = useState(event.name);
   const [description, setDescription] = useState(event.description);
   const [dateTime, setDateTime] = useState(toDatetimeLocalValue(event.date_time));
@@ -47,12 +62,15 @@ export default function EditEventForm({ event }: EditEventFormProps) {
         number_of_players: Number(numberOfPlayers),
         min_level: minLevel,
         max_level: maxLevel,
+        sport,
       });
       showSnackbar(res.message || "Event updated successfully");
       router.push(`/events/${event.guid}`);
     } catch (err) {
       const e = err as UpdateEventErrorResponse;
-      setErrorMessage(e?.message ?? "Failed to update event.");
+      setErrorMessage(
+        e?.error?.sport ?? e?.message ?? "Failed to update event.",
+      );
     } finally {
       setIsSubmitting(false);
     }
@@ -82,6 +100,55 @@ export default function EditEventForm({ event }: EditEventFormProps) {
 
         <div className="flex flex-col gap-6 px-4">
           <div className="flex flex-col gap-4">
+            {/* Sport Selector */}
+            <div className="flex flex-col gap-2">
+              <div className="pl-1">
+                <label
+                  className="text-xs text-[#151C27]"
+                  style={{ lineHeight: "12px" }}
+                >
+                  Sport
+                </label>
+              </div>
+              <div
+                role="radiogroup"
+                aria-label="Sport"
+                className="grid grid-cols-2 gap-2 pt-2"
+              >
+                {EVENT_SPORT_OPTIONS.map((opt) => {
+                  const isSelected = sport === opt.value;
+                  return (
+                    <button
+                      key={opt.value}
+                      type="button"
+                      role="radio"
+                      aria-checked={isSelected}
+                      disabled={isSportLocked}
+                      onClick={() => {
+                        if (!isSportLocked) {
+                          setSport(opt.value);
+                        }
+                      }}
+                      className={`flex items-center justify-center py-3 px-4 rounded-xl text-sm font-semibold border transition-all ${
+                        isSportLocked
+                          ? "opacity-50 cursor-not-allowed bg-gray-100 text-gray-400 border-gray-200"
+                          : isSelected
+                            ? "bg-[#18181B] text-[#9FE870] border-[#18181B] shadow-sm"
+                            : "bg-[#F0F3FF] text-[#151C27] border-[#C1CAB5] hover:border-[#18181B]"
+                      }`}
+                    >
+                      {opt.label}
+                    </button>
+                  );
+                })}
+              </div>
+              {isSportLocked && (
+                <p className="text-xs text-[#71717A]">
+                  Sport is locked after matchmaking starts
+                </p>
+              )}
+            </div>
+
             {/* Event Name */}
             <div className="flex flex-col gap-2">
               <div className="pl-1">

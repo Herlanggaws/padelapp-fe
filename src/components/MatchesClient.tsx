@@ -1,12 +1,19 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import TopAppBar from "@/components/TopAppBar";
 import BottomNavBar from "@/components/BottomNavBar";
+import SportBadge from "@/components/SportBadge";
+import SportFilterChips, {
+  type SportFilterOption,
+} from "@/components/SportFilterChips";
 import { fetchEvents } from "@/services/eventService";
+import { defaultEventFilter } from "@/lib/sport";
+import { getUserProfileCache } from "@/lib/userProfileCache";
 import type { UpcomingEvent } from "@/types/event";
+import type { Sport } from "@/types/sport";
 
 type MatchStatus = "Requested" | "Waitlisted" | "Joining";
 
@@ -112,9 +119,12 @@ function MatchCard({ event }: { event: UpcomingEvent }) {
             />
           </div>
           <div className="flex flex-col gap-1">
-            <span className="text-[10px] font-normal text-[#A1A1AA] tracking-[0.1em] uppercase leading-[15px]">
-              {formatLevelRange(event.min_level, event.max_level)}
-            </span>
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] font-normal text-[#A1A1AA] tracking-[0.1em] uppercase leading-[15px]">
+                {formatLevelRange(event.min_level, event.max_level)}
+              </span>
+              <SportBadge sport={event.sport} />
+            </div>
             <h3 className="font-normal text-base text-[rgba(21, 28, 39, 1)] leading-6">
               {event.name}
             </h3>
@@ -157,13 +167,21 @@ function MatchCard({ event }: { event: UpcomingEvent }) {
 }
 
 export default function MatchesClient() {
+  const [selectedSport, setSelectedSport] = useState<SportFilterOption>(() =>
+    defaultEventFilter(getUserProfileCache()?.preferred_sports ?? null),
+  );
   const [events, setEvents] = useState<UpcomingEvent[]>([]);
   const [totalCount, setTotalCount] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
 
-  useEffect(() => {
-    fetchEvents({ page: 1, limit: 100 })
+  const loadEvents = useCallback((sport: SportFilterOption) => {
+    setIsLoading(true);
+    fetchEvents({
+      page: 1,
+      limit: 100,
+      sport: sport === "all" ? undefined : (sport as Sport),
+    })
       .then((res) => {
         setEvents(res.data);
         setTotalCount(res.paginate.total_data);
@@ -174,6 +192,14 @@ export default function MatchesClient() {
       })
       .finally(() => setIsLoading(false));
   }, []);
+
+  useEffect(() => {
+    loadEvents(selectedSport);
+  }, [loadEvents, selectedSport]);
+
+  const handleSportChange = (sport: SportFilterOption) => {
+    setSelectedSport(sport);
+  };
 
   const filteredEvents = searchQuery.trim()
     ? events.filter((event) => {
@@ -219,6 +245,14 @@ export default function MatchesClient() {
               </span>
             </div>
           </div>
+
+          <div className="px-4">
+            <SportFilterChips
+              options={["all", "padel", "tennis"]}
+              selected={selectedSport}
+              onChange={handleSportChange}
+            />
+          </div>
         </section>
 
         <section className="flex items-center justify-between pt-2 px-4">
@@ -241,7 +275,13 @@ export default function MatchesClient() {
 
           {!isLoading && filteredEvents.length === 0 && (
             <p className="text-center text-base text-[#A1A1AA] py-8">
-              {searchQuery.trim() ? "No matches found." : "No open matches available."}
+              {searchQuery.trim()
+                ? "No matches found."
+                : selectedSport === "tennis"
+                  ? "No tennis events yet"
+                  : selectedSport === "padel"
+                    ? "No padel events yet"
+                    : "No open matches available."}
             </p>
           )}
         </section>

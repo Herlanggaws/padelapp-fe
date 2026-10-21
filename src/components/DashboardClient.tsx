@@ -5,6 +5,8 @@ import Image from "next/image";
 import { useEffect, useState } from "react";
 import TopAppBar from "@/components/TopAppBar";
 import BottomNavBar from "@/components/BottomNavBar";
+import SportBadge from "@/components/SportBadge";
+import PreferredSportsSheet from "@/components/PreferredSportsSheet";
 import { fetchJoinedClubs } from "@/services/clubService";
 import { fetchUserProfile } from "@/services/authService";
 import { fetchUpcomingEvents } from "@/services/eventService";
@@ -14,6 +16,7 @@ import {
 } from "@/lib/userProfileCache";
 import type { Club } from "@/types/club";
 import type { UpcomingEvent } from "@/types/event";
+import type { UserProfile } from "@/types/auth";
 
 function formatUpcomingDateTime(dateTime: string): string {
   const d = new Date(dateTime);
@@ -102,9 +105,12 @@ function UpcomingMatchCard({
             {formatUpcomingDateTime(event.date_time)}
           </span>
         </div>
-        <span className="bg-[#F4F4F5] text-[#151C27] text-[10px] uppercase rounded-full px-3 py-1">
-          {formatLevelRange(event.min_level, event.max_level)}
-        </span>
+        <div className="flex items-center gap-2">
+          <SportBadge sport={event.sport} />
+          <span className="bg-[#F4F4F5] text-[#151C27] text-[10px] uppercase rounded-full px-3 py-1">
+            {formatLevelRange(event.min_level, event.max_level)}
+          </span>
+        </div>
       </div>
       <div className="flex items-center justify-between px-4 py-4">
         <div className="flex flex-col gap-2">
@@ -157,27 +163,28 @@ export default function DashboardClient() {
   const [upcomingEvents, setUpcomingEvents] = useState<UpcomingEvent[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isLoadingUpcoming, setIsLoadingUpcoming] = useState(true);
-  const [rankPoints, setRankPoints] = useState<number | null>(null);
-  const [userName, setUserName] = useState<string | null>(null);
+  const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [showPreferredSheet, setShowPreferredSheet] = useState(false);
 
   useEffect(() => {
     const cached = getUserProfileCache();
     if (cached) {
-      setRankPoints(cached.rank_points);
-      setUserName(cached.name);
+      setProfile(cached);
+      if (cached.preferred_sports === null) {
+        setShowPreferredSheet(true);
+      }
     }
 
     fetchUserProfile()
       .then((res) => {
         setUserProfileCache(res.data);
-        setRankPoints(res.data.rank_points);
-        setUserName(res.data.name);
+        setProfile(res.data);
+        if (res.data.preferred_sports === null) {
+          setShowPreferredSheet(true);
+        }
       })
       .catch(() => {
-        if (!cached) {
-          setRankPoints(null);
-          setUserName(null);
-        }
+        // profile already set or null
       });
   }, []);
 
@@ -209,7 +216,7 @@ export default function DashboardClient() {
               className="font-semibold text-[28px] text-[#151C27]"
               style={{ lineHeight: "33.6px", letterSpacing: "-1%" }}
             >
-              {userName ? `Hello, ${userName}!` : "Hello!"}
+              {profile?.name ? `Hello, ${profile.name}!` : "Hello!"}
             </h1>
             <p
               className="text-sm text-[#41493A]"
@@ -232,39 +239,64 @@ export default function DashboardClient() {
 
         {/* Stats Grid (Bento Style) */}
         <section className="w-full px-4">
-          <div
-            className="w-full bg-[#9FE870] rounded-[32px] p-4 flex flex-col justify-between"
-            style={{ minHeight: "120px" }}
-          >
-            <div>
-              <svg
-                width="20"
-                height="12"
-                viewBox="0 0 20 12"
-                fill="none"
-                xmlns="http://www.w3.org/2000/svg"
-              >
-                <path
-                  d="M1.4 12L0 10.6L7.4 3.15L11.4 7.15L16.6 2H14V0H20V6H18V3.4L11.4 10L7.4 6L1.4 12Z"
-                  fill="#2E6900"
-                />
-              </svg>
+          {profile?.rank_points_by_sport && profile.preferred_sports === "both" ? (
+            <div className="grid grid-cols-2 gap-3">
+              <div className="bg-[#9FE870] rounded-[32px] p-4 flex flex-col justify-between min-h-[120px]">
+                <span className="text-xs font-semibold text-[#2E6900] tracking-[0.6px] uppercase">
+                  Padel RP
+                </span>
+                <span className="text-xl font-bold text-[#2E6900]">
+                  {profile.rank_points_by_sport.padel?.rank_points ?? 1.0}
+                </span>
+              </div>
+              <div className="bg-[#9FE870] rounded-[32px] p-4 flex flex-col justify-between min-h-[120px]">
+                <span className="text-xs font-semibold text-[#2E6900] tracking-[0.6px] uppercase">
+                  Tennis RP
+                </span>
+                <span className="text-xl font-bold text-[#2E6900]">
+                  {profile.rank_points_by_sport.tennis?.rank_points ?? 1.0}
+                </span>
+              </div>
             </div>
-            <div className="flex flex-col gap-1">
-              <span
-                className="text-xs font-normal text-[#2E6900] tracking-[0.6px] uppercase"
-                style={{ lineHeight: "12px" }}
-              >
-                Rank point
-              </span>
-              <span
-                className="text-xl text-[#2E6900]"
-                style={{ lineHeight: "26px" }}
-              >
-                {rankPoints != null ? rankPoints : "—"}
-              </span>
+          ) : (
+            <div
+              className="w-full bg-[#9FE870] rounded-[32px] p-4 flex flex-col justify-between"
+              style={{ minHeight: "120px" }}
+            >
+              <div>
+                <svg
+                  width="20"
+                  height="12"
+                  viewBox="0 0 20 12"
+                  fill="none"
+                  xmlns="http://www.w3.org/2000/svg"
+                >
+                  <path
+                    d="M1.4 12L0 10.6L7.4 3.15L11.4 7.15L16.6 2H14V0H20V6H18V3.4L11.4 10L7.4 6L1.4 12Z"
+                    fill="#2E6900"
+                  />
+                </svg>
+              </div>
+              <div className="flex flex-col gap-1">
+                <span
+                  className="text-xs font-normal text-[#2E6900] tracking-[0.6px] uppercase"
+                  style={{ lineHeight: "12px" }}
+                >
+                  {profile?.preferred_sports === "tennis" ? "Tennis Rank point" : "Rank point"}
+                </span>
+                <span
+                  className="text-xl text-[#2E6900]"
+                  style={{ lineHeight: "26px" }}
+                >
+                  {profile?.rank_points_by_sport && profile.preferred_sports === "tennis"
+                    ? profile.rank_points_by_sport.tennis?.rank_points ?? 1.0
+                    : profile?.rank_points != null
+                    ? profile.rank_points
+                    : "—"}
+                </span>
+              </div>
             </div>
-          </div>
+          )}
         </section>
 
         {/* Upcoming Matches */}
@@ -382,11 +414,14 @@ export default function DashboardClient() {
                     />
                   </div>
                   <div className="p-4 h-[72px] flex flex-col gap-1 justify-center">
-                    <p className="font-normal text-base text-[#151C27] line-clamp-1">
-                      {club.name}
-                    </p>
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="font-normal text-base text-[#151C27] line-clamp-1">
+                        {club.name}
+                      </p>
+                      <SportBadge sportType={club.sport_type} />
+                    </div>
                     <p className="font-normal text-sm text-[#41493A] line-clamp-1">
-                      {club.description ?? " "}
+                      {club.description ?? " "}
                     </p>
                   </div>
                 </Link>
@@ -450,6 +485,21 @@ export default function DashboardClient() {
       </main>
 
       <BottomNavBar />
+
+      {showPreferredSheet && (
+        <PreferredSportsSheet
+          isOpen={showPreferredSheet}
+          onClose={() => setShowPreferredSheet(false)}
+          onSaved={(value) => {
+            setShowPreferredSheet(false);
+            if (profile) {
+              const updated = { ...profile, preferred_sports: value };
+              setUserProfileCache(updated);
+              setProfile(updated);
+            }
+          }}
+        />
+      )}
     </div>
   );
 }

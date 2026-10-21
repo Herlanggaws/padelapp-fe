@@ -206,7 +206,7 @@ export default function LandingPageClient() {
               }}
             >
               Precision meets Performance. Experience the first data-driven
-              competition engine designed for the next generation of Padel
+              competition engine designed for the next generation of padel and tennis
               Clubs.
             </p>
 

@@ -71,9 +71,19 @@ export async function updateClub(
 export async function fetchClubs(
   params?: FetchClubsParams,
 ): Promise<FetchClubsSuccessResponse> {
+  const queryParams: Record<string, unknown> = {};
+
+  if (params) {
+    const { sport, ...rest } = params;
+    Object.assign(queryParams, rest);
+    if (sport && (sport as string) !== "all") {
+      queryParams.sport = sport;
+    }
+  }
+
   const { data } = await apiClient.get<FetchClubsSuccessResponse>(
     "/padel/club",
-    { params },
+    { params: queryParams },
   );
   return data;
 }
@@ -90,9 +100,15 @@ export async function fetchClubDetail(
 export async function fetchClubMembers(
   params: FetchClubMembersParams,
 ): Promise<FetchClubMembersSuccessResponse> {
+  const { sport, ...rest } = params;
+  const queryParams: Record<string, unknown> = { ...rest };
+  if (sport && (sport as string) !== "all") {
+    queryParams.sport = sport;
+  }
+
   const { data } = await apiClient.get<FetchClubMembersSuccessResponse>(
     "/padel/club-member",
-    { params },
+    { params: queryParams },
   );
   return data;
 }

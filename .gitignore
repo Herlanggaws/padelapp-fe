@@ -54,3 +54,11 @@ next-env.d.ts
 
 #other
 /mdfile/
+
+# Local tools & editor
+.codegraph/
+.cursor/
+.gemini/
+.mcp.json
+opencode.jsonc
+.vscode/

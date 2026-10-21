@@ -1,6 +1,8 @@
 "use client";
 
 import Image from "next/image";
+import SportBadge from "@/components/SportBadge";
+import type { Sport } from "@/types/sport";
 
 interface PlayerAvatar {
   src: string;
@@ -14,6 +16,7 @@ interface FeaturedActivityCardProps {
   time: string;
   players: PlayerAvatar[];
   extraPlayerCount?: number;
+  sport?: Sport;
   onJoin?: () => void;
 }
 
@@ -24,6 +27,7 @@ export default function FeaturedActivityCard({
   time,
   players,
   extraPlayerCount,
+  sport,
   onJoin,
 }: FeaturedActivityCardProps) {
   return (
@@ -35,12 +39,15 @@ export default function FeaturedActivityCard({
       }}
     >
       <div className="flex items-center justify-between">
-        <span
-          className="text-[10px] font-bold text-[#151C27] uppercase tracking-[5%] px-3 py-1 rounded-full"
-          style={{ background: "rgba(0,0,0,0.1)", lineHeight: "15px" }}
-        >
-          {type}
-        </span>
+        <div className="flex items-center gap-2">
+          <span
+            className="text-[10px] font-bold text-[#151C27] uppercase tracking-[5%] px-3 py-1 rounded-full"
+            style={{ background: "rgba(0,0,0,0.1)", lineHeight: "15px" }}
+          >
+            {type}
+          </span>
+          {sport && <SportBadge sport={sport} />}
+        </div>
         <div className="flex items-center">
           {players.map((player, index) => (
             <div

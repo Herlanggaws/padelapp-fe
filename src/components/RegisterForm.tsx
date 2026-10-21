@@ -93,7 +93,7 @@ export default function RegisterForm() {
 
       // Set cookie for server-side auth checks (proxy)
       document.cookie = `access_token=${result.data.access_token}; path=/; SameSite=Lax`;
-      showSnackbar("Registration successful! Welcome to Padel.");
+      showSnackbar("Registration successful! Welcome to RallyRank.");
       router.push("/dashboard");
     } catch (err) {
       const apiError = err as RegisterErrorResponse;
@@ -149,7 +149,7 @@ export default function RegisterForm() {
               className="font-semibold text-[28px] text-[#151C27] text-center uppercase tracking-tight"
               style={{ lineHeight: "33.6px" }}
             >
-              PADEL
+              RALLYRANK
             </h1>
           </div>
           {/* Subtitle */}
@@ -226,7 +226,7 @@ export default function RegisterForm() {
                 <div className="relative">
                   <input
                     type="email"
-                    placeholder="rafa@padel.com"
+                    placeholder="rafa@rallyrank.com"
                     value={email}
                     onChange={(e) => {
                       setEmail(e.target.value);

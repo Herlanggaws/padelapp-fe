@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import TopAppBar from "@/components/TopAppBar";
 import LogoutButton from "@/components/LogoutButton";
+import MySportsSettingRow from "@/components/MySportsSettingRow";
 
 export const metadata: Metadata = {
   title: "Settings",
@@ -26,6 +27,7 @@ export default function SettingsPage() {
             </span>
           </div>
           <div className="flex flex-col">
+            <MySportsSettingRow />
             {/* Change Password */}
             <Link
               href="/settings/change-password"

@@ -6,7 +6,14 @@ import CoverPhotoUpload from "@/components/CoverPhotoUpload";
 import LogoUpload from "@/components/LogoUpload";
 import { createClub } from "@/services/clubService";
 import type { CreateClubErrorResponse } from "@/types/club";
+import type { SportScope } from "@/types/sport";
 import { useSnackbar } from "@/context/SnackbarContext";
+
+const SPORT_OPTIONS: { value: SportScope; label: string }[] = [
+  { value: "padel", label: "Padel" },
+  { value: "tennis", label: "Tennis" },
+  { value: "both", label: "Both" },
+];
 
 export default function ClubFormClient() {
   const router = useRouter();
@@ -15,7 +22,9 @@ export default function ClubFormClient() {
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
+  const [sportType, setSportType] = useState<SportScope>("padel");
   const [nameError, setNameError] = useState("");
+  const [sportTypeError, setSportTypeError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   async function handleSubmit(e: React.SyntheticEvent<HTMLFormElement>) {
@@ -26,6 +35,7 @@ export default function ClubFormClient() {
       return;
     }
     setNameError("");
+    setSportTypeError("");
     setIsSubmitting(true);
 
     try {
@@ -34,12 +44,20 @@ export default function ClubFormClient() {
         description: description.trim() || undefined,
         cover_photo: coverUrl ?? undefined,
         logo: logoUrl ?? undefined,
+        sport_type: sportType,
       });
       showSnackbar("Club created successfully");
       router.push("/dashboard");
     } catch (err) {
       const error = err as CreateClubErrorResponse;
-      setNameError(error?.message ?? "Failed to create club. Please try again.");
+      if (error?.error?.sport_type) {
+        setSportTypeError(error.error.sport_type);
+      }
+      if (error?.error?.name) {
+        setNameError(error.error.name);
+      } else if (!error?.error?.sport_type) {
+        setNameError(error?.message ?? "Failed to create club. Please try again.");
+      }
     } finally {
       setIsSubmitting(false);
     }
@@ -58,6 +76,50 @@ export default function ClubFormClient() {
 
         <CoverPhotoUpload onUpload={setCoverUrl} />
         <LogoUpload onUpload={setLogoUrl} />
+      </div>
+
+      {/* Sports Offered Section */}
+      <div className="flex flex-col gap-4">
+        <span
+          className="text-xs font-semibold text-[#41493A] uppercase tracking-[5%]"
+          style={{ lineHeight: "12px" }}
+        >
+          SPORTS OFFERED
+        </span>
+
+        <div className="flex flex-col gap-2">
+          <div
+            role="radiogroup"
+            aria-label="Sports Offered"
+            className="grid grid-cols-3 gap-2"
+          >
+            {SPORT_OPTIONS.map((option) => {
+              const isSelected = sportType === option.value;
+              return (
+                <button
+                  key={option.value}
+                  type="button"
+                  role="radio"
+                  aria-checked={isSelected}
+                  onClick={() => {
+                    setSportType(option.value);
+                    setSportTypeError("");
+                  }}
+                  className={`flex items-center justify-center py-3 px-4 rounded-xl text-sm font-semibold border transition-all ${
+                    isSelected
+                      ? "bg-[#18181B] text-[#9FE870] border-[#18181B] shadow-sm"
+                      : "bg-[#F0F3FF] text-[#151C27] border-[#C1CAB5] hover:border-[#18181B]"
+                  }`}
+                >
+                  {option.label}
+                </button>
+              );
+            })}
+          </div>
+          {sportTypeError && (
+            <span className="text-xs text-red-500">{sportTypeError}</span>
+          )}
+        </div>
       </div>
 
       {/* Basic Details Section */}

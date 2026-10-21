@@ -7,7 +7,15 @@ import CoverPhotoUpload from "@/components/CoverPhotoUpload";
 import LogoUpload from "@/components/LogoUpload";
 import { updateClub } from "@/services/clubService";
 import type { Club, UpdateClubErrorResponse } from "@/types/club";
+import { allowedClubSportTypes } from "@/lib/sport";
+import type { SportScope } from "@/types/sport";
 import { useSnackbar } from "@/context/SnackbarContext";
+
+const SPORT_OPTIONS: { value: SportScope; label: string }[] = [
+  { value: "padel", label: "Padel" },
+  { value: "tennis", label: "Tennis" },
+  { value: "both", label: "Both" },
+];
 
 interface EditClubFormClientProps {
   club: Club;
@@ -22,8 +30,14 @@ export default function EditClubFormClient({ club }: EditClubFormClientProps) {
   const [logoUrl, setLogoUrl] = useState<string | null>(club.logo ?? null);
   const [name, setName] = useState(club.name);
   const [description, setDescription] = useState(club.description ?? "");
+  const [sportType, setSportType] = useState<SportScope>(
+    club.sport_type ?? "padel",
+  );
   const [nameError, setNameError] = useState("");
+  const [sportTypeError, setSportTypeError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const allowedSports = allowedClubSportTypes(club.sport_type ?? "padel");
 
   async function handleSubmit(e: React.SyntheticEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -33,6 +47,7 @@ export default function EditClubFormClient({ club }: EditClubFormClientProps) {
       return;
     }
     setNameError("");
+    setSportTypeError("");
     setIsSubmitting(true);
 
     try {
@@ -41,12 +56,20 @@ export default function EditClubFormClient({ club }: EditClubFormClientProps) {
         description: description.trim() || undefined,
         cover_photo: coverUrl ?? undefined,
         logo: logoUrl ?? undefined,
+        sport_type: sportType,
       });
       showSnackbar(res.message || "Club updated successfully");
       router.push(`/clubs/${club.guid}`);
     } catch (err) {
       const error = err as UpdateClubErrorResponse;
-      setNameError(error?.message ?? "Failed to update club. Please try again.");
+      if (error?.error?.sport_type) {
+        setSportTypeError(error.error.sport_type);
+      }
+      if (error?.error?.name) {
+        setNameError(error.error.name);
+      } else if (!error?.error?.sport_type) {
+        setNameError(error?.message ?? "Failed to update club. Please try again.");
+      }
     } finally {
       setIsSubmitting(false);
     }
@@ -91,6 +114,59 @@ export default function EditClubFormClient({ club }: EditClubFormClientProps) {
               onUpload={setCoverUrl}
             />
             <LogoUpload initialUrl={club.logo} onUpload={setLogoUrl} />
+          </div>
+
+          <div className="flex flex-col gap-4">
+            <span
+              className="text-xs font-semibold text-[#41493A] uppercase tracking-[5%]"
+              style={{ lineHeight: "12px" }}
+            >
+              SPORTS OFFERED
+            </span>
+
+            <div className="flex flex-col gap-2">
+              <div
+                role="radiogroup"
+                aria-label="Sports Offered"
+                className="grid grid-cols-3 gap-2"
+              >
+                {SPORT_OPTIONS.map((option) => {
+                  const isSelected = sportType === option.value;
+                  const isAllowed = allowedSports.includes(option.value);
+
+                  return (
+                    <button
+                      key={option.value}
+                      type="button"
+                      role="radio"
+                      aria-checked={isSelected}
+                      disabled={!isAllowed}
+                      onClick={() => {
+                        if (isAllowed) {
+                          setSportType(option.value);
+                          setSportTypeError("");
+                        }
+                      }}
+                      className={`flex items-center justify-center py-3 px-4 rounded-xl text-sm font-semibold border transition-all ${
+                        !isAllowed
+                          ? "opacity-40 cursor-not-allowed bg-gray-100 text-gray-400 border-gray-200"
+                          : isSelected
+                            ? "bg-[#18181B] text-[#9FE870] border-[#18181B] shadow-sm"
+                            : "bg-[#F0F3FF] text-[#151C27] border-[#C1CAB5] hover:border-[#18181B]"
+                      }`}
+                    >
+                      {option.label}
+                    </button>
+                  );
+                })}
+              </div>
+              <p className="text-xs text-[#71717A]">
+                Sports can be added but not removed
+              </p>
+              {sportTypeError && (
+                <span className="text-xs text-red-500">{sportTypeError}</span>
+              )}
+            </div>
           </div>
 
           <div className="flex flex-col gap-4">

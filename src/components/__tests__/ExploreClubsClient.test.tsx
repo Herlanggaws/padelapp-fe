@@ -108,7 +108,7 @@ describe("ExploreClubsClient", () => {
       );
     });
 
-    // Click Padel while Tennis is active -> should select both Padel and Tennis (sport="both")
+    // Click Padel while Tennis is active -> should select both Padel and Tennis (sport="tennis,padel")
     await user.click(padelChip);
     expect(padelChip).toHaveAttribute("aria-pressed", "true");
     expect(tennisChip).toHaveAttribute("aria-pressed", "true");
@@ -116,7 +116,7 @@ describe("ExploreClubsClient", () => {
     await waitFor(() => {
       expect(clubService.fetchClubs).toHaveBeenCalledWith(
         expect.objectContaining({
-          sport: "both",
+          sport: "tennis,padel",
           page: 1,
         }),
       );

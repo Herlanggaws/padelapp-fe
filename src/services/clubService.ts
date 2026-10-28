@@ -77,7 +77,7 @@ export async function fetchClubs(
     const { sport, ...rest } = params;
     Object.assign(queryParams, rest);
     if (sport && (sport as string) !== "all") {
-      queryParams.sport = sport;
+      queryParams.sport = sport === "both" ? "tennis,padel" : sport;
     }
   }
 

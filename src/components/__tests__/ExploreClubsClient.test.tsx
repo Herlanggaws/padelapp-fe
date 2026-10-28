@@ -94,24 +94,10 @@ describe("ExploreClubsClient", () => {
     expect(tennisChip).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Both" })).not.toBeInTheDocument();
 
-    // Default should be All
-    expect(allChip).toHaveAttribute("aria-pressed", "true");
-    expect(tennisChip).toHaveAttribute("aria-pressed", "false");
-    expect(padelChip).toHaveAttribute("aria-pressed", "false");
-
-    await waitFor(() => {
-      expect(clubService.fetchClubs).toHaveBeenCalledWith(
-        expect.objectContaining({
-          sport: undefined,
-          page: 1,
-        }),
-      );
-    });
-
-    // Click Tennis -> filters by tennis
-    await user.click(tennisChip);
+    // Default should be Tennis because preferred_sports is tennis
     expect(tennisChip).toHaveAttribute("aria-pressed", "true");
     expect(allChip).toHaveAttribute("aria-pressed", "false");
+    expect(padelChip).toHaveAttribute("aria-pressed", "false");
 
     await waitFor(() => {
       expect(clubService.fetchClubs).toHaveBeenCalledWith(
@@ -161,6 +147,32 @@ describe("ExploreClubsClient", () => {
         expect.objectContaining({
           page: 1,
           sport: undefined,
+        }),
+      );
+    });
+  });
+
+  it("defaults to All when preferred sport is both or null", async () => {
+    vi.spyOn(userProfileCache, "getUserProfileCache").mockReturnValue({
+      guid: "u-2",
+      name: "Player 2",
+      email: "player2@example.com",
+      preferred_sports: "both",
+      rank_points: 0,
+      events_played: 0,
+    } as unknown as UserProfile);
+
+    render(<ExploreClubsClient />);
+
+    expect(screen.getByRole("button", { name: "All" })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("button", { name: "Tennis" })).toHaveAttribute("aria-pressed", "false");
+    expect(screen.getByRole("button", { name: "Padel" })).toHaveAttribute("aria-pressed", "false");
+
+    await waitFor(() => {
+      expect(clubService.fetchClubs).toHaveBeenCalledWith(
+        expect.objectContaining({
+          sport: undefined,
+          page: 1,
         }),
       );
     });

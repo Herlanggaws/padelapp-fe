@@ -26,6 +26,7 @@ import type {
   UpdateUserProfileErrorResponse,
 } from "@/types/auth";
 import apiClient from "@/lib/apiClient";
+import { getUserProfileCache } from "@/lib/userProfileCache";
 
 export type {
   LoginPayload,
@@ -140,9 +141,16 @@ export async function updateUserProfile(
 export async function updatePreferredSports(
   payload: UpdatePreferredSportsPayload,
 ): Promise<UpdateUserProfileSuccessResponse> {
+  const cached = getUserProfileCache();
+  const body: Record<string, unknown> = {
+    ...payload,
+  };
+  if (cached?.name) body.name = cached.name;
+  if (cached?.email) body.email = cached.email;
+
   const { data } = await apiClient.put<UpdateUserProfileSuccessResponse>(
     "/auth/profile",
-    payload,
+    body,
   );
   return data;
 }

@@ -99,20 +99,7 @@ describe("MatchHistoryClient", () => {
     expect(padelChip).toBeInTheDocument();
     expect(tennisChip).toBeInTheDocument();
 
-    // Default to All
-    expect(allChip).toHaveAttribute("aria-pressed", "true");
-    expect(tennisChip).toHaveAttribute("aria-pressed", "false");
-
-    await waitFor(() => {
-      expect(eventService.fetchPlayedEvents).toHaveBeenCalledWith({
-        page: 1,
-        limit: 10,
-        sport: undefined,
-      });
-    });
-
-    // Switch to Tennis
-    await user.click(tennisChip);
+    // Default to Tennis because user preferred_sports is tennis
     expect(tennisChip).toHaveAttribute("aria-pressed", "true");
     expect(allChip).toHaveAttribute("aria-pressed", "false");
 
@@ -124,10 +111,23 @@ describe("MatchHistoryClient", () => {
       });
     });
 
+    // Switch to All
+    await user.click(allChip);
+    expect(allChip).toHaveAttribute("aria-pressed", "true");
+    expect(tennisChip).toHaveAttribute("aria-pressed", "false");
+
+    await waitFor(() => {
+      expect(eventService.fetchPlayedEvents).toHaveBeenCalledWith({
+        page: 1,
+        limit: 10,
+        sport: undefined,
+      });
+    });
+
     // Switch to Padel
     await user.click(padelChip);
     expect(padelChip).toHaveAttribute("aria-pressed", "true");
-    expect(tennisChip).toHaveAttribute("aria-pressed", "false");
+    expect(allChip).toHaveAttribute("aria-pressed", "false");
 
     await waitFor(() => {
       expect(eventService.fetchPlayedEvents).toHaveBeenCalledWith({

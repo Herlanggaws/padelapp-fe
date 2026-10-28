@@ -19,7 +19,9 @@ const PAGE_LIMIT = 10;
 
 export default function ExploreClubsClient() {
   const [searchQuery, setSearchQuery] = useState("");
-  const [selectedSport, setSelectedSport] = useState<SportFilterOption>("all");
+  const [selectedSport, setSelectedSport] = useState<SportFilterOption>(() =>
+    defaultClubFilter(getUserProfileCache()?.preferred_sports ?? null),
+  );
   const [clubs, setClubs] = useState<Club[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isLoadingMore, setIsLoadingMore] = useState(false);

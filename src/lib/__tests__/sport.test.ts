@@ -27,18 +27,18 @@ describe("sport lib helpers", () => {
     expect(eventSportOptions("padel")).toEqual(["padel"]);
   });
 
-  it("defaultEventFilter defaults to all", () => {
+  it("defaultEventFilter matches user preference or defaults to all", () => {
     expect(defaultEventFilter(null)).toBe("all");
     expect(defaultEventFilter("both")).toBe("all");
-    expect(defaultEventFilter("padel")).toBe("all");
-    expect(defaultEventFilter("tennis")).toBe("all");
+    expect(defaultEventFilter("padel")).toBe("padel");
+    expect(defaultEventFilter("tennis")).toBe("tennis");
   });
 
-  it("defaultClubFilter defaults to all", () => {
+  it("defaultClubFilter matches user preference or defaults to all", () => {
     expect(defaultClubFilter(null)).toBe("all");
     expect(defaultClubFilter("both")).toBe("all");
-    expect(defaultClubFilter("padel")).toBe("all");
-    expect(defaultClubFilter("tennis")).toBe("all");
+    expect(defaultClubFilter("padel")).toBe("padel");
+    expect(defaultClubFilter("tennis")).toBe("tennis");
   });
 
   it("scoreUnitLabel returns games for tennis and points for padel", () => {

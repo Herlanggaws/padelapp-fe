@@ -50,10 +50,10 @@ function formatLevelRange(minLevel: number, maxLevel: number): string {
 
 function ClubCardSkeleton() {
   return (
-    <div className="min-w-[198px] bg-white border border-[#F4F4F5] rounded-[32px] overflow-hidden flex-shrink-0 animate-pulse">
-      <div className="h-24 bg-[#E4E4E7]" />
-      <div className="p-4 h-[72px] flex flex-col gap-2">
-        <div className="h-4 bg-[#E4E4E7] rounded w-3/4" />
+    <div className="w-[260px] bg-white border border-[#F4F4F5] rounded-[32px] overflow-hidden flex-shrink-0 animate-pulse">
+      <div className="h-32 bg-[#E4E4E7]" />
+      <div className="p-4 flex flex-col gap-2">
+        <div className="h-5 bg-[#E4E4E7] rounded w-3/4" />
         <div className="h-4 bg-[#E4E4E7] rounded w-1/2" />
       </div>
     </div>
@@ -205,7 +205,7 @@ export default function DashboardClient() {
   const clubByGuid = Object.fromEntries(clubs.map((club) => [club.guid, club]));
 
   return (
-    <div className="min-h-screen bg-white max-w-[448px] mx-auto relative">
+    <div className="min-h-screen bg-white max-w-[448px] mx-auto relative overflow-x-hidden">
       <TopAppBar showNotification={true} />
 
       <main className="flex flex-col gap-10 pt-24 pb-36">
@@ -392,9 +392,9 @@ export default function DashboardClient() {
                 <Link
                   key={club.guid}
                   href={`/clubs/${club.guid}`}
-                  className="min-w-[198px] bg-white border border-[#F4F4F5] rounded-[32px] overflow-hidden flex-shrink-0"
+                  className="w-[260px] bg-white border border-[#F4F4F5] rounded-[32px] overflow-hidden flex-shrink-0 hover:border-[#E4E4E7] transition-all"
                 >
-                  <div className="relative h-24">
+                  <div className="relative h-32">
                     {club.cover_photo ? (
                       <Image
                         src={club.cover_photo}
@@ -413,15 +413,18 @@ export default function DashboardClient() {
                       }}
                     />
                   </div>
-                  <div className="p-4 h-[72px] flex flex-col gap-1 justify-center">
+                  <div className="p-4 flex flex-col gap-1.5 justify-center">
                     <div className="flex items-center justify-between gap-2">
-                      <p className="font-normal text-base text-[#151C27] line-clamp-1">
+                      <p className="font-semibold text-base text-[#151C27] line-clamp-1">
                         {club.name}
                       </p>
                       <SportBadge sportType={club.sport_type} />
                     </div>
-                    <p className="font-normal text-sm text-[#41493A] line-clamp-1">
-                      {club.description ?? " "}
+                    <p
+                      title={club.description?.trim() || undefined}
+                      className="font-normal text-sm text-[#41493A] line-clamp-2 min-h-[40px] break-words"
+                    >
+                      {club.description?.trim() ? club.description : "No description provided"}
                     </p>
                   </div>
                 </Link>

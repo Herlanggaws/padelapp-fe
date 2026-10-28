@@ -98,20 +98,9 @@ describe("MatchesClient", () => {
     expect(padelChip).toBeInTheDocument();
     expect(tennisChip).toBeInTheDocument();
 
-    // Default to Tennis because user preferred_sports is tennis
-    expect(tennisChip).toHaveAttribute("aria-pressed", "true");
-
-    await waitFor(() => {
-      expect(eventService.fetchEvents).toHaveBeenCalledWith(
-        expect.objectContaining({
-          sport: "tennis",
-        }),
-      );
-    });
-
-    // Change to All
-    await user.click(allChip);
+    // Default to All
     expect(allChip).toHaveAttribute("aria-pressed", "true");
+    expect(tennisChip).toHaveAttribute("aria-pressed", "false");
 
     await waitFor(() => {
       expect(eventService.fetchEvents).toHaveBeenCalledWith(
@@ -121,9 +110,23 @@ describe("MatchesClient", () => {
       );
     });
 
+    // Change to Tennis
+    await user.click(tennisChip);
+    expect(tennisChip).toHaveAttribute("aria-pressed", "true");
+    expect(allChip).toHaveAttribute("aria-pressed", "false");
+
+    await waitFor(() => {
+      expect(eventService.fetchEvents).toHaveBeenCalledWith(
+        expect.objectContaining({
+          sport: "tennis",
+        }),
+      );
+    });
+
     // Change to Padel
     await user.click(padelChip);
     expect(padelChip).toHaveAttribute("aria-pressed", "true");
+    expect(tennisChip).toHaveAttribute("aria-pressed", "false");
 
     await waitFor(() => {
       expect(eventService.fetchEvents).toHaveBeenCalledWith(
@@ -132,6 +135,11 @@ describe("MatchesClient", () => {
         }),
       );
     });
+
+    // Change back to All
+    await user.click(allChip);
+    expect(allChip).toHaveAttribute("aria-pressed", "true");
+    expect(padelChip).toHaveAttribute("aria-pressed", "false");
   });
 
   it("T19-AC4: event cards display SportBadge", async () => {
@@ -163,14 +171,8 @@ describe("MatchesClient", () => {
   });
 
   it("T19-AC5: empty state displays 'No tennis events yet' when filtered by tennis", async () => {
-    vi.spyOn(userProfileCache, "getUserProfileCache").mockReturnValue({
-      guid: "u-1",
-      name: "Player",
-      email: "player@example.com",
-      preferred_sports: "tennis",
-      rank_points: 0,
-      events_played: 0,
-    } as unknown as UserProfile);
+    const user = userEvent.setup();
+    vi.spyOn(userProfileCache, "getUserProfileCache").mockReturnValue(null);
 
     vi.mocked(eventService.fetchEvents).mockResolvedValue({
       data: [],
@@ -184,6 +186,9 @@ describe("MatchesClient", () => {
     });
 
     render(<MatchesClient />);
+
+    // Filter by tennis
+    await user.click(screen.getByRole("button", { name: "Tennis" }));
 
     await waitFor(() => {
       expect(screen.getByText("No tennis events yet")).toBeInTheDocument();

@@ -45,32 +45,24 @@ export function eventSportOptions(clubSportType: SportScope): Sport[] {
 }
 
 /**
- * Default event filter based on user preferred sports:
- * - "both" or null -> "all"
- * - "padel" -> "padel"
- * - "tennis" -> "tennis"
+ * Default event filter:
+ * Always defaults to "all" across views.
  */
 export function defaultEventFilter(
-  preferred: SportScope | null,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  _preferred?: SportScope | null,
 ): Sport | "all" {
-  if (preferred === "padel" || preferred === "tennis") {
-    return preferred;
-  }
   return "all";
 }
 
 /**
- * Default club filter based on user preferred sports:
- * - "both" or null -> "all"
- * - "padel" -> "padel"
- * - "tennis" -> "tennis"
+ * Default club filter:
+ * Always defaults to "all" across views.
  */
 export function defaultClubFilter(
-  preferred: SportScope | null,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  _preferred?: SportScope | null,
 ): SportScope | "all" {
-  if (preferred === "padel" || preferred === "tennis") {
-    return preferred;
-  }
   return "all";
 }
 

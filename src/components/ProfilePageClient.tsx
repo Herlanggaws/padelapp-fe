@@ -6,6 +6,7 @@ import { useEffect, useRef, useState } from "react";
 import TopAppBar from "@/components/TopAppBar";
 import BottomNavBar from "@/components/BottomNavBar";
 import ProfileJoinedClubsSectionClient from "@/components/ProfileJoinedClubsSectionClient";
+import CropPhotoModal from "@/components/CropPhotoModal";
 import { fetchUserProfile, updateUserProfile } from "@/services/authService";
 import { uploadFile } from "@/services/storageService";
 import { useSnackbar } from "@/context/SnackbarContext";
@@ -51,6 +52,9 @@ function ProfileInfoRow({ label, value }: { label: string; value: string }) {
 export default function ProfilePageClient() {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [isUploading, setIsUploading] = useState(false);
+  const [cropImageSrc, setCropImageSrc] = useState<string | null>(null);
+  const [cropFileName, setCropFileName] = useState<string>("profile-photo.jpg");
+  const [isCropModalOpen, setIsCropModalOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { showSnackbar } = useSnackbar();
 
@@ -64,7 +68,7 @@ export default function ProfilePageClient() {
       .catch(() => {});
   }, []);
 
-  const handlePhotoSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handlePhotoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
@@ -80,9 +84,25 @@ export default function ProfilePageClient() {
       return;
     }
 
+    const objectUrl = URL.createObjectURL(file);
+    setCropImageSrc(objectUrl);
+    setCropFileName(file.name || "profile-photo.jpg");
+    setIsCropModalOpen(true);
+  };
+
+  const handleCloseCropModal = () => {
+    if (cropImageSrc) {
+      URL.revokeObjectURL(cropImageSrc);
+    }
+    setCropImageSrc(null);
+    setIsCropModalOpen(false);
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  };
+
+  const handleSaveCroppedPhoto = async (croppedFile: File) => {
     setIsUploading(true);
     try {
-      const uploadRes = await uploadFile(file);
+      const uploadRes = await uploadFile(croppedFile);
       const photoUrl = uploadRes.data.file.url;
       await updateUserProfile({ profile_photo: photoUrl });
 
@@ -92,6 +112,7 @@ export default function ProfilePageClient() {
         setUserProfileCache({ ...cached, profile_photo: photoUrl });
       }
       showSnackbar("Profile picture updated successfully!");
+      handleCloseCropModal();
     } catch (err: unknown) {
       const message =
         err && typeof err === "object" && "message" in err
@@ -100,7 +121,6 @@ export default function ProfilePageClient() {
       showSnackbar(message);
     } finally {
       setIsUploading(false);
-      if (fileInputRef.current) fileInputRef.current.value = "";
     }
   };
 
@@ -258,6 +278,15 @@ export default function ProfilePageClient() {
 
         <ProfileJoinedClubsSectionClient />
       </main>
+
+      <CropPhotoModal
+        isOpen={isCropModalOpen}
+        imageSrc={cropImageSrc}
+        fileName={cropFileName}
+        onClose={handleCloseCropModal}
+        onCropComplete={handleSaveCroppedPhoto}
+        isSaving={isUploading}
+      />
 
       <BottomNavBar />
     </div>

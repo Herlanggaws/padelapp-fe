@@ -239,22 +239,50 @@ export default function DashboardClient() {
 
         {/* Stats Grid (Bento Style) */}
         <section className="w-full px-4">
-          {profile?.rank_points_by_sport && profile.preferred_sports === "both" ? (
-            <div className="grid grid-cols-2 gap-3">
-              <div className="bg-[#9FE870] rounded-[32px] p-4 flex flex-col justify-between min-h-[120px]">
-                <span className="text-xs font-semibold text-[#2E6900] tracking-[0.6px] uppercase">
-                  Padel RP
-                </span>
-                <span className="text-xl font-bold text-[#2E6900]">
-                  {profile.rank_points_by_sport.padel?.rank_points ?? 1.0}
+          {profile?.preferred_sports === "both" ? (
+            <div className="flex flex-col gap-2.5">
+              <div className="w-full bg-[#9FE870] rounded-[20px] px-5 py-3 flex items-center justify-between">
+                <div className="flex items-center gap-2.5">
+                  <svg
+                    width="18"
+                    height="11"
+                    viewBox="0 0 20 12"
+                    fill="none"
+                    xmlns="http://www.w3.org/2000/svg"
+                  >
+                    <path
+                      d="M1.4 12L0 10.6L7.4 3.15L11.4 7.15L16.6 2H14V0H20V6H18V3.4L11.4 10L7.4 6L1.4 12Z"
+                      fill="#2E6900"
+                    />
+                  </svg>
+                  <span className="text-xs font-semibold text-[#2E6900] tracking-[0.6px] uppercase">
+                    Padel RP
+                  </span>
+                </div>
+                <span className="text-lg font-bold text-[#2E6900]">
+                  {profile.rank_points_by_sport?.padel?.rank_points ?? (profile.rank_points != null ? profile.rank_points : 1.0)}
                 </span>
               </div>
-              <div className="bg-[#9FE870] rounded-[32px] p-4 flex flex-col justify-between min-h-[120px]">
-                <span className="text-xs font-semibold text-[#2E6900] tracking-[0.6px] uppercase">
-                  Tennis RP
-                </span>
-                <span className="text-xl font-bold text-[#2E6900]">
-                  {profile.rank_points_by_sport.tennis?.rank_points ?? 1.0}
+              <div className="w-full bg-[#9FE870] rounded-[20px] px-5 py-3 flex items-center justify-between">
+                <div className="flex items-center gap-2.5">
+                  <svg
+                    width="18"
+                    height="11"
+                    viewBox="0 0 20 12"
+                    fill="none"
+                    xmlns="http://www.w3.org/2000/svg"
+                  >
+                    <path
+                      d="M1.4 12L0 10.6L7.4 3.15L11.4 7.15L16.6 2H14V0H20V6H18V3.4L11.4 10L7.4 6L1.4 12Z"
+                      fill="#2E6900"
+                    />
+                  </svg>
+                  <span className="text-xs font-semibold text-[#2E6900] tracking-[0.6px] uppercase">
+                    Tennis RP
+                  </span>
+                </div>
+                <span className="text-lg font-bold text-[#2E6900]">
+                  {profile.rank_points_by_sport?.tennis?.rank_points ?? 1.0}
                 </span>
               </div>
             </div>
@@ -290,6 +318,8 @@ export default function DashboardClient() {
                 >
                   {profile?.rank_points_by_sport && profile.preferred_sports === "tennis"
                     ? profile.rank_points_by_sport.tennis?.rank_points ?? 1.0
+                    : profile?.rank_points_by_sport?.padel?.rank_points != null
+                    ? profile.rank_points_by_sport.padel.rank_points
                     : profile?.rank_points != null
                     ? profile.rank_points
                     : "—"}

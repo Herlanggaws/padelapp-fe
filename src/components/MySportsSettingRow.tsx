@@ -56,7 +56,7 @@ export default function MySportsSettingRow() {
           </svg>
           <div className="flex flex-col">
             <span className="text-base font-normal text-[#18181B]">
-              My sports
+              Prefered Sport
             </span>
             <span className="text-xs text-[#717A68]">
               {displayLabel}
@@ -88,6 +88,12 @@ export default function MySportsSettingRow() {
             const cached = getUserProfileCache();
             if (cached) {
               setUserProfileCache({ ...cached, preferred_sports: newSport });
+            } else {
+              fetchUserProfile()
+                .then((res) => {
+                  if (res?.data) setUserProfileCache(res.data);
+                })
+                .catch(() => {});
             }
           }}
         />

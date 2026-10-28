@@ -66,6 +66,7 @@ export default function ClubDetailUser() {
   const [isJoining, setIsJoining] = useState(false);
   const [isLeaving, setIsLeaving] = useState(false);
   const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
+  const [isDescExpanded, setIsDescExpanded] = useState(false);
 
   const loadEvents = useCallback(
     async (clubGuid: string, page: number, sport: SportFilterOption) => {
@@ -294,19 +295,34 @@ export default function ClubDetailUser() {
             </div> */}
           </div>
 
-          <p
-            className="text-sm text-[#41493A]"
-            style={{ lineHeight: "22.75px" }}
-          >
-            {club.description}
-          </p>
+          {club.description && (
+            <div className="flex flex-col gap-1 items-start">
+              <p
+                className={`text-sm text-[#41493A] break-words ${
+                  !isDescExpanded ? "line-clamp-3" : ""
+                }`}
+                style={{ lineHeight: "22.75px" }}
+              >
+                {club.description}
+              </p>
+              {club.description.length > 120 && (
+                <button
+                  type="button"
+                  onClick={() => setIsDescExpanded(!isDescExpanded)}
+                  className="text-xs font-semibold text-[#18181B] hover:underline cursor-pointer pt-0.5"
+                >
+                  {isDescExpanded ? "See less" : "See more"}
+                </button>
+              )}
+            </div>
+          )}
 
           <div className="flex justify-center pt-2">
             {club.is_joined ? (
               <button
                 onClick={() => setShowLeaveConfirm(true)}
                 disabled={isLeaving}
-                className="w-full py-3 rounded-full text-base font-normal text-[#EF4444] bg-[#FEF2F2] disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full py-3 rounded-full text-base font-normal text-[#EF4444] bg-[#FEF2F2] border border-[#FCA5A5]/30 hover:bg-[#FEE2E2] hover:text-[#DC2626] hover:border-[#F87171]/50 active:bg-[#FCA5A5]/30 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                 style={{ lineHeight: "24px" }}
               >
                 {isLeaving ? "Leaving..." : "Leave"}
@@ -315,8 +331,8 @@ export default function ClubDetailUser() {
               <button
                 onClick={handleJoin}
                 disabled={isJoining}
-                className="w-full py-3 rounded-full text-base font-normal text-[#121212] disabled:opacity-50 disabled:cursor-not-allowed"
-                style={{ background: "#9FE870", lineHeight: "24px" }}
+                className="w-full py-3 rounded-full text-base font-normal text-[#121212] bg-[#9FE870] hover:bg-[#8ED960] active:bg-[#7DC850] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                style={{ lineHeight: "24px" }}
               >
                 {isJoining ? "Joining..." : "Join"}
               </button>
@@ -515,14 +531,14 @@ export default function ClubDetailUser() {
               <button
                 onClick={() => setShowLeaveConfirm(false)}
                 disabled={isLeaving}
-                className="flex-1 py-3 rounded-full text-base text-[#18181B] bg-[#F4F4F5] disabled:opacity-50 disabled:cursor-not-allowed"
+                className="flex-1 py-3 rounded-full text-base text-[#18181B] bg-[#F4F4F5] hover:bg-[#E4E4E7] active:bg-[#D4D4D8] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
                 Cancel
               </button>
               <button
                 onClick={handleLeave}
                 disabled={isLeaving}
-                className="flex-1 py-3 rounded-full text-base text-white bg-[#EF4444] disabled:opacity-50 disabled:cursor-not-allowed"
+                className="flex-1 py-3 rounded-full text-base text-white bg-[#EF4444] hover:bg-[#DC2626] active:bg-[#B91C1C] disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-sm"
               >
                 {isLeaving ? "Leaving..." : "Leave"}
               </button>

@@ -71,7 +71,7 @@ export interface FetchClubsParams {
   direction?: "asc" | "desc";
   page?: number;
   limit?: number;
-  sport?: SportScope;
+  sport?: SportScope | string;
 }
 
 export interface FetchClubsPaginate {

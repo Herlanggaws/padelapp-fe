@@ -42,7 +42,12 @@ export default function ExploreClubsClient() {
           ...(search ? { search } : {}),
           page: pageNum,
           limit: PAGE_LIMIT,
-          sport: sport === "all" ? undefined : (sport as SportScope),
+          sport:
+            sport === "all"
+              ? undefined
+              : sport === "both"
+              ? "tennis,padel"
+              : sport,
         });
         const incoming = result.data ?? [];
         setClubs((prev) => (pageNum === 1 ? incoming : [...prev, ...incoming]));

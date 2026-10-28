@@ -68,11 +68,17 @@ describe("services sport query params and payloads", () => {
     });
   });
 
-  it("fetchClubs includes sport", async () => {
+  it("fetchClubs maps both to tennis,padel and includes sport", async () => {
     vi.mocked(apiClient.get).mockResolvedValueOnce({ data: { data: [] } });
     await fetchClubs({ sport: "both" });
     expect(apiClient.get).toHaveBeenCalledWith("/padel/club", {
-      params: { sport: "both" },
+      params: { sport: "tennis,padel" },
+    });
+
+    vi.mocked(apiClient.get).mockResolvedValueOnce({ data: { data: [] } });
+    await fetchClubs({ sport: "tennis,padel" });
+    expect(apiClient.get).toHaveBeenCalledWith("/padel/club", {
+      params: { sport: "tennis,padel" },
     });
   });
 

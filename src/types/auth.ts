@@ -132,6 +132,7 @@ export interface UpdateUserProfilePayload {
   email?: string;
   password?: string;
   preferred_sports?: SportScope;
+  profile_photo?: string | null;
 }
 
 export interface UpdatePreferredSportsPayload {

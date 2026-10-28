@@ -2,7 +2,22 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import TopAppBar from "@/components/TopAppBar";
+import BottomNavBar from "@/components/BottomNavBar";
+import ProfileJoinedClubsSectionClient from "@/components/ProfileJoinedClubsSectionClient";
+import CropPhotoModal from "@/components/CropPhotoModal";
+import { fetchUserProfile, updateUserProfile } from "@/services/authService";
+import { uploadFile } from "@/services/storageService";
+import { useSnackbar } from "@/context/SnackbarContext";
+import {
+  getUserProfileCache,
+  setUserProfileCache,
+} from "@/lib/userProfileCache";
+import type { UserProfile } from "@/types/auth";
+
+const ALLOWED_PHOTO_TYPES = ["image/jpeg", "image/png", "image/webp"];
+const MAX_PHOTO_SIZE = 5 * 1024 * 1024; // 5MB
 
 function getInitials(name: string | undefined | null): string {
   if (!name) return "?";
@@ -13,15 +28,6 @@ function getInitials(name: string | undefined | null): string {
     .map((word) => word[0].toUpperCase())
     .join("");
 }
-import TopAppBar from "@/components/TopAppBar";
-import BottomNavBar from "@/components/BottomNavBar";
-import ProfileJoinedClubsSectionClient from "@/components/ProfileJoinedClubsSectionClient";
-import { fetchUserProfile } from "@/services/authService";
-import {
-  getUserProfileCache,
-  setUserProfileCache,
-} from "@/lib/userProfileCache";
-import type { UserProfile } from "@/types/auth";
 
 function formatDate(value: string | null): string {
   if (!value) return "—";
@@ -45,6 +51,12 @@ function ProfileInfoRow({ label, value }: { label: string; value: string }) {
 
 export default function ProfilePageClient() {
   const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
+  const [cropImageSrc, setCropImageSrc] = useState<string | null>(null);
+  const [cropFileName, setCropFileName] = useState<string>("profile-photo.jpg");
+  const [isCropModalOpen, setIsCropModalOpen] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const { showSnackbar } = useSnackbar();
 
   useEffect(() => {
     setProfile(getUserProfileCache() ?? null);
@@ -56,6 +68,62 @@ export default function ProfilePageClient() {
       .catch(() => {});
   }, []);
 
+  const handlePhotoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!ALLOWED_PHOTO_TYPES.includes(file.type)) {
+      showSnackbar("Only JPG, PNG, or WebP files are allowed.");
+      if (fileInputRef.current) fileInputRef.current.value = "";
+      return;
+    }
+
+    if (file.size > MAX_PHOTO_SIZE) {
+      showSnackbar("File size must be less than 5MB.");
+      if (fileInputRef.current) fileInputRef.current.value = "";
+      return;
+    }
+
+    const objectUrl = URL.createObjectURL(file);
+    setCropImageSrc(objectUrl);
+    setCropFileName(file.name || "profile-photo.jpg");
+    setIsCropModalOpen(true);
+  };
+
+  const handleCloseCropModal = () => {
+    if (cropImageSrc) {
+      URL.revokeObjectURL(cropImageSrc);
+    }
+    setCropImageSrc(null);
+    setIsCropModalOpen(false);
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  };
+
+  const handleSaveCroppedPhoto = async (croppedFile: File) => {
+    setIsUploading(true);
+    try {
+      const uploadRes = await uploadFile(croppedFile);
+      const photoUrl = uploadRes.data.file.url;
+      await updateUserProfile({ profile_photo: photoUrl });
+
+      setProfile((prev) => (prev ? { ...prev, profile_photo: photoUrl } : prev));
+      const cached = getUserProfileCache();
+      if (cached) {
+        setUserProfileCache({ ...cached, profile_photo: photoUrl });
+      }
+      showSnackbar("Profile picture updated successfully!");
+      handleCloseCropModal();
+    } catch (err: unknown) {
+      const message =
+        err && typeof err === "object" && "message" in err
+          ? String((err as { message: string }).message)
+          : "Failed to update profile picture. Please try again.";
+      showSnackbar(message);
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
   const avatarSrc = profile?.profile_photo?.trim() || null;
 
   return (
@@ -65,8 +133,18 @@ export default function ProfilePageClient() {
       <main className="flex flex-col gap-6 px-4 pt-20 pb-36">
         <section className="flex flex-col items-center gap-4 pb-4">
           <div className="relative">
-            <div className="w-32 h-32 rounded-full border-[3px] border-[#9FE870] p-1 bg-white">
-              <div className="w-full h-full rounded-full overflow-hidden">
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+              className="hidden"
+              data-testid="profile-photo-input"
+              aria-label="Upload profile picture"
+              onChange={handlePhotoSelect}
+              disabled={isUploading}
+            />
+            <div className="w-32 h-32 rounded-full border-[3px] border-[#9FE870] p-1 bg-white relative">
+              <div className="w-full h-full rounded-full overflow-hidden relative">
                 {avatarSrc ? (
                   <Image
                     src={avatarSrc}
@@ -82,23 +160,41 @@ export default function ProfilePageClient() {
                     </span>
                   </div>
                 )}
+
+                {isUploading && (
+                  <div className="absolute inset-0 bg-black/40 flex items-center justify-center rounded-full">
+                    <div className="w-7 h-7 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  </div>
+                )}
               </div>
             </div>
-            {/* <div className="absolute bottom-1 right-1 w-8 h-8 bg-[#9FE870] rounded-full border-4 border-white flex items-center justify-center">
-              <svg
-                width="12"
-                height="12"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="#2E6900"
-                strokeWidth="2.5"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
-                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
-              </svg>
-            </div> */}
+
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={isUploading}
+              aria-label="Change profile photo"
+              title="Change profile photo"
+              className="absolute bottom-1 right-1 w-9 h-9 bg-[#9FE870] hover:bg-[#8fd860] active:scale-95 rounded-full border-4 border-white flex items-center justify-center transition-all cursor-pointer shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {isUploading ? (
+                <div className="w-3.5 h-3.5 border-2 border-[#2E6900] border-t-transparent rounded-full animate-spin" />
+              ) : (
+                <svg
+                  width="14"
+                  height="14"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="#2E6900"
+                  strokeWidth="2.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
+                  <circle cx="12" cy="13" r="4" />
+                </svg>
+              )}
+            </button>
           </div>
 
           <div className="flex flex-col items-center gap-2">
@@ -182,6 +278,15 @@ export default function ProfilePageClient() {
 
         <ProfileJoinedClubsSectionClient />
       </main>
+
+      <CropPhotoModal
+        isOpen={isCropModalOpen}
+        imageSrc={cropImageSrc}
+        fileName={cropFileName}
+        onClose={handleCloseCropModal}
+        onCropComplete={handleSaveCroppedPhoto}
+        isSaving={isUploading}
+      />
 
       <BottomNavBar />
     </div>

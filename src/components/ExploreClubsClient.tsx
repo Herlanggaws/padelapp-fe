@@ -19,9 +19,7 @@ const PAGE_LIMIT = 10;
 
 export default function ExploreClubsClient() {
   const [searchQuery, setSearchQuery] = useState("");
-  const [selectedSport, setSelectedSport] = useState<SportFilterOption>(() =>
-    defaultClubFilter(getUserProfileCache()?.preferred_sports ?? null),
-  );
+  const [selectedSport, setSelectedSport] = useState<SportFilterOption>("all");
   const [clubs, setClubs] = useState<Club[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
@@ -62,11 +60,39 @@ export default function ExploreClubsClient() {
     [],
   );
 
-  const handleSportChange = (sport: SportFilterOption) => {
-    setSelectedSport(sport);
-    activeSportRef.current = sport;
+  const handleSportChange = (clickedOption: SportFilterOption) => {
+    let nextSport: SportFilterOption;
+
+    if (clickedOption === "all") {
+      nextSport = "all";
+    } else if (clickedOption === "padel") {
+      if (selectedSport === "tennis") {
+        nextSport = "both";
+      } else if (selectedSport === "both") {
+        nextSport = "tennis";
+      } else if (selectedSport === "padel") {
+        nextSport = "all";
+      } else {
+        nextSport = "padel";
+      }
+    } else if (clickedOption === "tennis") {
+      if (selectedSport === "padel") {
+        nextSport = "both";
+      } else if (selectedSport === "both") {
+        nextSport = "padel";
+      } else if (selectedSport === "tennis") {
+        nextSport = "all";
+      } else {
+        nextSport = "tennis";
+      }
+    } else {
+      nextSport = clickedOption;
+    }
+
+    setSelectedSport(nextSport);
+    activeSportRef.current = nextSport;
     pageRef.current = 1;
-    loadClubs(activeSearchRef.current, 1, sport);
+    loadClubs(activeSearchRef.current, 1, nextSport);
   };
 
   // Reset and search when query changes (debounced)
@@ -140,8 +166,12 @@ export default function ExploreClubsClient() {
 
         {/* Sport Filter Chips */}
         <SportFilterChips
-          options={["all", "padel", "tennis", "both"]}
-          selected={selectedSport}
+          options={["all", "padel", "tennis"]}
+          selected={
+            selectedSport === "both"
+              ? ["padel", "tennis"]
+              : selectedSport
+          }
           onChange={handleSportChange}
         />
 

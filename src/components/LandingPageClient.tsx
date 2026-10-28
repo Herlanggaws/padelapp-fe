@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import BetaBadge from "@/components/BetaBadge";
 import { joinNewsletter } from "@/services/newsletterService";
 
 export default function LandingPageClient() {
@@ -76,7 +75,6 @@ export default function LandingPageClient() {
             >
               RallyRank
             </span>
-            <BetaBadge />
           </div>
 
           <Link

@@ -71,7 +71,7 @@ describe("ExploreClubsClient", () => {
     });
   });
 
-  it("T18-AC4: shows chips All · Padel · Tennis · Both, defaults to preference or all, and changing chips calls fetchClubs with sport and page 1", async () => {
+  it("shows chips All · Padel · Tennis, defaults to All, and multi-selecting Padel and Tennis filters by both", async () => {
     const user = userEvent.setup();
     vi.spyOn(userProfileCache, "getUserProfileCache").mockReturnValue({
       guid: "u-1",
@@ -84,19 +84,34 @@ describe("ExploreClubsClient", () => {
 
     render(<ExploreClubsClient />);
 
-    // Should show 4 chips
+    // Should show 3 chips: All, Padel, Tennis
     const allChip = screen.getByRole("button", { name: "All" });
     const padelChip = screen.getByRole("button", { name: "Padel" });
     const tennisChip = screen.getByRole("button", { name: "Tennis" });
-    const bothChip = screen.getByRole("button", { name: "Both" });
 
     expect(allChip).toBeInTheDocument();
     expect(padelChip).toBeInTheDocument();
     expect(tennisChip).toBeInTheDocument();
-    expect(bothChip).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Both" })).not.toBeInTheDocument();
 
-    // Default should be Tennis because of preferred_sports: "tennis"
+    // Default should be All
+    expect(allChip).toHaveAttribute("aria-pressed", "true");
+    expect(tennisChip).toHaveAttribute("aria-pressed", "false");
+    expect(padelChip).toHaveAttribute("aria-pressed", "false");
+
+    await waitFor(() => {
+      expect(clubService.fetchClubs).toHaveBeenCalledWith(
+        expect.objectContaining({
+          sport: undefined,
+          page: 1,
+        }),
+      );
+    });
+
+    // Click Tennis -> filters by tennis
+    await user.click(tennisChip);
     expect(tennisChip).toHaveAttribute("aria-pressed", "true");
+    expect(allChip).toHaveAttribute("aria-pressed", "false");
 
     await waitFor(() => {
       expect(clubService.fetchClubs).toHaveBeenCalledWith(
@@ -107,9 +122,24 @@ describe("ExploreClubsClient", () => {
       );
     });
 
-    // Change to Padel
+    // Click Padel while Tennis is active -> should select both Padel and Tennis (sport="both")
     await user.click(padelChip);
     expect(padelChip).toHaveAttribute("aria-pressed", "true");
+    expect(tennisChip).toHaveAttribute("aria-pressed", "true");
+
+    await waitFor(() => {
+      expect(clubService.fetchClubs).toHaveBeenCalledWith(
+        expect.objectContaining({
+          sport: "both",
+          page: 1,
+        }),
+      );
+    });
+
+    // Clicking Tennis while both are active deselects Tennis, keeping Padel active
+    await user.click(tennisChip);
+    expect(padelChip).toHaveAttribute("aria-pressed", "true");
+    expect(tennisChip).toHaveAttribute("aria-pressed", "false");
 
     await waitFor(() => {
       expect(clubService.fetchClubs).toHaveBeenCalledWith(
@@ -123,6 +153,8 @@ describe("ExploreClubsClient", () => {
     // Change to All
     await user.click(allChip);
     expect(allChip).toHaveAttribute("aria-pressed", "true");
+    expect(padelChip).toHaveAttribute("aria-pressed", "false");
+    expect(tennisChip).toHaveAttribute("aria-pressed", "false");
 
     await waitFor(() => {
       expect(clubService.fetchClubs).toHaveBeenCalledWith(

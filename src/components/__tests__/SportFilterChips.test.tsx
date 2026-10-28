@@ -67,6 +67,26 @@ describe("SportFilterChips", () => {
     expect(handleChange).toHaveBeenCalledWith("both");
   });
 
+  it("supports array of selected options for multi-select (e.g. padel and tennis)", () => {
+    const options: SportFilterOption[] = ["all", "padel", "tennis"];
+
+    render(
+      <SportFilterChips
+        options={options}
+        selected={["padel", "tennis"]}
+        onChange={() => {}}
+      />,
+    );
+
+    const allBtn = screen.getByRole("button", { name: "All" });
+    const padelBtn = screen.getByRole("button", { name: "Padel" });
+    const tennisBtn = screen.getByRole("button", { name: "Tennis" });
+
+    expect(allBtn).toHaveAttribute("aria-pressed", "false");
+    expect(padelBtn).toHaveAttribute("aria-pressed", "true");
+    expect(tennisBtn).toHaveAttribute("aria-pressed", "true");
+  });
+
   it("T17-AC5: is keyboard accessible with button elements and focusability", async () => {
     const user = userEvent.setup();
     const handleChange = vi.fn();

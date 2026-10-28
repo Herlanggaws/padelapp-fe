@@ -4,7 +4,7 @@ export type SportFilterOption = SportScope | "all";
 
 export interface SportFilterChipsProps {
   options: SportFilterOption[];
-  selected: SportFilterOption;
+  selected: SportFilterOption | SportFilterOption[];
   onChange: (selected: SportFilterOption) => void;
   className?: string;
 }
@@ -29,7 +29,9 @@ export default function SportFilterChips({
       className={`flex items-center gap-2 overflow-x-auto no-scrollbar py-1 ${className}`}
     >
       {options.map((option) => {
-        const isSelected = selected === option;
+        const isSelected = Array.isArray(selected)
+          ? selected.includes(option)
+          : selected === option;
         const label = OPTION_LABELS[option] ?? option;
 
         return (
